@@ -1,13 +1,13 @@
 import { Ban, Power } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { SectionHeader } from '@/components/ui/SectionHeader'
-import { INPUT_SOURCES } from '@/constants/inputs'
 import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
 
-/** Power · Shutter · Input source. */
-export function BasicControls({ projector: p, inputEnabled }: { projector: Projector; inputEnabled: boolean }) {
-  const { setPower, setShutter, setInput } = useProjectActions()
+/** Power · Shutter · OSD on/off. OSD chưa có lệnh đã xác minh nên chỉ đổi trạng thái trong app. */
+export function BasicControls({ projector: p }: { projector: Projector }) {
+  const { setPower, setShutter, updateProjector } = useProjectActions()
+  const osdOn = p.osd !== false
 
   return (
     <>
@@ -27,13 +27,10 @@ export function BasicControls({ projector: p, inputEnabled }: { projector: Proje
         {p.shutter ? 'SHUTTER CLOSED' : 'SHUTTER OPEN'}
       </Button>
 
-      <SectionHeader label="INPUT SOURCE" />
-      <div className="mb-5 flex flex-wrap gap-1.5">
-        {INPUT_SOURCES.map(source => (
-          <Button key={source} variant="accent" selected={p.input === source} disabled={!inputEnabled} className="px-2.5" onClick={() => setInput(p.id, source)}>
-            {source}
-          </Button>
-        ))}
+      <SectionHeader label="OSD" />
+      <div className="mb-5 flex gap-2">
+        <Button size="md" variant="ok" selected={osdOn} className="flex-1" onClick={() => updateProjector(p.id, { osd: true })}>ON</Button>
+        <Button size="md" variant="secondary" selected={!osdOn} className="flex-1" onClick={() => updateProjector(p.id, { osd: false })}>OFF</Button>
       </div>
     </>
   )

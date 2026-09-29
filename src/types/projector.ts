@@ -46,6 +46,8 @@ export interface Projector {
   network: NetworkConfig
   power: PowerState
   shutter: boolean
+  /** Hiển thị OSD (menu trên màn hình). Thiếu = bật (project lưu từ bản cũ). */
+  osd?: boolean
   input: InputSource
   testPattern: TestPatternState
   telemetry: Telemetry

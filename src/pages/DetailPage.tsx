@@ -4,9 +4,9 @@ import { DeviceStatus } from '@/features/detail/DeviceStatus'
 import { NetworkEditor } from '@/features/detail/NetworkEditor'
 import { DetailHeader } from '@/features/detail/DetailHeader'
 import { LensPanel } from '@/features/detail/lens/LensPanel'
-import { OsdPanel } from '@/features/detail/OsdPanel'
 import { PreviewPanel } from '@/features/detail/PreviewPanel'
 import { TestPatternPanel } from '@/features/detail/TestPatternPanel'
+import { InputPanel } from '@/features/detail/InputPanel'
 import { RawConsole } from '@/features/detail/RawConsole'
 import { UnavailableNotice } from '@/features/detail/UnavailableNotice'
 import { useCapabilities } from '@/hooks/useCapabilities'
@@ -34,7 +34,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
 
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
         <aside className={`${SIDE_PANEL} w-64 border-r border-border max-lg:w-full max-lg:border-r-0 max-lg:border-b`}>
-          <BasicControls projector={projector} inputEnabled={caps.input} />
+          <BasicControls projector={projector} />
           {/* key: form nháp được dựng lại khi chuyển sang máy khác */}
           <NetworkEditor key={projector.id} projector={projector} />
           <DeviceStatus projector={projector} />
@@ -44,12 +44,9 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
         <section className="flex min-w-0 flex-1 flex-col overflow-y-auto">
           <PreviewPanel projector={projector} />
           <div className="grid shrink-0 grid-cols-2 gap-8 border-t border-border p-6 pt-4 max-xl:grid-cols-1">
-            <fieldset disabled={!caps.osd} className="contents">
-              <div>
-                {!caps.osd && <UnavailableNotice>{why}</UnavailableNotice>}
-                <OsdPanel projector={projector} />
-              </div>
-            </fieldset>
+            <div>
+              <InputPanel projector={projector} enabled={caps.input} />
+            </div>
             <fieldset disabled={!caps.testPattern} className="contents">
               <div>
                 {!caps.testPattern && <UnavailableNotice>{why}</UnavailableNotice>}
