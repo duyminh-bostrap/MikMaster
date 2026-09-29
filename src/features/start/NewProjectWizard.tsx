@@ -14,7 +14,7 @@ import { ScanPanel } from './ScanPanel'
 import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
 
-const DEFAULT_SUBNET = '192.168.10'
+const DEFAULT_SUBNET = '192.168.1'
 
 export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onLaunch: (snapshot: ProjectSnapshot) => void }) {
   const draft = useNewProjectDraft()
