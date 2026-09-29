@@ -6,6 +6,7 @@ import {
 import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
+import { addReadings } from './readings.ts'
 import { identifyDevice } from './identify.ts'
 import { pingDevice } from './ping.ts'
 import { fsStatic, type StaticSource } from './static.ts'
@@ -165,7 +166,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     const { protocol, target } = parseTarget(body.target)
     const driver = DRIVERS[protocol]
 
-    if (url.pathname === '/api/devices/status') return sendJson(res, 200, await driver.status(target))
+    if (url.pathname === '/api/devices/status') return sendJson(res, 200, await addReadings(driver, target, await driver.status(target)))
 
     if (url.pathname === '/api/devices/command') {
       if (!isObject(body.command) || typeof body.command.kind !== 'string') throw new DeviceError('bad-request', 'Missing command.kind')

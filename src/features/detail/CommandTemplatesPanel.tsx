@@ -13,6 +13,8 @@ type Key = keyof CommandTemplates
 const LABEL: Record<Key, string> = {
   powerOn: 'POWER ON', powerOff: 'POWER OFF', shutterClose: 'SHUTTER CLOSE', shutterOpen: 'SHUTTER OPEN',
   testPatternOn: 'TEST PATTERN ON', testPatternOff: 'TEST PATTERN OFF',
+  temperatureQuery: 'TEMPERATURE QUERY', temperatureRegex: 'TEMPERATURE PATTERN',
+  lampHoursQuery: 'LAMP HOURS QUERY', lampHoursRegex: 'LAMP HOURS PATTERN',
 }
 
 const EXAMPLE: Record<string, Partial<CommandTemplates>> = {
@@ -46,7 +48,9 @@ export function CommandTemplatesPanel({ projector: p }: { projector: Projector }
   const keys: Key[] = generic
     ? ['powerOn', 'powerOff', 'shutterClose', 'shutterOpen', 'testPatternOn', 'testPatternOff']
     : ['testPatternOn', 'testPatternOff']
-  const dirty = keys.some(k => (draft[k] ?? '') !== (saved[k] ?? ''))
+  // Số liệu thật chỉ đọc được khi có driver theo dõi trạng thái (không áp dụng cho giao thức chung).
+  const readings: Key[] = generic ? [] : ['temperatureQuery', 'temperatureRegex', 'lampHoursQuery', 'lampHoursRegex']
+  const dirty = [...keys, ...readings].some(k => (draft[k] ?? '') !== (saved[k] ?? ''))
   const incomplete = (a: Key, b: Key) => keys.includes(a) && !!draft[a]?.trim() !== !!draft[b]?.trim()
 
   function save() {
@@ -75,6 +79,20 @@ export function CommandTemplatesPanel({ projector: p }: { projector: Projector }
         ))}
         {(incomplete('powerOn', 'powerOff') || incomplete('shutterClose', 'shutterOpen') || incomplete('testPatternOn', 'testPatternOff')) && (
           <p className="font-mono text-[10px] text-warn">{t('Fill both commands of a pair (ON and OFF, CLOSE and OPEN) to enable that button.')}</p>
+        )}
+        {readings.length > 0 && (
+          <>
+            <p className="mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">
+              {t('Readings: enter the query command from the manual and, if needed, a pattern whose first group captures the number (e.g. TMP:(\\d+)). Empty pattern = last number in the reply. Checked every few seconds.')}
+            </p>
+            {readings.map(k => (
+              <Field key={k} label={t(LABEL[k])}>
+                {id => <TextInput id={id} value={draft[k] ?? ''} autoComplete="off" spellCheck={false}
+                  placeholder={k.endsWith('Regex') ? t('optional, e.g. TMP:(\\d+)') : t('from the projector manual')}
+                  onChange={e => setDraft({ ...draft, [k]: e.target.value })} className="px-2 py-1.5 text-xs" />}
+              </Field>
+            ))}
+          </>
         )}
         <Button variant="primary" disabled={!dirty} onClick={save}>{t('SAVE COMMANDS')}</Button>
       </div>

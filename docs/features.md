@@ -93,3 +93,8 @@ Hai chế độ chạy, hiển thị ở chân trang:
 - Gateway mặc định chỉ nghe `127.0.0.1`. Mở ra mạng (`HOST=0.0.0.0`) thì **bắt buộc token** (tự sinh nếu chưa đặt `MIKMASTER_TOKEN`).
 - Chỉ kết nối / ping tới IPv4 nội bộ (10/8, 172.16/12, 192.168/16, 169.254/16, 127/8) để không thành cửa SSRF; HTTP API không đi theo redirect.
 - Mật khẩu máy chiếu: mã hoá trên đĩa ở gateway; **không** ghi vào localStorage hay file project; cache đăng nhập chỉ trong phiên trình duyệt.
+
+## Real temperature and lamp hours
+
+- **PJLink:** lamp hours are read natively (`LAMP ?`). PJLink has no temperature command.
+- **Other drivers (Panasonic, Christie, Barco…):** no verified vendor command for temperature / lamp hours, so they are user-defined in the projector's COMMANDS section: a query command copied from the manual plus an optional regex whose group 1 captures the number (empty = last number in the reply). The gateway sends the query with every status poll (temperature only while the projector is not in standby); a failed query just leaves the previous value.

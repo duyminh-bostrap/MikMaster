@@ -46,9 +46,20 @@ export interface CommandTemplates {
   /** Mọi giao thức: lệnh bật / tắt test pattern lấy từ manual của máy (chưa có lệnh hãng đã xác minh). */
   testPatternOn?: string
   testPatternOff?: string
+  /**
+   * Đọc số liệu thật: lệnh hỏi (gửi qua RAW, chép từ manual) + regex lấy số (nhóm 1; bỏ trống = số cuối cùng trong phản hồi).
+   * PJLink không có lệnh nhiệt độ; giờ đèn của PJLink đã đọc sẵn.
+   */
+  temperatureQuery?: string
+  temperatureRegex?: string
+  lampHoursQuery?: string
+  lampHoursRegex?: string
 }
 
-export const TEMPLATE_KEYS = ['powerOn', 'powerOff', 'shutterClose', 'shutterOpen', 'testPatternOn', 'testPatternOff'] as const satisfies readonly (keyof CommandTemplates)[]
+export const TEMPLATE_KEYS = [
+  'powerOn', 'powerOff', 'shutterClose', 'shutterOpen', 'testPatternOn', 'testPatternOff',
+  'temperatureQuery', 'temperatureRegex', 'lampHoursQuery', 'lampHoursRegex',
+] as const satisfies readonly (keyof CommandTemplates)[]
 
 /** Giao thức không có bộ lệnh chuẩn: Power / Shutter chỉ chạy khi người dùng khai báo mẫu lệnh. */
 export const TEMPLATE_PROTOCOLS: readonly string[] = ['generic-tcp', 'generic-udp', 'art-net', 'http-api']
@@ -96,6 +107,8 @@ export interface StatusDto {
   /** Nhãn InputSource của web app nếu ánh xạ được. */
   input?: string
   lampHours?: number
+  /** °C, khi đọc được từ máy. */
+  temperatureC?: number
   errors: string[]
 }
 

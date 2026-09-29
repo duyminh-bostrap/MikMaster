@@ -13,6 +13,7 @@ import { ChristieSimulator } from '../src/sim/christieSim.ts'
 import { PanasonicSimulator } from '../src/sim/panasonicSim.ts'
 import { PjlinkSimulator } from '../src/sim/pjlinkSim.ts'
 import { isAllowedHost } from '../src/security.ts'
+import { extractNumber } from '../src/readings.ts'
 
 let server: http.Server
 let base: string
@@ -347,5 +348,38 @@ describe('identify one IP', () => {
 
   test('refuses public IPs', async () => {
     assert.equal((await post('/api/devices/identify', { ip: '8.8.8.8' })).status, 403)
+  })
+})
+
+describe('readings (temperature / lamp hours via user queries)', () => {
+  const sim = new PjlinkSimulator()
+  before(async () => { await sim.start() })
+  after(async () => { await sim.stop() })
+  const target = (commands?: object) => ({ ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: sim.port, ...(commands ? { commands } : {}) } })
+
+  test('extractNumber: capture group, last-number fallback, bad regex', () => {
+    assert.equal(extractNumber('%1LAMP=1200 1', 'LAMP=(\\d+)'), 1200)
+    assert.equal(extractNumber('(TMP! 001 "45")'), 45)
+    assert.equal(extractNumber('no digits'), undefined)
+    assert.equal(extractNumber('12', '(['), undefined)
+  })
+
+  test('status without queries has no temperature', async () => {
+    const r = await post('/api/devices/status', { target: target() })
+    assert.equal(r.body.temperatureC, undefined)
+  })
+
+  test('configured queries fill temperatureC and lampHours from the device reply', async () => {
+    const r = await post('/api/devices/status', { target: target({ temperatureQuery: '%1LAMP ?', temperatureRegex: 'LAMP=(\\d+)', lampHoursQuery: '%1LAMP ?', lampHoursRegex: 'LAMP=(\\d+) ' }) })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.lampHours, 1200)
+    // Máy giả lập đang standby → không hỏi nhiệt độ.
+    assert.equal(r.body.temperatureC, undefined)
+  })
+
+  test('a failing query does not break the status', async () => {
+    const r = await post('/api/devices/status', { target: target({ lampHoursQuery: '%1NOPE ?' }) })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.power, 'standby')
   })
 })
