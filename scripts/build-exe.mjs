@@ -146,6 +146,16 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
   fs.symlinkSync('/Applications', path.join(staging, 'Applications'))
   const dmg = path.join(out, 'MikMaster.dmg')
   fs.rmSync(dmg, { force: true })
-  run('hdiutil', ['create', '-volname', 'MikMaster', '-srcfolder', staging, '-ov', '-format', 'UDZO', '-quiet', dmg])
+  // hdiutil trên máy macOS của CI thỉnh thoảng lỗi "Resource busy" → thử lại vài lần.
+  for (let attempt = 1; ; attempt++) {
+    try {
+      run('hdiutil', ['create', '-volname', 'MikMaster', '-srcfolder', staging, '-ov', '-format', 'UDZO', dmg])
+      break
+    } catch (err) {
+      if (attempt >= 3) throw err
+      console.warn(`  hdiutil failed (attempt ${attempt}), retrying…`)
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000 * attempt)
+    }
+  }
   return dmg
 }
