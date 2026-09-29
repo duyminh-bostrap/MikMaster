@@ -42,7 +42,7 @@ describe('HTTP API', () => {
   test('health lists driver capabilities (no lens / test pattern)', async () => {
     const body = await (await fetch(`${base}/api/health`)).json() as any
     assert.equal(body.ok, true)
-    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'raw'])
+    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'raw', 'preview'])
     for (const caps of Object.values<string[]>(body.drivers)) assert.ok(!caps.includes('lens'))
   })
 

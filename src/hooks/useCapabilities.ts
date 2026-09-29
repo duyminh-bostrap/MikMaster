@@ -10,6 +10,8 @@ export interface Capabilities {
   lens: boolean
   input: boolean
   raw: boolean
+  /** Có ảnh thật của tín hiệu vào (Christie qua web). Mô phỏng: false (dùng ô mô phỏng). */
+  preview: boolean
 }
 
 /**
@@ -18,7 +20,7 @@ export interface Capabilities {
  */
 export function useCapabilities(p: Projector): Capabilities {
   const { gateway } = useGateway()
-  if (!gateway) return { live: false, osd: true, testPattern: true, lens: true, input: true, raw: false }
+  if (!gateway) return { live: false, osd: true, testPattern: true, lens: true, input: true, raw: false, preview: false }
   const caps = deviceCapabilities(p)
-  return { live: true, osd: caps.includes('osd'), testPattern: caps.includes('testPattern'), lens: false, input: caps.includes('input'), raw: caps.includes('raw') }
+  return { live: true, osd: caps.includes('osd'), testPattern: caps.includes('testPattern'), lens: false, input: caps.includes('input'), raw: caps.includes('raw'), preview: caps.includes('preview') }
 }

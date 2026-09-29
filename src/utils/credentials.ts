@@ -1,3 +1,4 @@
+import { WEB_LOGIN_PROTOCOLS } from '../../shared/api.ts'
 import { getProtocolOption } from '@/constants/protocols'
 import type { Projector, ProtocolType } from '@/types'
 
@@ -7,6 +8,10 @@ export interface Credentials {
 }
 
 export const needsAuth = (type: ProtocolType): boolean => getProtocolOption(type).auth !== 'None'
+/** Điều khiển không cần đăng nhập nhưng có tài khoản web tuỳ chọn (Christie: chỉ cho live preview). */
+export const hasWebLogin = (type: ProtocolType): boolean => WEB_LOGIN_PROTOCOLS.includes(type)
+/** Giữ tài khoản khi lưu cấu hình mạng. */
+export const keepsCredentials = (type: ProtocolType): boolean => needsAuth(type) || hasWebLogin(type)
 export const hasCredentials = (p: Projector): boolean => !!(p.network.protocol.username || p.network.protocol.password)
 
 /** Máy cần đăng nhập nhưng chưa có mật khẩu (file project chỉ giữ username, không giữ mật khẩu). */

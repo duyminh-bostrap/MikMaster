@@ -4,7 +4,7 @@ import { Field, SelectInput, TextInput } from '@/components/ui/Field'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { PortField } from '@/components/ui/PortField'
 import { PROTOCOL_OPTIONS, defaultProtocolConfig, getProtocolOption } from '@/constants/protocols'
-import { needsAuth } from '@/utils/credentials'
+import { keepsCredentials } from '@/utils/credentials'
 import { isValidIPv4 } from '@/utils/network'
 import { appendLog } from '@/utils/projector'
 import { useProjectActions } from '@/store/hooks'
@@ -34,7 +34,7 @@ export function NetworkEditor({ projector: p }: { projector: Projector }) {
     updateProjector(p.id, {
       network: { ip, protocol: {
         type, port: portNum,
-        ...(needsAuth(type) ? { username: p.network.protocol.username, password: p.network.protocol.password } : {}),
+        ...(keepsCredentials(type) ? { username: p.network.protocol.username, password: p.network.protocol.password } : {}),
         // Cú pháp mẫu lệnh khác nhau giữa các giao thức → chỉ giữ khi không đổi giao thức.
         ...(type === p.network.protocol.type && p.network.protocol.commands ? { commands: p.network.protocol.commands } : {}),
       } },

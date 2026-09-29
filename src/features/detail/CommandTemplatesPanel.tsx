@@ -1,8 +1,8 @@
+import { ChevronDown, SlidersHorizontal } from 'lucide-react'
 import { useState } from 'react'
 import { TEMPLATE_PROTOCOLS, isDriverProtocol, type CommandTemplates } from '../../../shared/api.ts'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
-import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useProjectActions } from '@/store/hooks'
 import { appendLog } from '@/utils/projector'
 import type { Projector } from '@/types'
@@ -42,6 +42,7 @@ export function CommandTemplatesPanel({ projector: p }: { projector: Projector }
   const type = p.network.protocol.type
   const saved = p.network.protocol.commands ?? {}
   const [draft, setDraft] = useState<CommandTemplates>(saved)
+  const [open, setOpen] = useState(false)
   const generic = TEMPLATE_PROTOCOLS.includes(type)
   if (!generic && !isDriverProtocol(type)) return null
 
@@ -62,10 +63,30 @@ export function CommandTemplatesPanel({ projector: p }: { projector: Projector }
     })
   }
 
+  const setCount = Object.values(saved).filter(v => v?.trim()).length
+
+  // Gom vào nút "Nâng cao" (đóng mặc định): phần lớn người dùng không cần tự khai báo lệnh.
+  if (!open) {
+    return (
+      <button type="button" aria-expanded={false} onClick={() => setOpen(true)}
+        className="mb-5 flex w-full items-center gap-2 rounded-sm border border-border px-2.5 py-2 font-mono text-[11px] text-muted-foreground transition-colors hover:border-foreground/30 hover:text-foreground">
+        <SlidersHorizontal size={12} />
+        <span className="flex-1 text-left tracking-[0.1em]">{t('ADVANCED')}</span>
+        {setCount > 0 && <span className="text-accent">{t('{n} command(s) set', { n: setCount })}</span>}
+        <ChevronDown size={12} />
+      </button>
+    )
+  }
+
   return (
     <>
-      <SectionHeader label={t('COMMANDS')} />
-      <div className="mb-5 flex flex-col gap-2.5">
+      <button type="button" aria-expanded onClick={() => setOpen(false)}
+        className="mb-2 flex w-full items-center gap-2 font-mono text-[11px] tracking-[0.1em] text-foreground">
+        <SlidersHorizontal size={12} />
+        <span className="flex-1 text-left">{t('ADVANCED')} · {t('COMMANDS')}</span>
+        <ChevronDown size={12} className="rotate-180" />
+      </button>
+      <div className="mb-5 flex flex-col gap-2.5 border-l border-border pl-2.5">
         <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
           {generic
             ? <>{t('This protocol has no standard commands. Power and Shutter buttons send what you enter here.')} {t(SYNTAX[type] ?? '')}</>

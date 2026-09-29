@@ -109,7 +109,7 @@ Hai máy thử: **Panasonic PT-RQ35K** `192.168.1.176` (firmware 1.21) và **Chr
 | Độ sáng | ⬜ PJLink không có lệnh | ⬜ Griffyn không có `LPP` / `LOP` / `BRT` (Control Not Found) |
 | Đổi input (ghi) | 🧪 PJLink `INPT 31/32` — chưa gửi thử | ⬜ Chưa có bảng số `SIN` của cấu hình cổng |
 | Test pattern | ⬜ PJLink không có | ⬜ Có mã `ITP` (đang "Off"), chưa có danh sách giá trị |
-| Live preview | ⬜ | ⬜ Web của máy có ảnh thu nhỏ tín hiệu vào (`video:getInputInfo`, JSON-RPC `/cgi-bin/c4jweb`) — chưa làm |
+| Live preview | ⬜ | 🧪 Ảnh tín hiệu vào qua web của máy (JSON-RPC `/cgi-bin/c4jweb`: `session:connect` → `video:getInputInfo` → `/cgi-bin/thumbnail`), làm mới mỗi giây. **Cần tài khoản web** — nhập ở góc trên bên phải trang máy ("Tài khoản web"). Đã kiểm với bộ giả lập; chưa kiểm với máy thật vì cần đăng nhập |
 
 Nhập IP một máy Panasonic trả lời cả PJLink lẫn NTCONTROL → app chọn **PJLink**. Preset PT-RQ35K cũng dùng PJLink.
 

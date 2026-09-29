@@ -7,7 +7,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { forgetDeviceCredentials, saveDeviceCredentials, saveSharedCredentials } from '@/services/credentialCache'
 import { useProjectActions, useProjectState } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
-import { lacksPassword, needsAuth, withCredentials } from '@/utils/credentials'
+import { hasCredentials, hasWebLogin, lacksPassword, needsAuth, withCredentials } from '@/utils/credentials'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
 
@@ -29,7 +29,9 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
   const [applyAll, setApplyAll] = useState(true)
 
   const { ip, protocol } = p.network
-  const others = projectors.filter(o => o.id !== p.id && needsAuth(o.network.protocol.type) && (lacksPassword(o) || o.connection === 'auth-failed'))
+  // Tài khoản web (Christie): chỉ cho live preview, kiểm bằng chính preview; không áp cho máy khác.
+  const web = hasWebLogin(protocol.type)
+  const others = web ? [] : projectors.filter(o => o.id !== p.id && needsAuth(o.network.protocol.type) && (lacksPassword(o) || o.connection === 'auth-failed'))
   const canSubmit = !busy && (username !== '' || password !== '')
 
   async function signIn() {
@@ -38,7 +40,7 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
     const creds = { username: username || undefined, password: password || undefined }
     // Có gateway: thử thật trước khi lưu. Không có: chế độ mô phỏng, không có gì để kiểm.
     if (gateway) {
-      const r = await gateway.status(withCredentials(p, creds))
+      const r = web ? await gateway.preview(withCredentials(p, creds)) : await gateway.status(withCredentials(p, creds))
       if (!r.ok) {
         setBusy(false)
         setError(
@@ -72,8 +74,9 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
 
   return (
     <div>
-      <SectionHeader label={mode === 'required' ? t('LOGIN REQUIRED') : t('CHANGE LOGIN')} />
+      <SectionHeader label={web ? t('WEB ACCOUNT') : mode === 'required' ? t('LOGIN REQUIRED') : t('CHANGE LOGIN')} />
       <div className="flex flex-col gap-2.5">
+        {web && <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Used only for the live preview (projector web page). Control works without it.')}</p>}
         {mode === 'required' && (
           <p className="font-mono text-[10px] leading-relaxed text-warn">
             {p.connection === 'auth-failed' ? t('The projector refused the login.') : t('This projector is protected by a password.')} {t('Sign in to control it.')}
@@ -96,7 +99,7 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
         {mode === 'change' && (
           <div className="flex gap-2">
             <Button className="flex-1" onClick={onDone}>{t('CANCEL')}</Button>
-            {!lacksPassword(p) && <Button className="flex-1" onClick={signOut}><LogOut size={10} />{t('SIGN OUT')}</Button>}
+            {(web ? hasCredentials(p) : !lacksPassword(p)) && <Button className="flex-1" onClick={signOut}><LogOut size={10} />{t('SIGN OUT')}</Button>}
           </div>
         )}
       </div>

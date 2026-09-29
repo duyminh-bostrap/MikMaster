@@ -77,7 +77,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
             </div>
             <fieldset disabled={!caps.testPattern} className="contents">
               <div>
-                {!caps.testPattern && <UnavailableNotice>{t('Add the test pattern ON / OFF commands in COMMANDS (left) — from the projector manual — to use test patterns on this projector.')}</UnavailableNotice>}
+                {!caps.testPattern && <UnavailableNotice>{t('Add the test pattern ON / OFF commands in ADVANCED (left) — from the projector manual — to use test patterns on this projector.')}</UnavailableNotice>}
                 <TestPatternPanel projector={projector} />
               </div>
             </fieldset>

@@ -4,6 +4,7 @@ import {
   type ApiErrorCode, type CommandDto, type CommandTemplates, type DriverProtocol, type HealthDto, type TargetDto,
 } from '../../shared/api.ts'
 import { DRIVERS } from './drivers/index.ts'
+import { christiePreview } from './drivers/christieWeb.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
 import { addReadings } from './readings.ts'
@@ -72,7 +73,7 @@ function parseTemplates(raw: unknown): CommandTemplates | undefined {
   return out
 }
 
-function requireCapability(protocol: DriverProtocol, cap: 'raw' | CommandDto['kind'], target: DriverTarget): void {
+function requireCapability(protocol: DriverProtocol, cap: 'raw' | 'preview' | CommandDto['kind'], target: DriverTarget): void {
   if (!effectiveCapabilities(protocol, target.commands).includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"${TEMPLATE_PROTOCOLS.includes(protocol) ? ' (no command template configured)' : ''}`)
 }
 
@@ -158,6 +159,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     emit('done', {})
     res.end()
     return
+  }
+
+  if (route === 'POST /api/devices/preview') {
+    const body = await readJson(req)
+    if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
+    const { protocol, target } = parseTarget(body.target)
+    requireCapability(protocol, 'preview', target)
+    return sendJson(res, 200, await christiePreview(target))
   }
 
   if (req.method === 'POST' && ['/api/devices/status', '/api/devices/command', '/api/devices/raw'].includes(url.pathname)) {

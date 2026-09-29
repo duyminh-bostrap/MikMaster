@@ -2,7 +2,7 @@ import { ChevronDown, Lock, UserRound } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useT } from '@/i18n'
 import { cn } from '@/utils/cn'
-import { needsAuth } from '@/utils/credentials'
+import { hasWebLogin, needsAuth } from '@/utils/credentials'
 import type { Projector } from '@/types'
 import { AccountPanel } from './AccountPanel'
 
@@ -28,8 +28,9 @@ export function AccountMenu({ projector: p, locked, open, onOpenChange }: {
     return () => { window.removeEventListener('pointerdown', onDown); window.removeEventListener('keydown', onKey) }
   }, [open, onOpenChange])
 
-  if (!needsAuth(p.network.protocol.type)) return null
-  const user = p.network.protocol.username || (p.network.protocol.password ? '••••' : '')
+  const web = hasWebLogin(p.network.protocol.type)
+  if (!needsAuth(p.network.protocol.type) && !web) return null
+  const user = p.network.protocol.username || (p.network.protocol.password ? '••••' : '') || (web ? t('WEB ACCOUNT') : '')
 
   return (
     <div ref={ref} className="relative">

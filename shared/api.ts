@@ -2,7 +2,23 @@
 
 export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip' | 'barco-pulse' | 'generic-tcp' | 'generic-udp' | 'art-net' | 'http-api'
 
-export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw' | 'testPattern'
+export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw' | 'testPattern' | 'preview'
+
+/**
+ * Giao thức điều khiển không cần đăng nhập, nhưng web của máy thì cần: tài khoản chỉ dùng cho live preview.
+ * Christie Griffyn: cổng serial 3002 mở, web (JSON-RPC /cgi-bin/c4jweb) đòi user / pass.
+ */
+export const WEB_LOGIN_PROTOCOLS: readonly string[] = ['christie-serial-ip']
+
+/** Ảnh tín hiệu vào hiện tại của máy (live preview). */
+export interface PreviewDto {
+  state: 'image' | 'no-signal' | 'no-thumbnail'
+  /** data:image/png;base64,… khi state = 'image'. */
+  image?: string
+  /** Tên cổng / độ phân giải máy báo, vd. "One-Port HDMI0" · "1920x1080". */
+  input?: string
+  resolution?: string
+}
 
 /**
  * Chỉ liệt kê lệnh đã có nguồn tham chiếu. Lens và Test Pattern CHƯA có ở đây
@@ -12,7 +28,7 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   'pjlink-class1': ['power', 'shutter', 'input', 'raw'],
   'pjlink-class2': ['power', 'shutter', 'input', 'raw'],
   'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw'],
-  'christie-serial-ip': ['power', 'shutter', 'raw'],
+  'christie-serial-ip': ['power', 'shutter', 'raw', 'preview'],
   'barco-pulse': ['power', 'shutter', 'raw'],
   // Chỉ RAW COMMAND: không có lệnh chuẩn nên không poll, không có power/shutter.
   'generic-tcp': ['raw'],
