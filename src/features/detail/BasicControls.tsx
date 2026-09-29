@@ -16,11 +16,8 @@ export function BasicControls({ projector: p, inputEnabled }: { projector: Proje
         <Button size="md" variant="ok" selected={p.power === 'on'} className="flex-1" onClick={() => setPower([p.id], 'on')}>
           <Power size={12} strokeWidth={2.5} />ON
         </Button>
-        <Button size="md" variant="warn" selected={p.power === 'standby'} className="flex-1" onClick={() => setPower([p.id], 'standby')}>
+        <Button size="md" variant="warn" selected={p.power === 'standby' || p.power === 'off'} className="flex-1" onClick={() => setPower([p.id], 'standby')}>
           STBY
-        </Button>
-        <Button size="md" variant="secondary" selected={p.power === 'off'} className="flex-1" onClick={() => setPower([p.id], 'off')}>
-          OFF
         </Button>
       </div>
 

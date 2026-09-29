@@ -20,7 +20,7 @@ export function ProjectorGrid({ projectors, onOpen }: { projectors: Projector[];
           key={p.id}
           projector={p}
           onOpen={() => onOpen(p.id)}
-          onTogglePower={() => setPower([p.id], p.power === 'on' ? 'off' : 'on')}
+          onTogglePower={() => setPower([p.id], p.power === 'on' ? 'standby' : 'on')}
           onToggleShutter={() => setShutter([p.id], !p.shutter)}
         />
       ))}
