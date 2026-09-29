@@ -1,7 +1,7 @@
 import type { Dispatch } from 'react'
-import type { OsdKeyDto } from '../../shared/api.ts'
+import { TEMPLATE_PROTOCOLS, type OsdKeyDto } from '../../shared/api.ts'
 import type { Gateway } from '@/services/gateway'
-import { liveCapabilities } from '@/services/capabilities'
+import { deviceCapabilities } from '@/services/capabilities'
 import type { InputSource, PowerState, Projector } from '@/types'
 import type { ProjectAction } from './projectReducer'
 
@@ -29,8 +29,9 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
   async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd', send: (p: Projector) => ReturnType<Gateway['command']>) {
     const p = find(id)
     if (!p) return
-    if (!liveCapabilities(p.network.protocol.type).includes(capability)) {
-      dispatch({ type: 'projector/log', id, level: 'warn', message: `"${capability}" is not sent to the device: ${p.network.protocol.type} has no verified live command (local change only)` })
+    if (!deviceCapabilities(p).includes(capability)) {
+      const why = TEMPLATE_PROTOCOLS.includes(p.network.protocol.type) ? 'no command template configured on the projector page' : `${p.network.protocol.type} has no verified live command`
+      dispatch({ type: 'projector/log', id, level: 'warn', message: `"${capability}" is not sent to the device: ${why} (local change only)` })
       return
     }
     busyUntil.set(id, Date.now() + HOLD_MS)

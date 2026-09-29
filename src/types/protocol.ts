@@ -1,3 +1,5 @@
+import type { CommandTemplates } from '../../shared/api.ts'
+
 /** Giao thức điều khiển máy chiếu qua mạng. */
 export type ProtocolType =
   | 'pjlink-class1'
@@ -18,4 +20,6 @@ export interface ProtocolConfig {
   /** Mật khẩu xác thực (PJLink dùng MD5 challenge). Bỏ trống nếu thiết bị không yêu cầu. */
   username?: string
   password?: string
+  /** Giao thức chung: lệnh tự khai báo cho Power / Shutter. */
+  commands?: CommandTemplates
 }

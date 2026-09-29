@@ -100,7 +100,7 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
   return (
     <>
-      <button type="button" aria-haspopup="menu" aria-expanded={at !== null} title="File menu (click or right-click)"
+      <button type="button" aria-label="File menu" aria-haspopup="menu" aria-expanded={at !== null} title="File menu (click or right-click)"
         onClick={openMenu} onContextMenu={openMenu} className="-m-1 rounded-sm p-1 transition-colors hover:bg-muted">
         <AppLogo size={size} />
       </button>

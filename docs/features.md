@@ -1,70 +1,82 @@
 # MikMaster — Danh sách tính năng
 
-Kiến trúc dữ liệu: **Project → Booth → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32-RGB** (ngoài ra PJLink).
+Kiến trúc dữ liệu: **Project → Booth → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32-RGB** (ngoài ra PJLink và các giao thức chung).
 
 ## Cách đọc trạng thái
 
 | Ký hiệu | Nghĩa |
 |---|---|
-| ✅ | Đã làm và đã kiểm tự động, không phụ thuộc phần cứng |
+| ✅ | Đã làm và đã kiểm tự động (unit / tích hợp / e2e), không phụ thuộc phần cứng |
 | 🧪 | Đã làm, **chỉ kiểm với bộ giả lập** viết theo tài liệu; **chưa thử trên máy thật** |
-| 🎭 | Chỉ mô phỏng trong UI (dữ liệu giả); không điều khiển thiết bị |
+| 🎭 | Chỉ mô phỏng trong UI; không điều khiển thiết bị |
 | ⬜ | Chưa làm |
 
-Có hai chế độ chạy, hiển thị ở chân trang (huy hiệu `LIVE` / `SIMULATED`):
+Hai chế độ chạy, hiển thị ở chân trang:
 
-- **LIVE** — có gateway (`pnpm server`): lệnh và trạng thái đi tới máy chiếu thật qua TCP.
-- **SIMULATED** — không có gateway: toàn bộ dữ liệu là mock, để demo và phát triển UI.
+- **LIVE** — có gateway (`pnpm server` / `pnpm start`): lệnh và trạng thái đi tới máy chiếu thật.
+- **SIMULATED** — không có gateway: dữ liệu mẫu, để demo và phát triển UI. Bấm huy hiệu để tìm lại gateway.
+- **GATEWAY LOCKED** — gateway chạy ở chế độ mở ra mạng và cần token: bấm huy hiệu để nhập.
 
-## 1. Project & kết nối mạng
-
-| Tính năng | Trạng thái | Ghi chú |
-|---|---|---|
-| Tạo Project mới (tên, venue, Booth) | ✅ | Booth thêm/xoá được, tối thiểu 1 |
-| Tải lại Project | ✅ | 3 dự án mẫu + dự án đã lưu |
-| Lưu Project (IP, thông số, giao thức, Booth, Lens Preset) | ✅ | Lưu vào `localStorage` của trình duyệt (qua `services/projectRepository`) |
-| Auto-scan dải IP `/24` | 🧪 | Thật ở chế độ LIVE: thử kết nối cổng PJLink 4352, Panasonic 1024, Christie 3002 trên từng IP. Chỉ nhận dải nội bộ |
-| Thêm thủ công qua IP | ✅ | Kiểm IPv4, chặn trùng, có preset model RQ35K / Griffyn, nhập user/password |
-| Phân bổ máy vào Booth + chọn Protocol từng máy | ✅ | |
-| Giao thức PJLink Class 1/2 | 🧪 | Xác thực MD5, POWR/INPT/AVMT/ERST/LAMP/INF |
-| Giao thức Panasonic NTCONTROL (RQ35K) | 🧪 | Banner + MD5/SHA-256 challenge, cổng 1024 |
-| Giao thức Christie serial-over-IP (Griffyn) | 🧪 | Khung `(CODE…)`, cổng 3002 |
-| Giao thức TCP/IP chung, UDP, Art-Net, HTTP API | ⬜ | Chọn được trong UI nhưng chưa có driver: gateway trả `501`, app chỉ đổi trạng thái cục bộ và ghi cảnh báo vào log |
-| Cảnh báo lỗi rớt mạng / sai giao thức / sai mật khẩu | ✅ | Trạng thái kết nối (`CONNECTED` / `DISCONNECTED` / `PROTOCOL ERROR`), Event Log, nút Reconnect; ngừng poll máy bị từ chối xác thực để không làm máy chiếu khoá cổng |
-
-## 2. Dashboard
+## 1. Project
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Gom nhóm theo Booth, sidebar dạng cây | ✅ | |
-| Grid preview toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
-| Thẻ máy: tên, IP, hãng/giao thức, trạng thái, input, nhiệt độ, lỗi | ✅ | Nhiệt độ hiện `—` nếu thiết bị không báo |
-| Quick Controls đồng loạt (bật/tắt, Shutter) theo toàn Project hoặc 1 Booth | 🧪 | Gửi lệnh thật tới từng máy ở chế độ LIVE |
-| Chỉ số tổng: Fleet Health, cảnh báo, nhiệt độ TB, giờ đèn | ✅ | Bỏ qua thiết bị không báo nhiệt độ; máy mất liên lạc không tính là online |
-| Đọc trạng thái thật định kỳ (4 giây) | 🧪 | Power, Shutter, Input, cảnh báo (PJLink), giờ đèn (PJLink) |
+| Tạo project: tên + Booth trên một trang → quét | ✅ | Booth tuỳ chọn; mặc định "Booth 1" |
+| Sau quét: **LOGIN & LAUNCH** (một tài khoản cho mọi máy, mặc định `admin`/`admin`) hoặc **LAUNCH WITHOUT LOGIN** | ✅ | |
+| Mở project đã lưu, xoá project đã lưu | ✅ | Project mẫu không xoá được |
+| Lưu project: trên gateway (mật khẩu mã hoá AES-256-GCM) hoặc trong trình duyệt (không lưu mật khẩu) | ✅ | |
+| **Lưu ra file / mở từ file** `*.mikmaster.json` | ✅ | File không chứa mật khẩu; mở file hỏi đăng nhập một lần |
+| Menu logo: New · Open file · Open Recent · Save · Export (⌘O, ⌘S, ⇧⌘S) | ✅ | Bấm hoặc chuột phải vào logo |
+| Hỏi **Save / Don't save / Cancel** khi rời project có thay đổi chưa lưu | ✅ | Có dấu UNSAVED ở sidebar; trình duyệt cảnh báo khi đóng tab |
+| Đổi tên project / booth bằng double-click | ✅ | |
+| Thêm / sửa / xoá booth (máy chuyển sang booth khác) | ✅ | |
+| Sửa thông tin máy (tên, vị trí, model, booth), gỡ máy | ✅ | Menu chuột phải hoặc tên máy ở trang Detail |
 
-## 3. Trang chi tiết (từng máy)
-
-| Tính năng | Trạng thái | Ghi chú |
-|---|---|---|
-| Cấu hình mạng: IP, Port, Username/Password, đổi giao thức | ✅ | Nút Apply, kiểm hợp lệ, ghi log |
-| Power On / Standby / Off | 🧪 | PJLink không có "off" riêng: máy tắt báo `standby` |
-| Shutter / Blank | 🧪 | PJLink `AVMT`, Panasonic `OSH`, Christie `SHU` |
-| Chọn Input | 🧪 | PJLink, Panasonic. Christie **chưa** (kênh Christie là preset người dùng, chưa xác minh với Griffyn) |
-| Test Pattern (bật/tắt, chọn loại bằng thumbnail, gồm Crosshair) | 🎭 | Ở chế độ LIVE bị khoá: chưa có lệnh xác minh |
-| OSD: Menu, Enter, 4 phím hướng | 🧪 | Chỉ Panasonic. `Back` / `Exit` chưa có lệnh xác minh (báo `unsupported`) |
-| Raw Command (gửi nguyên văn lệnh của hãng, xem phản hồi thô) | 🧪 | Công cụ để đối chiếu lệnh với máy thật |
-
-## 4. Lens Control & Preset
+## 2. Kết nối mạng
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Lens Shift (lên/xuống/trái/phải), Zoom, Focus | 🎭 | Ở chế độ LIVE **bị khoá**: không gửi giá trị chưa xác minh vào động cơ ống kính |
-| Lens Preset: Save / Load / Unload (4 slot mỗi máy) | 🎭 | Lưu và nạp được dữ liệu, nhưng chưa điều khiển ống kính thật |
-| Chỉnh tay sau khi Load → bỏ trạng thái Active | ✅ | |
+| Quét dải `/24` | 🧪 | LIVE: thử cổng PJLink 4352, Panasonic 1024, Christie 3002. Một IP = một máy (ưu tiên giao thức của hãng hơn PJLink) |
+| Thêm máy thủ công qua IP | ✅ | |
+| **Ping**: ICMP + mở cổng điều khiển TCP, kèm độ trễ | ✅ | Trang Detail và menu chuột phải; cần gateway |
+| Đăng nhập từng máy, dùng chung một tài khoản cho mọi hãng | ✅ | Kiểm thật qua gateway trước khi lưu; cache trong phiên (sessionStorage) |
+| Reconnect | ✅ | LIVE: đọc trạng thái thật ngay |
+| Cảnh báo rớt mạng / sai giao thức / sai mật khẩu | ✅ | Ngừng poll máy bị từ chối xác thực để máy chiếu không khoá cổng |
+| PJLink Class 1/2 | 🧪 | MD5, POWR/INPT/AVMT/ERST/LAMP/INF |
+| Panasonic NTCONTROL (RQ35K) | 🧪 | Banner + MD5/SHA-256 challenge |
+| Christie serial-over-IP (Griffyn) | 🧪 | Khung `(CODE…)` |
+| TCP chung, UDP, Art-Net, HTTP API | ✅ | RAW COMMAND + **mẫu lệnh** Power / Shutter do người dùng khai báo |
 
-## Bảo mật của gateway
+## 3. Dashboard
 
-- Mặc định chỉ lắng nghe `127.0.0.1`; **không có xác thực**. Chạy với `HOST=0.0.0.0` là mở điều khiển máy chiếu cho cả mạng.
-- Chỉ kết nối tới IPv4 nội bộ (10/8, 172.16/12, 192.168/16, 169.254/16, 127/8) để không thành cửa SSRF.
-- Mật khẩu máy chiếu lưu cùng project trong `localStorage` dưới dạng văn bản thường.
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
+| **Chuyển máy sang booth khác**: kéo thả hoặc chuột phải | ✅ | |
+| Quick Controls ALL ON / ALL OFF / SHUTTER theo project hoặc booth | 🧪 | |
+| Chỉ số: Fleet Health, cảnh báo, nhiệt độ TB, giờ đèn | ✅ | |
+| Poll trạng thái thật 4 giây | 🧪 | Chỉ giao thức có driver |
+
+## 4. Trang chi tiết
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Power ON / OFF, Shutter, Input | 🧪 | Christie chưa có Input |
+| OSD ON / OFF | 🎭 | Chưa có lệnh đã xác minh: chỉ đổi trạng thái trong app |
+| Test Pattern | 🎭 | LIVE bị khoá: chưa có lệnh xác minh |
+| Lens Shift / Zoom / Focus, Lens Preset | 🎭 | LIVE bị khoá: không gửi lệnh đoán vào động cơ ống kính |
+| Raw Command | 🧪 | Đối chiếu lệnh với máy thật |
+
+## 5. Chạy / đóng gói
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Cài như app từ Chrome / Edge (PWA) | ✅ | `pnpm start`, mở `http://127.0.0.1:8787` → Install. Chưa thử nút cài trên máy người dùng |
+| Chạy từ VS Code (F5) | ✅ | Dev: Gateway + Web, Build, Test |
+| Ứng dụng desktop đóng gói (Tauri / Electron) | ⬜ | PWA + gateway thay thế trong lúc này |
+
+## Bảo mật
+
+- Gateway mặc định chỉ nghe `127.0.0.1`. Mở ra mạng (`HOST=0.0.0.0`) thì **bắt buộc token** (tự sinh nếu chưa đặt `MIKMASTER_TOKEN`).
+- Chỉ kết nối / ping tới IPv4 nội bộ (10/8, 172.16/12, 192.168/16, 169.254/16, 127/8) để không thành cửa SSRF; HTTP API không đi theo redirect.
+- Mật khẩu máy chiếu: mã hoá trên đĩa ở gateway; **không** ghi vào localStorage hay file project; cache đăng nhập chỉ trong phiên trình duyệt.

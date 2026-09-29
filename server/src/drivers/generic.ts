@@ -1,5 +1,5 @@
 import dgram from 'node:dgram'
-import type { CommandDto, StatusDto } from '../../../shared/api.ts'
+import { templateKeyFor, type CommandDto, type StatusDto } from '../../../shared/api.ts'
 import { DeviceError, TcpConnection, serialize, type FrameSplitter } from '../net/tcp.ts'
 import type { Driver, DriverTarget } from './types.ts'
 
@@ -125,7 +125,15 @@ async function httpRaw(t: DriverTarget, text: string): Promise<string> {
   }
 }
 
-const noCommands = (): never => { throw new DeviceError('unsupported', 'Generic protocols only support RAW COMMAND') }
+/** Power / Shutter của giao thức chung = gửi mẫu lệnh người dùng khai báo qua đường RAW của driver đó. */
+function viaTemplate(raw: (t: DriverTarget, text: string) => Promise<string>) {
+  return async (t: DriverTarget, c: CommandDto): Promise<void> => {
+    const key = templateKeyFor(c)
+    const text = key ? t.commands?.[key]?.trim() : undefined
+    if (!text) throw new DeviceError('unsupported', key ? `No "${key}" command configured for this device` : 'Generic protocols only support power / shutter templates and RAW COMMAND')
+    await raw(t, text)
+  }
+}
 const noProbe = async () => null
 
 export const genericTcpDriver: Driver = {
@@ -134,21 +142,21 @@ export const genericTcpDriver: Driver = {
     conn.close()
     return { errors: [] }
   },
-  command: async (_t, _c: CommandDto) => noCommands(),
+  command: viaTemplate(tcpRaw),
   raw: tcpRaw,
   probe: noProbe,
 }
 
 export const genericUdpDriver: Driver = {
   status: async () => { throw new DeviceError('unsupported', 'UDP is connectionless: reachability cannot be checked') },
-  command: async () => noCommands(),
+  command: viaTemplate(udpRaw),
   raw: udpRaw,
   probe: noProbe,
 }
 
 export const artNetDriver: Driver = {
   status: genericUdpDriver.status,
-  command: async () => noCommands(),
+  command: viaTemplate((t, text) => artNetDriver.raw(t, text)),
   async raw(t, text) {
     const packet = buildArtDmx(text)
     await sendDatagram(t, packet, false)
@@ -162,7 +170,7 @@ export const httpApiDriver: Driver = {
     await httpRaw(t, 'GET /')
     return { errors: [] }
   },
-  command: async () => noCommands(),
+  command: viaTemplate(httpRaw),
   raw: httpRaw,
   probe: noProbe,
 }

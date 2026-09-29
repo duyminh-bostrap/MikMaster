@@ -1,6 +1,6 @@
 # MikMaster — Danh sách công việc
 
-Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử máy thật · ⬜ chưa làm.
+Cập nhật: 2026-09-29 (tối). Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử máy thật · ⬜ chưa làm.
 
 ## A. Frontend (đã hoàn thành)
 
@@ -36,11 +36,11 @@ Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử m
 | C2 | **Kiểm trên Griffyn thật**: ý nghĩa mã trả về của `(PWR?)`, chiều của `(SHU0/1)`, định dạng lỗi | Cao | Chưa tìm được tài liệu riêng của Griffyn; hiện dựa vào tài liệu dòng M |
 | C3 | **Có tài liệu chính thức** (Panasonic PT-RQ35K command list + Christie Griffyn serial API) rồi làm: Lens Shift/Zoom/Focus, Lens Memory, Test Pattern, OSD Back/Exit, Input Christie | Cao | Chặn bởi C1/C2 và tài liệu; không gửi lệnh đoán vào động cơ ống kính |
 | C4 | Telemetry cho Panasonic/Christie: nhiệt độ, giờ laser, mã lỗi | Trung bình | Cần tên lệnh truy vấn từ tài liệu; hiện hiển thị `—` |
-| C5 | Driver TCP chung, UDP, Art-Net, HTTP API | ✅ | Chỉ RAW COMMAND (không power/shutter/input, không poll, không quét mạng). Lệnh gõ dạng escape `\r \n \xHH`; Art-Net `[universe] ch=val 5-8=val`; HTTP `GET /path` / `POST /path body` (Basic auth, không theo redirect). 17 test. Muốn có nút Power cho các giao thức này cần thiết kế chỗ khai báo mẫu lệnh trong UI |
-| C6 | Xác thực token cho gateway; `HOST` ngoài loopback tự sinh token nếu chưa đặt `MIKMASTER_TOKEN` | ✅ | Bearer hoặc `?token=` (web lưu vào localStorage). Sai/thiếu token → web rơi về SIMULATED, chưa có màn hình nhập token |
-| C7 | Lưu project phía server (`data/projects/*.json`); mật khẩu máy chiếu mã hoá AES-256-GCM (khoá `MIKMASTER_KEY` hoặc `data/secret.key`) | ✅ | API `GET/PUT/DELETE /api/projects[/id]`, ghi nguyên tử, file quyền 0600. Không có gateway thì dùng localStorage nhưng bỏ mật khẩu. Chưa có UI xoá project; chưa tự chuyển project cũ trong localStorage lên server; mất khoá thì phải nhập lại mật khẩu |
-| C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Trình duyệt không mở được socket TCP nên gateway là bắt buộc |
-| C9 | Vitest cho `applyRemote`, reducer, tiện ích (44 test) + CI GitHub Actions + cấu hình VS Code | ✅ | Còn thiếu: Playwright cho luồng UI chính (script cũ 24 ca chưa nằm trong repo) |
+| C5 | Driver TCP chung, UDP, Art-Net, HTTP API | ✅ | RAW COMMAND + mẫu lệnh Power / Shutter khai báo ở trang Detail (mục COMMANDS). Không poll, không quét mạng |
+| C6 | Xác thực token cho gateway; `HOST` ngoài loopback tự sinh token nếu chưa đặt `MIKMASTER_TOKEN` | ✅ | Bearer hoặc `?token=` (web lưu vào localStorage). Thiếu/sai token → huy hiệu GATEWAY LOCKED + ô nhập token |
+| C7 | Lưu project phía server (`data/projects/*.json`); mật khẩu máy chiếu mã hoá AES-256-GCM (khoá `MIKMASTER_KEY` hoặc `data/secret.key`) | ✅ | API `GET/PUT/DELETE /api/projects[/id]`, ghi nguyên tử, file quyền 0600. Không có gateway thì dùng localStorage nhưng bỏ mật khẩu. Có xoá project, lưu/mở file. Mất khoá thì phải nhập lại mật khẩu |
+| C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Tạm thay bằng PWA (`pnpm start` → Install trong Chrome/Edge) |
+| C9 | Vitest (73) + test gateway (77) + Playwright e2e (6 luồng chính) + CI GitHub Actions | ✅ | `pnpm test`, `pnpm test:server`, `pnpm test:e2e` |
 | C10 | Thử độ phân giải nhỏ hơn 1440×900 | ✅ | Đã kiểm 1024×700 và 800×600 (Start, Wizard, Dashboard, Detail): không tràn ngang; Detail xếp dọc dưới 1024. Đã sửa vạch chia lẻ loi ở FleetMetrics khi hàng xuống dòng. Chưa kiểm màn hình > 1440 và chưa đo bằng thiết bị thật |
 
 ## Cách chạy
@@ -49,9 +49,10 @@ Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử m
 pnpm install
 pnpm dev            # web, chế độ SIMULATED
 pnpm server         # gateway :8787 → web chuyển sang LIVE
-pnpm sim            # 3 máy giả lập trên 127.0.0.21/22/23 để thử quét subnet 127.0.0
+pnpm sim            # 3 máy giả lập trên 127.0.0.21/22/23 (macOS: chạy `pnpm sim:mac-alias` một lần, cần mật khẩu)
 pnpm test           # Vitest (frontend)
 pnpm test:watch
 pnpm test:server    # test driver + API
+pnpm test:e2e       # Playwright (dùng Chrome có sẵn trên máy)
 pnpm typecheck
 ```

@@ -2,8 +2,8 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import {
-  DEFAULT_PORTS, LIVE_CAPABILITIES, UDP_PROTOCOLS, isDriverProtocol,
-  type ApiErrorCode, type CommandDto, type DriverProtocol, type HealthDto, type TargetDto,
+  DEFAULT_PORTS, LIVE_CAPABILITIES, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
+  type ApiErrorCode, type CommandDto, type CommandTemplates, type DriverProtocol, type HealthDto, type TargetDto,
 } from '../../shared/api.ts'
 import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
@@ -57,11 +57,21 @@ function parseTarget(raw: unknown): { protocol: DriverProtocol; target: DriverTa
   const protocol = t.protocol.type
   const port = t.protocol.port ?? DEFAULT_PORTS[protocol]
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new DeviceError('bad-request', 'Invalid port')
-  return { protocol, target: { host: t.ip, port, username: t.protocol.username, password: t.protocol.password, timeoutMs: DEFAULT_TIMEOUT_MS } }
+  return { protocol, target: { host: t.ip, port, username: t.protocol.username, password: t.protocol.password, timeoutMs: DEFAULT_TIMEOUT_MS, commands: parseTemplates(t.protocol.commands) } }
 }
 
-function requireCapability(protocol: DriverProtocol, cap: 'raw' | CommandDto['kind']): void {
-  if (!LIVE_CAPABILITIES[protocol].includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"`)
+function parseTemplates(raw: unknown): CommandTemplates | undefined {
+  if (!isObject(raw)) return undefined
+  const out: CommandTemplates = {}
+  for (const key of TEMPLATE_KEYS) {
+    const v = raw[key]
+    if (typeof v === 'string' && v.trim() && v.length <= 256) out[key] = v
+  }
+  return out
+}
+
+function requireCapability(protocol: DriverProtocol, cap: 'raw' | CommandDto['kind'], target: DriverTarget): void {
+  if (!effectiveCapabilities(protocol, target.commands).includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"${TEMPLATE_PROTOCOLS.includes(protocol) ? ' (no command template configured)' : ''}`)
 }
 
 async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore): Promise<void> {
@@ -138,13 +148,13 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     if (url.pathname === '/api/devices/command') {
       if (!isObject(body.command) || typeof body.command.kind !== 'string') throw new DeviceError('bad-request', 'Missing command.kind')
       const command = body.command as unknown as CommandDto
-      requireCapability(protocol, command.kind)
+      requireCapability(protocol, command.kind, target)
       await driver.command(target, command)
       return sendJson(res, 200, { ok: true })
     }
 
     if (typeof body.text !== 'string' || body.text.length === 0 || body.text.length > 256) throw new DeviceError('bad-request', 'text must be 1–256 characters')
-    requireCapability(protocol, 'raw')
+    requireCapability(protocol, 'raw', target)
     return sendJson(res, 200, { reply: await driver.raw(target, body.text) })
   }
 

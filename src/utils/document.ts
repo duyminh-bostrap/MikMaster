@@ -13,7 +13,7 @@ export function documentFingerprint(s: { project: Project | null; booths: Booth[
     booths: s.booths.map(b => [b.id, b.name, b.location]),
     projectors: s.projectors.map(p => [
       p.id, p.boothId, p.name, p.location, p.model,
-      p.network.ip, p.network.protocol.type, p.network.protocol.port,
+      p.network.ip, p.network.protocol.type, p.network.protocol.port, p.network.protocol.commands ?? null,
       p.lens.presets,
     ]),
   })

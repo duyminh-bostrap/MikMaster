@@ -3,6 +3,8 @@ import { useLocation } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { GatewayBadge } from '@/components/layout/GatewayBadge'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
+import { GatewayTokenDialog } from '@/features/gateway/GatewayTokenDialog'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { AppLogoMenu } from '@/features/appmenu/AppLogoMenu'
 import { useProjectCommands, type StartIntent } from '@/features/appmenu/useProjectCommands'
@@ -24,6 +26,7 @@ type Mode = 'choose' | 'new' | 'load' | 'file'
 export default function StartPage() {
   const [mode, setMode] = useState<Mode>('choose')
   const { mode: gatewayMode } = useGateway()
+  const [tokenOpen, setTokenOpen] = useState(false)
   const cmd = useProjectCommands()
   const { listRecent } = cmd
   const [saved, setSaved] = useState<SavedProjectSummary[]>([])
@@ -74,9 +77,17 @@ export default function StartPage() {
       </header>
 
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
+        {gatewayMode === 'locked' && (
+          <div role="alert" className="flex w-full max-w-2xl items-center justify-between gap-3 rounded-sm border border-warn/40 bg-warn/10 px-4 py-2 font-mono text-xs text-warn">
+            The gateway is running but needs an access token — until then the app is only a simulation.
+            <Button size="xs" variant="warn" onClick={() => setTokenOpen(true)}>ENTER TOKEN</Button>
+          </div>
+        )}
+        {tokenOpen && <GatewayTokenDialog onClose={() => setTokenOpen(false)} />}
         {fileError && <p role="alert" className="w-full max-w-2xl rounded-sm border border-danger/40 bg-danger/10 px-4 py-2 font-mono text-xs text-danger">{fileError}</p>}
         {mode === 'choose' && <ChooseMode savedCount={saved.length} onNew={() => setMode('new')} onLoad={() => setMode('load')} onOpenFile={() => void openFile()} />}
-        {mode === 'load' && <LoadProjectList projects={saved} onLoad={id => void cmd.openRecent(id)} onOpenFile={() => void openFile()} onBack={() => setMode('choose')} />}
+        {mode === 'load' && <LoadProjectList projects={saved} onLoad={id => void cmd.openRecent(id)}
+          onDelete={async id => { const ok = await cmd.deleteSaved(id); if (ok) setSaved(list => list.filter(p => p.id !== id)); return ok }} onOpenFile={() => void openFile()} onBack={() => setMode('choose')} />}
         {mode === 'file' && opened && <OpenFileStep snapshot={opened} onLaunch={launchOpened} onBack={() => setMode('choose')} />}
         {mode === 'new' && <NewProjectWizard key={location.key} onBack={() => setMode('choose')} onLaunch={cmd.launch} />}
       </main>

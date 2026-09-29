@@ -20,13 +20,14 @@ export interface Gateway {
   listProjects(): Promise<GatewayResult<ProjectSummaryDto[]>>
   loadProject(id: string): Promise<GatewayResult<ProjectSnapshotDto>>
   saveProject(snapshot: ProjectSnapshotDto): Promise<GatewayResult<ProjectSummaryDto>>
+  deleteProject(id: string): Promise<GatewayResult<unknown>>
   /** Trả về hàm huỷ. */
   scan(subnet: string, handlers: ScanHandlers): () => void
 }
 
 export function toTarget(p: Projector): TargetDto {
-  const { type, port, username, password } = p.network.protocol
-  return { ip: p.network.ip, protocol: { type, port, username, password } }
+  const { type, port, username, password, commands } = p.network.protocol
+  return { ip: p.network.ip, protocol: { type, port, username, password, commands } }
 }
 
 const TOKEN_KEY = 'mikmaster.gatewayToken'
@@ -77,6 +78,7 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
     listProjects: () => call<ProjectSummaryDto[]>(base, token, '/api/projects', undefined, 'GET'),
     loadProject: id => call<ProjectSnapshotDto>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'GET'),
     saveProject: snapshot => call<ProjectSummaryDto>(base, token, `/api/projects/${encodeURIComponent(snapshot.project.id)}`, snapshot, 'PUT'),
+    deleteProject: id => call<unknown>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'DELETE'),
     scan(subnet, h) {
       const source = new EventSource(`${base}/api/scan?subnet=${encodeURIComponent(subnet)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
       let finished = false
@@ -91,20 +93,32 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
   }
 }
 
-/** Trả `null` nếu không có gateway (chưa chạy `pnpm server`) → app dùng chế độ mô phỏng. */
-export async function detectGateway(base = ''): Promise<Gateway | null> {
+export function saveToken(token: string | null): void {
   try {
-    const token = loadToken()
+    if (token) localStorage.setItem(TOKEN_KEY, token)
+    else localStorage.removeItem(TOKEN_KEY)
+  } catch { /* bộ nhớ trình duyệt bị chặn → token chỉ dùng trong lần này */ }
+}
+
+export type Detection =
+  | { kind: 'live'; gateway: Gateway }
+  | { kind: 'none' }
+  /** Có gateway nhưng thiếu / sai token. */
+  | { kind: 'locked'; hadToken: boolean }
+
+/** `none` nếu không có gateway (chưa chạy `pnpm server`) → app dùng chế độ mô phỏng. */
+export async function detectGateway(base = '', explicitToken?: string): Promise<Detection> {
+  try {
+    const token = explicitToken ?? loadToken()
     const res = await fetch(`${base}/api/health`, {
       signal: AbortSignal.timeout(1500),
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
     const json = (await res.json()) as Partial<HealthDto>
-    if (!res.ok || json.ok !== true) return null
-    // Gateway đòi token mà ta không có/sai → coi như không dùng được (SIMULATED).
-    if (json.authRequired && !json.authorized) return null
-    return createHttpGateway(base, token)
+    if (!res.ok || json.ok !== true) return { kind: 'none' }
+    if (json.authRequired && !json.authorized) return { kind: 'locked', hadToken: !!token }
+    return { kind: 'live', gateway: createHttpGateway(base, token) }
   } catch {
-    return null
+    return { kind: 'none' }
   }
 }

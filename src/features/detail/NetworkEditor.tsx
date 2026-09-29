@@ -30,7 +30,12 @@ export function NetworkEditor({ projector: p }: { projector: Projector }) {
   function apply() {
     if (!ipValid || !portValid) return
     updateProjector(p.id, {
-      network: { ip, protocol: { type, port: portNum, ...(needsAuth(type) ? { username: p.network.protocol.username, password: p.network.protocol.password } : {}) } },
+      network: { ip, protocol: {
+        type, port: portNum,
+        ...(needsAuth(type) ? { username: p.network.protocol.username, password: p.network.protocol.password } : {}),
+        // Cú pháp mẫu lệnh khác nhau giữa các giao thức → chỉ giữ khi không đổi giao thức.
+        ...(type === p.network.protocol.type && p.network.protocol.commands ? { commands: p.network.protocol.commands } : {}),
+      } },
       connection: 'connected',
       log: appendLog(p, 'info', `Network config applied: ${getProtocolOption(type).label} ${ip}:${portNum}`),
     })

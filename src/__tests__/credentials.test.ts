@@ -82,3 +82,15 @@ describe('credentialCache (sessionStorage)', () => {
     expect(getSharedCredentials()).toBeNull()
   })
 })
+
+describe('effectiveCapabilities', () => {
+  test('giao thức chung: power / shutter chỉ bật khi có đủ cặp mẫu lệnh', async () => {
+    const { effectiveCapabilities } = await import('../../shared/api.ts')
+    expect(effectiveCapabilities('generic-tcp')).toEqual(['raw'])
+    expect(effectiveCapabilities('generic-tcp', { powerOn: 'a' })).toEqual(['raw'])
+    expect(effectiveCapabilities('generic-tcp', { powerOn: 'a', powerOff: 'b' })).toEqual(['power', 'raw'])
+    expect(effectiveCapabilities('http-api', { powerOn: 'a', powerOff: 'b', shutterClose: 'c', shutterOpen: 'd' })).toEqual(['power', 'shutter', 'raw'])
+    expect(effectiveCapabilities('pjlink-class2', { powerOn: 'a', powerOff: 'b' })).toEqual(['power', 'shutter', 'input', 'raw'])
+    expect(effectiveCapabilities('barco-xlm', { powerOn: 'a', powerOff: 'b' })).toEqual([])
+  })
+})

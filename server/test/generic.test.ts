@@ -118,3 +118,27 @@ describe('HTTP API', () => {
     await assert.rejects(httpApiDriver.status(target(1)), { code: 'connect' })
   })
 })
+
+describe('command templates', () => {
+  test('power / shutter send the configured text through the raw path', async () => {
+    udpSeen.length = 0
+    const t = target(udpPort, { commands: { powerOn: 'PWR ON\\r', powerOff: 'PWR OFF\\r' } })
+    await genericUdpDriver.command(t, { kind: 'power', value: 'on' })
+    await genericUdpDriver.command(t, { kind: 'power', value: 'standby' })
+    await new Promise(r => setTimeout(r, 100))
+    assert.deepEqual(udpSeen.map(b => b.toString('latin1')), ['PWR ON\r', 'PWR OFF\r'])
+  })
+
+  test('TCP template runs and reads the reply', async () => {
+    await genericTcpDriver.command(target(tcpPort, { commands: { shutterClose: 'SHUT 1\\r', shutterOpen: 'SHUT 0\\r' } }), { kind: 'shutter', closed: true })
+  })
+
+  test('missing template → unsupported with the missing key named', async () => {
+    await assert.rejects(genericTcpDriver.command(target(tcpPort, { commands: { powerOn: 'X' } }), { kind: 'power', value: 'standby' }), (e: any) => e.code === 'unsupported' && /powerOff/.test(e.message))
+    await assert.rejects(httpApiDriver.command(target(webPort), { kind: 'input', input: 'HDMI 1' }), { code: 'unsupported' })
+  })
+
+  test('HTTP template', async () => {
+    await httpApiDriver.command(target(webPort, { commands: { powerOn: 'POST /power {"on":true}', powerOff: 'POST /power {"on":false}' } }), { kind: 'power', value: 'on' })
+  })
+})

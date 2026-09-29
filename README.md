@@ -11,6 +11,7 @@ pnpm install
 pnpm dev        # http://localhost:5173
 pnpm build      # typecheck + build
 pnpm test       # Vitest; trong VS Code cài extension Vitest (đã gợi ý sẵn) để chạy/debug từng test
+pnpm test:e2e   # Playwright: 6 luồng chính trên Chrome có sẵn
 ```
 
 Tài liệu: [`docs/features.md`](docs/features.md) (tính năng và mức độ đã kiểm) · [`docs/tasks.md`](docs/tasks.md) (công việc còn lại).
@@ -23,20 +24,16 @@ Tài liệu: [`docs/features.md`](docs/features.md) (tính năng và mức độ
 app/          App, router, ProjectGuard
 pages/        StartPage · DashboardPage · DetailPage (mỏng, chỉ ghép feature)
 features/
-  start/      tạo/tải project, quét IP, thêm tay, phân bổ Booth + Protocol
-  dashboard/  Sidebar, TopBar, FleetMetrics, QuickControls, BoothTabs, ProjectorGrid
-  detail/     NetworkEditor, BasicControls, DeviceStatus (+log), OSD, TestPattern, lens/*
-components/
-  ui/         Button, Badge, Panel, Field, DirectionPad ...
-  layout/     AppShell, AppLogo, AppFooter
-  projector/  ProjectorCard, PreviewScreen, TestPatternOverlay (dùng chung Dashboard + Detail)
-types/        Project, Booth, Projector, LensPreset, Protocol, TestPattern, Osd
-constants/    protocols, inputs, testPatterns, lens
-store/        reducer + context (state / actions tách riêng)
-services/     projectRepository (localStorage; điểm nối backend)
-hooks/        useClock, useBoothFilter (lọc Booth trên URL)
-utils/        cn, format, tones, network, lens, projector, fleet
-data/         mock data
+  start/      tạo project (tên + booth), quét IP, thêm tay, LOGIN & LAUNCH, mở file
+  dashboard/  Sidebar, BoothTabs, ProjectorGrid, menu chuột phải, kéo thả, hộp thoại sửa
+  detail/     Network, Account (đăng nhập), Commands (mẫu lệnh), Status, Input, TestPattern, lens/*
+  appmenu/    menu logo (New/Open/Recent/Save/Export) + hỏi lưu thay đổi
+  ping/       PING (ICMP + cổng TCP)
+  gateway/    nhập token gateway
+components/   ui/ (Button, Modal, PopupMenu, InlineEdit…) · layout/ · projector/
+services/     gateway (HTTP tới server/), projectRepository, projectFile, credentialCache
+store/        reducer + actions + DeviceSync (poll) + UnloadGuard
+utils/        credentials, document (theo dõi thay đổi), sync, lens, fleet…
 ```
 
 ## Chạy như app (cài từ trình duyệt)
@@ -59,7 +56,7 @@ có thì chạy `LIVE`, không thì `SIMULATED`.
 
 ```bash
 pnpm server      # http://127.0.0.1:8787 (vite proxy /api)
-pnpm sim         # máy giả lập để thử khi chưa có phần cứng
+pnpm sim         # máy giả lập để thử khi chưa có phần cứng (macOS: pnpm sim:mac-alias một lần)
 pnpm test:server
 ```
 
@@ -73,4 +70,4 @@ Project lưu ở `data/` (đổi bằng `MIKMASTER_DATA`, đã gitignore); mật
 
 ## Còn là giả lập ở chế độ SIMULATED
 
-Quét mạng, phím OSD, Reconnect, Lens, Test Pattern và telemetry đều là dữ liệu giả.
+Quét mạng, Lens, Test Pattern và telemetry đều là dữ liệu giả; Ping cần gateway.

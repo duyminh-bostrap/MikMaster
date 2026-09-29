@@ -35,9 +35,39 @@ export function isDriverProtocol(value: string): value is DriverProtocol {
   return value in LIVE_CAPABILITIES
 }
 
+/** Lệnh người dùng tự khai báo cho giao thức chung (cú pháp giống ô RAW COMMAND của giao thức đó). */
+export interface CommandTemplates {
+  powerOn?: string
+  powerOff?: string
+  shutterClose?: string
+  shutterOpen?: string
+}
+
+export const TEMPLATE_KEYS = ['powerOn', 'powerOff', 'shutterClose', 'shutterOpen'] as const satisfies readonly (keyof CommandTemplates)[]
+
+/** Giao thức không có bộ lệnh chuẩn: Power / Shutter chỉ chạy khi người dùng khai báo mẫu lệnh. */
+export const TEMPLATE_PROTOCOLS: readonly string[] = ['generic-tcp', 'generic-udp', 'art-net', 'http-api']
+
+/** Mẫu lệnh cần cho một thao tác (power on/off, shutter đóng/mở). */
+export function templateKeyFor(command: { kind: string; value?: string; closed?: boolean }): keyof CommandTemplates | null {
+  if (command.kind === 'power') return command.value === 'on' ? 'powerOn' : 'powerOff'
+  if (command.kind === 'shutter') return command.closed ? 'shutterClose' : 'shutterOpen'
+  return null
+}
+
+/** Khả năng thật của một máy: của driver, cộng Power / Shutter nếu giao thức chung đã có đủ mẫu lệnh. */
+export function effectiveCapabilities(type: string, commands?: CommandTemplates): readonly Capability[] {
+  const base = isDriverProtocol(type) ? LIVE_CAPABILITIES[type] : []
+  if (!TEMPLATE_PROTOCOLS.includes(type) || !commands) return base
+  const extra: Capability[] = []
+  if (commands.powerOn && commands.powerOff) extra.push('power')
+  if (commands.shutterClose && commands.shutterOpen) extra.push('shutter')
+  return [...extra, ...base]
+}
+
 export interface TargetDto {
   ip: string
-  protocol: { type: string; port: number; username?: string; password?: string }
+  protocol: { type: string; port: number; username?: string; password?: string; commands?: CommandTemplates }
 }
 
 export type OsdKeyDto = 'menu' | 'back' | 'exit' | 'up' | 'down' | 'left' | 'right' | 'enter'

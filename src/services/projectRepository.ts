@@ -95,3 +95,22 @@ function saveLocal(snapshot: ProjectSnapshot): boolean {
     return false
   }
 }
+
+/** Project mẫu có sẵn trong app, không xoá được. */
+export const isSampleProject = (id: string): boolean => MOCK_SAVED_PROJECTS.some(p => p.id === id)
+
+/** Xoá bản lưu trên gateway (nếu có) và trong trình duyệt. `false` nếu không xoá được ở đâu. */
+export async function deleteProject(id: string, gateway: Gateway | null): Promise<boolean> {
+  if (isSampleProject(id)) return false
+  let removed = false
+  if (gateway) removed = (await gateway.deleteProject(id)).ok
+  try {
+    const stored = readStored()
+    if (stored[id]) {
+      delete stored[id]
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
+      removed = true
+    }
+  } catch { /* bỏ qua */ }
+  return removed
+}

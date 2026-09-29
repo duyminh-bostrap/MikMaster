@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -6,6 +7,7 @@ import { formatClock, formatHours } from '@/utils/format'
 import { appendLog } from '@/utils/projector'
 import { TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import { useProjectActions } from '@/store/hooks'
+import { useGateway } from '@/store/useGateway'
 import { PingCheck } from '@/features/ping/PingCheck'
 import type { ConnectionStatus, Projector } from '@/types'
 
@@ -28,13 +30,23 @@ function Row({ label, value, valueClassName }: { label: string; value: string; v
 
 /** Số liệu thiết bị, trạng thái kết nối và log lỗi. */
 export function DeviceStatus({ projector: p }: { projector: Projector }) {
-  const { updateProjector } = useProjectActions()
+  const { updateProjector, syncProjector } = useProjectActions()
+  const { gateway } = useGateway()
+  const [reconnecting, setReconnecting] = useState(false)
   const { temperatureC, lampHours, brightness } = p.telemetry
   const conn = CONNECTION[p.connection]
 
-  // Mô phỏng: khi có backend, thay bằng lời gọi kết nối lại thật.
-  function reconnect() {
-    updateProjector(p.id, { connection: 'connected', errors: p.errors.filter(e => e !== 'Offline'), log: appendLog(p, 'info', 'Reconnected') })
+  // LIVE: đọc trạng thái thật ngay (kết quả đi qua cùng đường với vòng poll, kể cả lỗi).
+  // Mô phỏng: không có thiết bị để hỏi → chỉ đặt lại trạng thái.
+  async function reconnect() {
+    if (!gateway) {
+      updateProjector(p.id, { connection: 'connected', errors: p.errors.filter(e => e !== 'Offline'), log: appendLog(p, 'info', 'Reconnected (simulated)') })
+      return
+    }
+    setReconnecting(true)
+    const r = await gateway.status(p)
+    setReconnecting(false)
+    syncProjector(p.id, r.ok ? { ok: true, status: r.value } : { ok: false, code: r.code, message: `Reconnect: ${r.message}` })
   }
 
   return (
@@ -43,7 +55,7 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
       <div className="mb-5 flex flex-col gap-2">
         <div className="flex items-center justify-between">
           <Badge tone={conn.tone}>{conn.label}</Badge>
-          {p.connection !== 'connected' && <Button size="xs" variant="accent" onClick={reconnect}>RECONNECT</Button>}
+          {p.connection !== 'connected' && <Button size="xs" variant="accent" disabled={reconnecting} onClick={() => void reconnect()}>{reconnecting ? 'CONNECTING…' : 'RECONNECT'}</Button>}
         </div>
         <PingCheck key={`${p.id}:${p.network.ip}:${p.network.protocol.port}`} projector={p} />
         <Row label="MODEL" value={p.model} />

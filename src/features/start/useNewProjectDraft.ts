@@ -31,8 +31,14 @@ export function useNewProjectDraft() {
   // Id nháp = IP (duy nhất trong draft); id hiển thị PJ-xx được cấp lúc launch.
   const addDiscovered = useCallback((d: DiscoveredDevice) => {
     setDevices(prev => {
-      const key = `${d.ip}:${d.protocol}`
-      if (prev.some(x => `${x.projector.network.ip}:${x.projector.network.protocol.type}` === key)) return prev
+      // Một IP = một máy. Máy trả lời nhiều giao thức (RQ35K có cả PJLink lẫn NTCONTROL) chỉ giữ một dòng,
+      // ưu tiên giao thức riêng của hãng vì điều khiển được nhiều hơn PJLink.
+      const existing = prev.find(x => x.projector.network.ip === d.ip)
+      if (existing) {
+        const existingIsPjlink = existing.projector.network.protocol.type.startsWith('pjlink')
+        if (existing.source === 'manual' || !existingIsPjlink || d.protocol.startsWith('pjlink')) return prev
+        prev = prev.filter(x => x !== existing)
+      }
       const boothId = d.suggestedBoothId && booths.some(b => b.id === d.suggestedBoothId) ? d.suggestedBoothId : (booths[0]?.id ?? '')
       const base = createProjector({ id: d.ip, boothId, name: d.name ?? d.model ?? `${d.manufacturer ?? 'Projector'} ${d.ip}`, ip: d.ip, location: d.location, model: d.model ?? d.manufacturer, protocol: d.protocol })
       const projector = { ...base, network: { ...base.network, protocol: { ...base.network.protocol, port: d.port } } }

@@ -1,4 +1,4 @@
-import type { CommandDto, ScanFoundDto, StatusDto } from '../../../shared/api.ts'
+import type { CommandDto, CommandTemplates, ScanFoundDto, StatusDto } from '../../../shared/api.ts'
 
 export interface DriverTarget {
   host: string
@@ -6,6 +6,8 @@ export interface DriverTarget {
   username?: string
   password?: string
   timeoutMs: number
+  /** Giao thức chung: lệnh người dùng khai báo cho power / shutter. */
+  commands?: CommandTemplates
 }
 
 export type ProbeResult = Omit<ScanFoundDto, 'ip' | 'port' | 'protocol'>

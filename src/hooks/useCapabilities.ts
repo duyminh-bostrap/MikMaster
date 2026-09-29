@@ -1,4 +1,4 @@
-import { liveCapabilities } from '@/services/capabilities'
+import { deviceCapabilities } from '@/services/capabilities'
 import { useGateway } from '@/store/useGateway'
 import type { Projector } from '@/types'
 
@@ -19,6 +19,6 @@ export interface Capabilities {
 export function useCapabilities(p: Projector): Capabilities {
   const { gateway } = useGateway()
   if (!gateway) return { live: false, osd: true, testPattern: true, lens: true, input: true, raw: false }
-  const caps = liveCapabilities(p.network.protocol.type)
+  const caps = deviceCapabilities(p)
   return { live: true, osd: caps.includes('osd'), testPattern: false, lens: false, input: caps.includes('input'), raw: caps.includes('raw') }
 }

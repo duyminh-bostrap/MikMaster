@@ -241,3 +241,21 @@ describe('ping', () => {
     assert.equal((await ping({ ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: 0 } })).status, 400)
   })
 })
+
+describe('command templates over HTTP', () => {
+  const gen = (commands?: object) => ({ ip: '127.0.0.1', protocol: { type: 'generic-tcp', port: pana.port, ...(commands ? { commands } : {}) } })
+
+  test('generic protocol without a template refuses power (501)', async () => {
+    assert.equal((await post('/api/devices/command', { target: gen(), command: { kind: 'power', value: 'on' } })).status, 501)
+  })
+
+  test('with both power templates the command is sent (200)', async () => {
+    const r = await post('/api/devices/command', { target: gen({ powerOn: 'PON\\r', powerOff: 'POF\\r' }), command: { kind: 'power', value: 'on' } })
+    assert.equal(r.status, 200)
+  })
+
+  test('templates never unlock commands for protocols that have a real driver', async () => {
+    const r = await post('/api/devices/command', { target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, commands: { powerOn: 'x', powerOff: 'y' } } }, command: { kind: 'input', input: 'HDMI 1' } })
+    assert.equal(r.status, 501)
+  })
+})

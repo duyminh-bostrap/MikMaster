@@ -13,7 +13,9 @@
     "test:server": "node --test server/test/*.test.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "start": "pnpm build && node server/src/index.ts"
+    "start": "pnpm build && node server/src/index.ts",
+    "sim:mac-alias": "sudo ifconfig lo0 alias 127.0.0.21 up && sudo ifconfig lo0 alias 127.0.0.22 up && sudo ifconfig lo0 alias 127.0.0.23 up",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "@fontsource-variable/inter": "^5.3.0",
@@ -24,6 +26,7 @@
     "react-router": "^8.4.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^26.6.3",
     "@types/react": "^19.3.0",
