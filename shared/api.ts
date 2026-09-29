@@ -1,6 +1,6 @@
 /** Hợp đồng HTTP giữa web app và server/. Chỉ chứa type và hằng số, không phụ thuộc gì. */
 
-export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip'
+export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip' | 'generic-tcp' | 'generic-udp' | 'art-net' | 'http-api'
 
 export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw'
 
@@ -13,6 +13,11 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   'pjlink-class2': ['power', 'shutter', 'input', 'raw'],
   'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw'],
   'christie-serial-ip': ['power', 'shutter', 'raw'],
+  // Chỉ RAW COMMAND: không có lệnh chuẩn nên không poll, không có power/shutter.
+  'generic-tcp': ['raw'],
+  'generic-udp': ['raw'],
+  'art-net': ['raw'],
+  'http-api': ['raw'],
 }
 
 export const DEFAULT_PORTS: Record<DriverProtocol, number> = {
@@ -20,6 +25,10 @@ export const DEFAULT_PORTS: Record<DriverProtocol, number> = {
   'pjlink-class2': 4352,
   'panasonic-nt-control': 1024,
   'christie-serial-ip': 3002,
+  'generic-tcp': 4000,
+  'generic-udp': 5000,
+  'art-net': 6454,
+  'http-api': 80,
 }
 
 export function isDriverProtocol(value: string): value is DriverProtocol {

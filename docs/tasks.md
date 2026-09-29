@@ -36,7 +36,7 @@ Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử m
 | C2 | **Kiểm trên Griffyn thật**: ý nghĩa mã trả về của `(PWR?)`, chiều của `(SHU0/1)`, định dạng lỗi | Cao | Chưa tìm được tài liệu riêng của Griffyn; hiện dựa vào tài liệu dòng M |
 | C3 | **Có tài liệu chính thức** (Panasonic PT-RQ35K command list + Christie Griffyn serial API) rồi làm: Lens Shift/Zoom/Focus, Lens Memory, Test Pattern, OSD Back/Exit, Input Christie | Cao | Chặn bởi C1/C2 và tài liệu; không gửi lệnh đoán vào động cơ ống kính |
 | C4 | Telemetry cho Panasonic/Christie: nhiệt độ, giờ laser, mã lỗi | Trung bình | Cần tên lệnh truy vấn từ tài liệu; hiện hiển thị `—` |
-| C5 | Driver TCP chung, UDP, Art-Net, HTTP API | Trung bình | Hiện chọn được trong UI nhưng trả `501` |
+| C5 | Driver TCP chung, UDP, Art-Net, HTTP API | ✅ | Chỉ RAW COMMAND (không power/shutter/input, không poll, không quét mạng). Lệnh gõ dạng escape `\r \n \xHH`; Art-Net `[universe] ch=val 5-8=val`; HTTP `GET /path` / `POST /path body` (Basic auth, không theo redirect). 17 test. Muốn có nút Power cho các giao thức này cần thiết kế chỗ khai báo mẫu lệnh trong UI |
 | C6 | Xác thực token cho gateway; `HOST` ngoài loopback tự sinh token nếu chưa đặt `MIKMASTER_TOKEN` | ✅ | Bearer hoặc `?token=` (web lưu vào localStorage). Sai/thiếu token → web rơi về SIMULATED, chưa có màn hình nhập token |
 | C7 | Lưu project phía server (thay `localStorage`); mã hoá/không lưu mật khẩu máy chiếu dạng thường | Trung bình | |
 | C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Trình duyệt không mở được socket TCP nên gateway là bắt buộc |

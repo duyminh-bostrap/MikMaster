@@ -5,6 +5,15 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useGateway } from '@/store/useGateway'
 import type { Projector } from '@/types'
 
+const RAW_HINTS: Partial<Record<Projector['network']['protocol']['type'], string>> = {
+  'panasonic-nt-control': 'e.g. QPW',
+  'christie-serial-ip': 'e.g. (PWR?)',
+  'generic-tcp': 'e.g. PWR ON\\r\\n  (\\r \\n \\xHH)',
+  'generic-udp': 'e.g. ping  (\\r \\n \\xHH)',
+  'art-net': 'e.g. 0 1=255 5-8=128  (universe ch=value)',
+  'http-api': 'e.g. GET /api/status  |  POST /path {"on":true}',
+}
+
 interface Line { id: number; kind: 'tx' | 'rx' | 'err'; text: string }
 
 /**
@@ -16,7 +25,7 @@ export function RawConsole({ projector: p }: { projector: Projector }) {
   const [text, setText] = useState('')
   const [lines, setLines] = useState<Line[]>([])
   const [busy, setBusy] = useState(false)
-  const hint = p.network.protocol.type === 'panasonic-nt-control' ? 'e.g. QPW' : p.network.protocol.type === 'christie-serial-ip' ? 'e.g. (PWR?)' : 'e.g. %1POWR ?'
+  const hint = RAW_HINTS[p.network.protocol.type] ?? 'e.g. %1POWR ?'
 
   async function send() {
     const cmd = text.trim()
