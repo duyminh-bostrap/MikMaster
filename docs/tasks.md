@@ -48,7 +48,7 @@ Cập nhật: 2026-09-29 (khuya, sau khi kiểm máy thật). Ký hiệu: ✅ xo
 | C13 | **Test pattern** Griffyn: mã `ITP` (đọc được "Off"); cần danh sách giá trị, bật thử phải được đồng ý | Cao | RQ35K: không có qua PJLink |
 | C14 | Độ sáng laser | Trung bình | Griffyn không có LPP/LOP/BRT; RQ35K không có qua PJLink. Cần tài liệu hãng |
 | C15 | Đổi input Christie (ghi) | Trung bình | Cần bảng số `SIN` / `CHA` theo cấu hình cổng |
-| C16 | Lens Griffyn: mã `LHO` `LVO` `ZOM` `FCS` `LMV+*` thấy trong web của máy | Thấp | Chưa hỏi thử; không gửi lệnh di chuyển khi chưa được đồng ý |
+| C16 | Lens Griffyn: **đọc vị trí** `LHO` `LVO` `ZOM` `FCS` ✅ trên máy thật. Di chuyển (`LHO n`… / `LMV+*`) và preset (app tự lưu vị trí) | Trung bình | Chưa gửi lệnh di chuyển; thử khi người dùng đứng cạnh máy và đồng ý từng lệnh. Chưa tìm thấy lệnh lens memory của máy |
 
 ## Cách chạy
 

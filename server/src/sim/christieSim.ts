@@ -52,6 +52,8 @@ export class ChristieSimulator extends SimServer {
       return `(PWR!00${this.power} "${this.power ? 'Power On' : 'Standby Mode'}")`
     }
     if (code === 'SIN' && arg === '?') return '(SIN!001 "One-Port HDMI0")'
+    const lens: Record<string, string> = { LHO: '-003', LVO: '-604', ZOM: '-050', FCS: '273' }
+    if (code! in lens && arg === '?') return `(${code}!${lens[code!]})`
     if (code === 'SHU') {
       if (!this.power) return '(ERR "Not available in standby")'
       if (arg !== '?') this.shutter = Number(arg)

@@ -24,6 +24,8 @@ export interface Telemetry {
   lampHours: number
   /** 0..100 (%) */
   brightness: number
+  /** Vị trí ống kính máy báo (đơn vị của máy, chỉ đọc) — Christie. */
+  lensReading?: { shiftH?: number; shiftV?: number; zoom?: number; focus?: number }
   /** Nhiệt độ từng cảm biến, nếu máy báo (Christie). */
   sensors?: { name: string; c: number }[]
 }

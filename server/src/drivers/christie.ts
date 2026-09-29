@@ -1,4 +1,4 @@
-import type { CommandDto, StatusDto } from '../../../shared/api.ts'
+import type { CommandDto, LensReadingDto, StatusDto } from '../../../shared/api.ts'
 import { DeviceError, TcpConnection, serialize, splitParens } from '../net/tcp.ts'
 import type { Driver, DriverTarget, ProbeResult } from './types.ts'
 
@@ -20,6 +20,9 @@ import type { Driver, DriverTarget, ProbeResult } from './types.ts'
  *   - POWER_STATE: ý nghĩa các giá trị số ngoài 0/1 → suy từ phần mô tả.
  *   - SHUTTER_CLOSED: (SHU1) = đóng, (SHU0) = mở.
  */
+/** Đã hỏi thử trên Griffyn 4K50 thật: `(LHO!-003)` `(LVO!-604)` `(ZOM!-050)` `(FCS!273)`. */
+const LENS_QUERIES = [['LHO', 'shiftH'], ['LVO', 'shiftV'], ['ZOM', 'zoom'], ['FCS', 'focus']] as const satisfies readonly (readonly [string, keyof LensReadingDto])[]
+
 const SHUTTER_CLOSED = '1'
 const SHUTTER_OPEN = '0'
 
@@ -134,6 +137,14 @@ export const christieDriver: Driver = {
       const sin = await query(t, 'SIN').catch(() => undefined)
       if (sin) status.input = inputFrom(sin.description)
     }
+    // Vị trí ống kính (chỉ hỏi "?", không bao giờ gửi lệnh di chuyển): `(LHO!-003)` → -3.
+    const lens: LensReadingDto = {}
+    for (const [code, key] of LENS_QUERIES) {
+      const r = await query(t, code).catch(() => undefined)
+      const n = r && /^[+-]?\d+$/.test(r.value) ? Number(r.value) : NaN
+      if (Number.isFinite(n)) lens[key] = n
+    }
+    if (Object.keys(lens).length > 0) status.lens = lens
     // Số liệu phụ: lỗi (máy cũ không có nhóm SST) chỉ làm thiếu số liệu, không hỏng trạng thái.
     const temps = await sst(t, 'TEMP').then(temperaturesFrom, () => undefined)
     if (temps?.main !== undefined) status.temperatureC = temps.main

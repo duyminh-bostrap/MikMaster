@@ -10,6 +10,8 @@ export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw' | 'testPa
  */
 export const WEB_LOGIN_PROTOCOLS: readonly string[] = ['christie-serial-ip']
 
+export interface LensReadingDto { shiftH?: number; shiftV?: number; zoom?: number; focus?: number }
+
 /** Ảnh tín hiệu vào hiện tại của máy (live preview). */
 export interface PreviewDto {
   state: 'image' | 'no-signal' | 'no-thumbnail'
@@ -125,6 +127,8 @@ export interface StatusDto {
   lampHours?: number
   /** °C, khi đọc được từ máy (nhiệt độ chính, vd. khí vào). */
   temperatureC?: number
+  /** Vị trí ống kính máy báo, đơn vị của máy (Christie LHO / LVO / ZOM / FCS). Chỉ đọc. */
+  lens?: LensReadingDto
   /** Mọi cảm biến nhiệt máy báo (Christie SST+TEMP). */
   temperatures?: { name: string; c: number }[]
   errors: string[]

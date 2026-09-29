@@ -6,6 +6,7 @@ import { DeviceStatus } from '@/features/detail/DeviceStatus'
 import { NetworkEditor } from '@/features/detail/NetworkEditor'
 import { DetailHeader } from '@/features/detail/DetailHeader'
 import { LensPanel } from '@/features/detail/lens/LensPanel'
+import { LensReading } from '@/features/detail/lens/LensReading'
 import { PreviewPanel } from '@/features/detail/PreviewPanel'
 import { TestPatternPanel } from '@/features/detail/TestPatternPanel'
 import { AccountMenu } from '@/features/detail/AccountMenu'
@@ -86,6 +87,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
         </section>
 
         {!locked && <aside className={`${SIDE_PANEL} w-72 border-l border-border max-lg:w-full max-lg:border-t max-lg:border-l-0`}>
+          {caps.live && <LensReading projector={projector} />}
           <fieldset disabled={!caps.lens} className="contents">
             {!caps.lens && <UnavailableNotice>{why}</UnavailableNotice>}
             <LensPanel projector={projector} />
