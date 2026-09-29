@@ -18,6 +18,15 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     setCredentials: (ids: string[], creds: { username?: string; password?: string }) =>
       dispatch({ type: 'projectors/setCredentials', ids, ...creds }),
     closeProject: () => dispatch({ type: 'project/close' }),
+    updateProject: (patch: { name?: string; venue?: string }) => dispatch({ type: 'project/update', patch }),
+    addBooth: (name: string, location = '') => {
+      const booth = { id: `booth-${Date.now().toString(36)}`, name, location }
+      dispatch({ type: 'booth/add', booth })
+      return booth
+    },
+    updateBooth: (id: string, patch: { name?: string; location?: string }) => dispatch({ type: 'booth/update', id, patch }),
+    removeBooth: (id: string, moveTo: string) => dispatch({ type: 'booth/remove', id, moveTo }),
+    removeProjector: (id: string) => dispatch({ type: 'projector/remove', id }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>
       dispatch({ type: 'projector/patch', id, patch }),
     moveToBooth: (ids: string[], booth: { id: string; name: string }) =>

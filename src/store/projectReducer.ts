@@ -24,6 +24,11 @@ export const initialProjectState: ProjectState = { project: null, booths: [], pr
 export type ProjectAction =
   | { type: 'project/launch'; payload: { project: Project; booths: Booth[]; projectors: Projector[] } }
   | { type: 'project/close' }
+  | { type: 'project/update'; patch: Partial<Pick<Project, 'name' | 'venue'>> }
+  | { type: 'booth/add'; booth: Booth }
+  | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name' | 'location'>> }
+  | { type: 'booth/remove'; id: string; moveTo: string }
+  | { type: 'projector/remove'; id: string }
   | { type: 'projector/patch'; id: string; patch: Partial<Omit<Projector, 'id'>> }
   | { type: 'projector/sync'; id: string; result: SyncResult }
   | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
@@ -54,6 +59,29 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'project/close':
       return initialProjectState
+
+    case 'project/update':
+      return state.project ? { ...state, project: { ...state.project, ...action.patch } } : state
+
+    case 'booth/add':
+      return { ...state, booths: [...state.booths, action.booth] }
+
+    case 'booth/update':
+      return { ...state, booths: state.booths.map(b => (b.id === action.id ? { ...b, ...action.patch } : b)) }
+
+    case 'booth/remove': {
+      // Không xoá booth cuối cùng; máy trong booth bị xoá chuyển sang `moveTo`.
+      const target = state.booths.find(b => b.id === action.moveTo)
+      if (state.booths.length <= 1 || !target || action.moveTo === action.id) return state
+      return {
+        ...state,
+        booths: state.booths.filter(b => b.id !== action.id),
+        projectors: state.projectors.map(p => (p.boothId === action.id ? { ...p, boothId: target.id, log: appendLog(p, 'info', `Moved to booth ${target.name}`) } : p)),
+      }
+    }
+
+    case 'projector/remove':
+      return { ...state, projectors: state.projectors.filter(p => p.id !== action.id) }
 
     case 'projector/patch':
       return mapProjectors(state, [action.id], p => ({ ...p, ...action.patch }))

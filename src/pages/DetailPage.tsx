@@ -1,4 +1,6 @@
+import { useState } from 'react'
 import { Navigate, useNavigate, useParams } from 'react-router'
+import { EditDialog } from '@/features/dashboard/EditDialogs'
 import { BasicControls } from '@/features/detail/BasicControls'
 import { DeviceStatus } from '@/features/detail/DeviceStatus'
 import { NetworkEditor } from '@/features/detail/NetworkEditor'
@@ -28,10 +30,12 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
   const navigate = useNavigate()
   const caps = useCapabilities(projector)
   const why = 'Not available over this connection yet: no command set verified against the manufacturer documentation. Use RAW COMMAND to try commands.'
+  const [editing, setEditing] = useState(false)
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background max-lg:h-auto max-lg:min-h-screen max-lg:overflow-visible">
-      <DetailHeader project={project} booth={booths.find(b => b.id === projector.boothId)} projector={projector} onBack={() => navigate(-1)} />
+      <DetailHeader project={project} booth={booths.find(b => b.id === projector.boothId)} projector={projector} onBack={() => navigate(-1)} onEdit={() => setEditing(true)} />
+      {editing && <EditDialog target={{ kind: 'projector', id: projector.id }} onClose={() => setEditing(false)} />}
 
       <div className="flex min-h-0 flex-1 max-lg:flex-col">
         <aside className={`${SIDE_PANEL} w-64 border-r border-border max-lg:w-full max-lg:border-r-0 max-lg:border-b`}>

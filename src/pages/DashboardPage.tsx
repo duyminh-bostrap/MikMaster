@@ -13,6 +13,8 @@ import { ALL_BOOTHS, useBoothFilter } from '@/hooks/useBoothFilter'
 import { computeFleetStats } from '@/utils/fleet'
 import { formatLongDate } from '@/utils/format'
 import { saveProject } from '@/services/projectRepository'
+import { saveProjectToFile } from '@/services/projectFile'
+import { EditDialog, type EditTarget } from '@/features/dashboard/EditDialogs'
 import { useOpenProject, useProjectActions } from '@/store/hooks'
 import { ProjectorContextMenu, type MenuAnchor } from '@/features/dashboard/ProjectorContextMenu'
 import { useGateway } from '@/store/useGateway'
@@ -39,6 +41,9 @@ export default function DashboardPage() {
     const booth = booths.find(b => b.id === boothId)
     if (booth) moveToBooth([projectorId], booth)
   }
+  const [editing, setEditing] = useState<EditTarget | null>(null)
+  const closeEdit = useCallback(() => setEditing(null), [])
+
   function openMenu(e: React.MouseEvent, projectorId: string) {
     e.preventDefault()
     setMenu({ x: e.clientX, y: e.clientY, projectorId })
@@ -51,6 +56,8 @@ export default function DashboardPage() {
           project={project} booths={booths} projectors={projectors}
           activeBooth={activeBooth} onSelectBooth={setActiveBooth} onOpenProjector={openProjector}
           onSave={() => saveProject({ project, booths, projectors }, gateway)}
+          onSaveFile={() => saveProjectToFile({ project, booths, projectors })}
+          onEdit={setEditing}
           onMoveProjector={moveProjector} onProjectorContextMenu={openMenu}
         />
       }
@@ -63,8 +70,10 @@ export default function DashboardPage() {
       </main>
       {menu && menuProjector && (
         <ProjectorContextMenu anchor={menu} projector={menuProjector} booths={booths}
-          onMove={boothId => moveProjector(menuProjector.id, boothId)} onOpen={() => openProjector(menuProjector.id)} onClose={closeMenu} />
+          onMove={boothId => moveProjector(menuProjector.id, boothId)} onOpen={() => openProjector(menuProjector.id)}
+          onEdit={() => setEditing({ kind: 'projector', id: menuProjector.id })} onClose={closeMenu} />
       )}
+      {editing && <EditDialog target={editing} onClose={closeEdit} />}
       <AppFooter left="MikMaster v0.1.0" right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
     </AppShell>
   )

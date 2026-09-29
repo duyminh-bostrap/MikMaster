@@ -1,16 +1,17 @@
-import { Check, ExternalLink, MoveRight } from 'lucide-react'
+import { Check, ExternalLink, MoveRight, Pencil } from 'lucide-react'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { Booth, Projector } from '@/types'
 
 export interface MenuAnchor { x: number; y: number; projectorId: string }
 
-/** Menu chuột phải cho máy chiếu: mở trang điều khiển, chuyển sang booth khác. */
-export function ProjectorContextMenu({ anchor, projector, booths, onMove, onOpen, onClose }: {
+/** Menu chuột phải cho máy chiếu: mở trang điều khiển, sửa thông tin, chuyển sang booth khác. */
+export function ProjectorContextMenu({ anchor, projector, booths, onMove, onOpen, onEdit, onClose }: {
   anchor: MenuAnchor
   projector: Projector
   booths: Booth[]
   onMove: (boothId: string) => void
   onOpen: () => void
+  onEdit: () => void
   onClose: () => void
 }) {
   const ref = useRef<HTMLDivElement>(null)
@@ -48,6 +49,9 @@ export function ProjectorContextMenu({ anchor, projector, booths, onMove, onOpen
       <p className="truncate px-3 pt-1 pb-1.5 font-mono text-[10px] tracking-[0.08em] text-muted-foreground">{projector.id} · {projector.name}</p>
       <button type="button" role="menuitem" className={item} onClick={() => { onOpen(); onClose() }}>
         <ExternalLink size={11} />Open control
+      </button>
+      <button type="button" role="menuitem" className={item} onClick={() => { onEdit(); onClose() }}>
+        <Pencil size={11} />Edit info…
       </button>
       <div className="my-1 h-px bg-border" />
       <p className="flex items-center gap-1.5 px-3 py-1 font-mono text-[10px] tracking-[0.08em] text-muted-foreground"><MoveRight size={10} />MOVE TO BOOTH</p>

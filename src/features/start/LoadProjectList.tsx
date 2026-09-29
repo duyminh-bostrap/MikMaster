@@ -1,11 +1,18 @@
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, FileUp } from 'lucide-react'
+import { Button } from '@/components/ui/Button'
 import { formatShortDate } from '@/utils/format'
 import type { SavedProjectSummary } from '@/types'
 
-export function LoadProjectList({ projects, onLoad, onBack }: { projects: SavedProjectSummary[]; onLoad: (id: string) => void; onBack: () => void }) {
+export function LoadProjectList({ projects, onLoad, onOpenFile, onBack }: {
+  projects: SavedProjectSummary[]
+  onLoad: (id: string) => void
+  onOpenFile: () => void
+  onBack: () => void
+}) {
   return (
     <div className="w-full max-w-2xl">
-      <StepHeader title="Load Project" onBack={onBack} />
+      <StepHeader title="Load Project" onBack={onBack}
+        aside={<Button variant="accent" className="ml-auto" onClick={onOpenFile}><FileUp size={12} />OPEN FILE…</Button>} />
       <div className="flex flex-col gap-3">
         {projects.map(sp => (
           <button key={sp.id} type="button" onClick={() => onLoad(sp.id)}

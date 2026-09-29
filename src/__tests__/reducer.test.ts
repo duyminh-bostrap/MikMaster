@@ -54,6 +54,39 @@ describe('projectReducer', () => {
     expect(find(same, 'PJ-01')).toBe(find(s, 'PJ-01'))
   })
 
+  describe('sửa project / booth / máy', () => {
+    test('project/update', () => {
+      const s = projectReducer(launched(), { type: 'project/update', patch: { name: 'New', venue: 'Hall B' } })
+      expect(s.project).toMatchObject({ name: 'New', venue: 'Hall B', id: 'p' })
+    })
+
+    test('booth add / update', () => {
+      let s = projectReducer(launched(), { type: 'booth/add', booth: { id: 'b-x', name: 'Balcony', location: '' } })
+      s = projectReducer(s, { type: 'booth/update', id: 'b-x', patch: { name: 'Balcony L', location: 'Level 2' } })
+      expect(s.booths.at(-1)).toEqual({ id: 'b-x', name: 'Balcony L', location: 'Level 2' })
+    })
+
+    test('xoá booth chuyển máy sang booth khác', () => {
+      const s = launched()
+      const next = projectReducer(s, { type: 'booth/remove', id: 'booth-a', moveTo: 'booth-b' })
+      expect(next.booths.map(b => b.id)).not.toContain('booth-a')
+      expect(next.projectors.filter(p => p.boothId === 'booth-a')).toHaveLength(0)
+      expect(next.projectors.length).toBe(s.projectors.length)
+    })
+
+    test('không xoá booth cuối cùng, không chuyển sang booth không tồn tại', () => {
+      const s = launched()
+      expect(projectReducer(s, { type: 'booth/remove', id: 'booth-a', moveTo: 'nope' })).toBe(s)
+      const one = { ...s, booths: s.booths.slice(0, 1) }
+      expect(projectReducer(one, { type: 'booth/remove', id: one.booths[0]!.id, moveTo: one.booths[0]!.id })).toBe(one)
+    })
+
+    test('projector/remove', () => {
+      const s = projectReducer(launched(), { type: 'projector/remove', id: 'PJ-01' })
+      expect(s.projectors.some(p => p.id === 'PJ-01')).toBe(false)
+    })
+  })
+
   describe('lens', () => {
     test('adjust kẹp trong giới hạn và bỏ preset đang chọn', () => {
       const s = projectReducer(launched(), { type: 'lens/adjust', id: 'PJ-01', delta: { zoom: 1000, shiftX: -1000 } })
