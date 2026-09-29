@@ -259,3 +259,26 @@ describe('command templates over HTTP', () => {
     assert.equal(r.status, 501)
   })
 })
+
+describe('range scan', () => {
+  const events = (text: string, name: string) => [...text.matchAll(new RegExp(`event: ${name}\\ndata: (.*)\\n`, 'g'))].map(m => JSON.parse(m[1]!))
+
+  test('scans exactly the addresses from … to', async () => {
+    const text = await (await fetch(`${base}/api/scan?from=127.0.0.5&to=127.0.0.7`)).text()
+    const ips = events(text, 'progress').map(p => p.ip).sort()
+    assert.deepEqual(ips, ['127.0.0.5', '127.0.0.6', '127.0.0.7'])
+    assert.equal(events(text, 'progress').at(-1).pct, 100)
+    assert.match(text, /event: done/)
+  })
+
+  test('can cross a /24 boundary', async () => {
+    const text = await (await fetch(`${base}/api/scan?from=127.0.0.255&to=127.0.1.1`)).text()
+    assert.deepEqual(events(text, 'progress').map(p => p.ip).sort(), ['127.0.0.255', '127.0.1.0', '127.0.1.1'])
+  })
+
+  test('rejects reversed, oversized, public or malformed ranges', async () => {
+    for (const q of ['from=127.0.0.9&to=127.0.0.1', 'from=10.0.0.1&to=10.0.8.1', 'from=8.8.8.1&to=8.8.8.9', 'from=127.0.0.1&to=hello', 'from=127.0.0.1']) {
+      assert.equal((await fetch(`${base}/api/scan?${q}`)).status, 400, q)
+    }
+  })
+})

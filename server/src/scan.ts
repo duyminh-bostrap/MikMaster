@@ -1,12 +1,14 @@
 import { DEFAULT_PORTS, type DriverProtocol, type ScanFoundDto } from '../../shared/api.ts'
+import { intToIp } from '../../shared/ipRange.ts'
 import { DRIVERS } from './drivers/index.ts'
 
 /** PJLink Class 1 là tập con mà mọi thiết bị PJLink đều hiểu nên dùng làm nhãn khi quét. */
 export const SCAN_PROTOCOLS: readonly DriverProtocol[] = ['pjlink-class1', 'panasonic-nt-control', 'christie-serial-ip']
 
 export interface ScanOptions {
-  /** Ba octet đầu, ví dụ "192.168.10". */
-  subnet: string
+  /** Địa chỉ đầu / cuối dạng số (xem shared/ipRange.ts), đã kiểm tra hợp lệ. */
+  from: number
+  to: number
   protocols?: readonly DriverProtocol[]
   concurrency?: number
   timeoutMs?: number
@@ -15,18 +17,18 @@ export interface ScanOptions {
   onFound: (found: ScanFoundDto) => void
 }
 
-export async function scanSubnet(opts: ScanOptions): Promise<void> {
+export async function scanRange(opts: ScanOptions): Promise<void> {
   const protocols = opts.protocols ?? SCAN_PROTOCOLS
   const timeoutMs = opts.timeoutMs ?? 700
-  const total = 254
-  let next = 1
+  const total = opts.to - opts.from + 1
+  let next = opts.from
   let done = 0
 
   async function worker(): Promise<void> {
     while (!opts.signal?.aborted) {
       const n = next++
-      if (n > total) return
-      const ip = `${opts.subnet}.${n}`
+      if (n > opts.to) return
+      const ip = intToIp(n)
       await Promise.all(protocols.map(async protocol => {
         const port = DEFAULT_PORTS[protocol]
         const result = await DRIVERS[protocol].probe(ip, port, timeoutMs)

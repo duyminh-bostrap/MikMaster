@@ -17,7 +17,7 @@ import { ScanPanel } from './ScanPanel'
 import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
 
-const DEFAULT_SUBNET = '192.168.1'
+const DEFAULT_RANGE = { from: '192.168.1.1', to: '192.168.1.254' }
 const STEPS = ['PROJECT', 'SCAN'] as const
 type Step = 0 | 1
 
@@ -49,8 +49,8 @@ function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
 export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onLaunch: (snapshot: ProjectSnapshot) => void }) {
   const draft = useNewProjectDraft()
   const [step, setStep] = useState<Step>(0)
-  const [subnet, setSubnet] = useState(DEFAULT_SUBNET)
-  const scan = useNetworkScan(subnet, draft.addDiscovered)
+  const [range, setRange] = useState(DEFAULT_RANGE)
+  const scan = useNetworkScan(range, draft.addDiscovered)
   const { start: startScan } = scan
   const { clearScanned } = draft
 
@@ -95,7 +95,7 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
       {step === 1 && (
         <div className="grid grid-cols-[1fr_320px] gap-5 max-lg:grid-cols-1">
           <div className="flex flex-col gap-4">
-            <ScanPanel subnet={subnet} onSubnetChange={setSubnet} status={scan.status} progress={scan.progress} currentIp={scan.currentIp} error={scan.error} foundIps={draft.devices.map(d => d.projector.network.ip)} onStart={scan.status === 'done' ? rescan : startScan} />
+            <ScanPanel range={range} onRangeChange={setRange} status={scan.status} progress={scan.progress} currentIp={scan.currentIp} error={scan.error} foundIps={draft.devices.map(d => d.projector.network.ip)} onStart={scan.status === 'done' ? rescan : startScan} />
             {draft.devices.length > 0 && (
               <DeviceList devices={draft.devices} booths={draft.booths} onSelect={draft.setSelected} onBooth={draft.setBoothOf} onProtocol={draft.setProtocolOf} />
             )}

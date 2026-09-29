@@ -22,7 +22,7 @@ export interface Gateway {
   saveProject(snapshot: ProjectSnapshotDto): Promise<GatewayResult<ProjectSummaryDto>>
   deleteProject(id: string): Promise<GatewayResult<unknown>>
   /** Trả về hàm huỷ. */
-  scan(subnet: string, handlers: ScanHandlers): () => void
+  scan(range: { from: string; to: string }, handlers: ScanHandlers): () => void
 }
 
 export function toTarget(p: Projector): TargetDto {
@@ -79,8 +79,9 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
     loadProject: id => call<ProjectSnapshotDto>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'GET'),
     saveProject: snapshot => call<ProjectSummaryDto>(base, token, `/api/projects/${encodeURIComponent(snapshot.project.id)}`, snapshot, 'PUT'),
     deleteProject: id => call<unknown>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'DELETE'),
-    scan(subnet, h) {
-      const source = new EventSource(`${base}/api/scan?subnet=${encodeURIComponent(subnet)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
+    scan(range, h) {
+      const q = new URLSearchParams({ from: range.from, to: range.to, ...(token ? { token } : {}) })
+      const source = new EventSource(`${base}/api/scan?${q}`)
       let finished = false
       const finish = () => { finished = true; source.close() }
       source.addEventListener('progress', e => { const d = JSON.parse((e as MessageEvent).data); h.onProgress(d.pct, d.ip) })

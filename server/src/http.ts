@@ -9,7 +9,8 @@ import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
 import { pingDevice } from './ping.ts'
-import { scanSubnet, SCAN_PROTOCOLS } from './scan.ts'
+import { checkScanRange } from '../../shared/ipRange.ts'
+import { scanRange, SCAN_PROTOCOLS } from './scan.ts'
 import { isValidProjectId, validateSnapshot, type ProjectStore } from './store.ts'
 import { extractToken, isAllowedHost, isValidSubnetPrefix, tokenMatches } from './security.ts'
 
@@ -121,14 +122,19 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   }
 
   if (route === 'GET /api/scan') {
-    const subnet = url.searchParams.get('subnet') ?? ''
-    if (!isValidSubnetPrefix(subnet)) throw new DeviceError('bad-request', 'subnet must be a private "a.b.c" prefix')
+    // ?from=a.b.c.d&to=a.b.c.d (dải tuỳ chọn) hoặc ?subnet=a.b.c (= .1 – .254, cách gọi cũ).
+    const subnet = url.searchParams.get('subnet')
+    if (subnet !== null && !isValidSubnetPrefix(subnet)) throw new DeviceError('bad-request', 'subnet must be a private "a.b.c" prefix')
+    const range = subnet !== null
+      ? checkScanRange(`${subnet}.1`, `${subnet}.254`)
+      : checkScanRange(url.searchParams.get('from') ?? '', url.searchParams.get('to') ?? '')
+    if (!range.ok) throw new DeviceError('bad-request', range.error)
     const abort = new AbortController()
     res.on('close', () => abort.abort())
     res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', Connection: 'keep-alive' })
     const emit = (event: string, data: unknown) => { if (!res.writableEnded) res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`) }
-    await scanSubnet({
-      subnet, protocols: SCAN_PROTOCOLS, signal: abort.signal,
+    await scanRange({
+      from: range.from, to: range.to, protocols: SCAN_PROTOCOLS, signal: abort.signal,
       onProgress: (pct, ip) => emit('progress', { pct, ip }),
       onFound: found => emit('found', found),
     })

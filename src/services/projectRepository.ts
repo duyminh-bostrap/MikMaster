@@ -24,14 +24,15 @@ function readStored(): Record<string, { summary: SavedProjectSummary; snapshot: 
   }
 }
 
-function listLocal(): SavedProjectSummary[] {
-  return [...Object.values(readStored()).map(entry => entry.summary), ...MOCK_SAVED_PROJECTS]
+function listLocal(includeSamples: boolean): SavedProjectSummary[] {
+  return [...Object.values(readStored()).map(entry => entry.summary), ...(includeSamples ? MOCK_SAVED_PROJECTS : [])]
 }
 
-/** Gộp server + localStorage + mẫu; trùng id thì ưu tiên server. */
+/** Gộp server + localStorage (+ project mẫu khi chạy mô phỏng); trùng id thì ưu tiên server. */
 export async function listSavedProjects(gateway: Gateway | null): Promise<SavedProjectSummary[]> {
   const remote = gateway ? await gateway.listProjects() : null
-  const all = [...(remote?.ok ? remote.value : []), ...listLocal()]
+  // Chạy thật (có gateway): ẩn project mẫu — IP của chúng là giả, mở ra chỉ toàn máy offline.
+  const all = [...(remote?.ok ? remote.value : []), ...listLocal(!gateway)]
   const unique = [...new Map(all.map(p => [p.id, p])).values()]
   return unique.sort((a, b) => b.savedAt.localeCompare(a.savedAt))
 }
