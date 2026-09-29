@@ -6,6 +6,7 @@ import { PROTOCOL_OPTIONS } from '@/constants/protocols'
 import { cn } from '@/utils/cn'
 import type { Booth, ProtocolType } from '@/types'
 import type { DraftDevice } from './useNewProjectDraft'
+import { t } from '@/i18n'
 
 /** Danh sách thiết bị tìm thấy: chọn, đổi Protocol và phân bổ Booth cho từng máy. */
 export function DeviceList({ devices, booths, onSelect, onBooth, onProtocol }: {
@@ -17,15 +18,15 @@ export function DeviceList({ devices, booths, onSelect, onBooth, onProtocol }: {
 }) {
   const selected = devices.filter(d => d.selected).length
   return (
-    <Panel title="DISCOVERED DEVICES" aside={<span className="font-mono text-xs text-accent">{selected}/{devices.length} SELECTED</span>} bodyClassName="p-0">
+    <Panel title={t('DISCOVERED DEVICES')} aside={<span className="font-mono text-xs text-accent">{selected}/{devices.length} {t('SELECTED')}</span>} bodyClassName="p-0">
       {devices.map(({ projector: p, selected: isSelected, source, authRequired }, i) => (
         <div key={`${p.network.ip}:${p.network.protocol.type}`} className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3', i > 0 && 'border-t border-border', isSelected && 'bg-primary/[0.04]')}>
           <Checkbox checked={isSelected} onChange={c => onSelect(p.network.ip, c)} label={`Select ${p.name}`} />
           <div className="min-w-44 flex-1">
             <div className="mb-0.5 flex items-center gap-2">
               <span className="truncate text-sm font-medium text-foreground">{p.name}</span>
-              {source === 'manual' && <Badge tone="accent">MANUAL</Badge>}
-              {authRequired && <Badge tone="warn">LOGIN</Badge>}
+              {source === 'manual' && <Badge tone="accent">{t('MANUAL')}</Badge>}
+              {authRequired && <Badge tone="warn">{t('LOGIN')}</Badge>}
             </div>
             <div className="flex items-center gap-3 text-xs">
               <span className="font-mono text-accent">{p.network.ip}</span>

@@ -4,6 +4,7 @@ import { isSampleProject } from '@/services/projectRepository'
 import { Button } from '@/components/ui/Button'
 import { formatShortDate } from '@/utils/format'
 import type { SavedProjectSummary } from '@/types'
+import { t } from '@/i18n'
 
 export function LoadProjectList({ projects, onLoad, onDelete, onOpenFile, onBack }: {
   projects: SavedProjectSummary[]
@@ -18,34 +19,34 @@ export function LoadProjectList({ projects, onLoad, onDelete, onOpenFile, onBack
 
   return (
     <div className="w-full max-w-2xl">
-      <StepHeader title="Load Project" onBack={onBack}
-        aside={<Button variant="accent" className="ml-auto" onClick={onOpenFile}><FileUp size={12} />OPEN FILE…</Button>} />
+      <StepHeader title={t('Load Project')} onBack={onBack}
+        aside={<Button variant="accent" className="ml-auto" onClick={onOpenFile}><FileUp size={12} />{t('OPEN FILE…')}</Button>} />
       <div className="flex flex-col gap-3">
-        {projects.length === 0 && <p className="font-mono text-xs text-muted-foreground">No saved projects yet.</p>}
+        {projects.length === 0 && <p className="font-mono text-xs text-muted-foreground">{t('No saved projects yet.')}</p>}
         {projects.map(sp => (
           <div key={sp.id} className="group flex items-stretch rounded-sm border border-border bg-card transition-colors hover:border-primary/40">
             <button type="button" onClick={() => onLoad(sp.id)} className="flex flex-1 items-center justify-between p-4 text-left">
               <div className="flex flex-col gap-1">
                 <span className="text-sm font-semibold text-foreground">
-                  {sp.name}{isSampleProject(sp.id) && <span className="ml-2 font-mono text-[10px] font-normal text-muted-foreground">SAMPLE</span>}
+                  {sp.name}{isSampleProject(sp.id) && <span className="ml-2 font-mono text-[10px] font-normal text-muted-foreground">{t('SAMPLE')}</span>}
                 </span>
                 <div className="mt-1 flex items-center gap-3 font-mono text-xs">
                   <span className="text-accent">{sp.deviceCount} devices</span>
                   <span className="text-muted-foreground">Saved {formatShortDate(sp.savedAt)}</span>
                 </div>
-                {failed === sp.id && <span role="alert" className="font-mono text-[10px] text-danger">Could not delete this project.</span>}
+                {failed === sp.id && <span role="alert" className="font-mono text-[10px] text-danger">{t('Could not delete this project.')}</span>}
               </div>
-              <span className="font-mono text-xs text-primary">LOAD →</span>
+              <span className="font-mono text-xs text-primary">{t('LOAD →')}</span>
             </button>
             {!isSampleProject(sp.id) && (
               confirming === sp.id ? (
                 <div className="flex items-center gap-1.5 border-l border-border px-3">
                   <span className="font-mono text-[10px] text-danger">Delete?</span>
-                  <Button size="xs" variant="danger" onClick={async () => { setConfirming(null); setFailed((await onDelete(sp.id)) ? null : sp.id) }}>YES</Button>
-                  <Button size="xs" onClick={() => setConfirming(null)}>NO</Button>
+                  <Button size="xs" variant="danger" onClick={async () => { setConfirming(null); setFailed((await onDelete(sp.id)) ? null : sp.id) }}>{t('YES')}</Button>
+                  <Button size="xs" onClick={() => setConfirming(null)}>{t('NO')}</Button>
                 </div>
               ) : (
-                <button type="button" aria-label={`Delete ${sp.name}`} title="Delete saved project" onClick={() => setConfirming(sp.id)}
+                <button type="button" aria-label={`Delete ${sp.name}`} title={t('Delete saved project')} onClick={() => setConfirming(sp.id)}
                   className="border-l border-border px-3 text-muted-foreground opacity-0 transition-opacity hover:text-danger focus-visible:opacity-100 group-hover:opacity-100">
                   <Trash2 size={13} />
                 </button>
@@ -62,7 +63,7 @@ export function StepHeader({ title, onBack, aside }: { title: string; onBack: ()
   return (
     <div className="mb-6 flex items-center gap-3">
       <button type="button" onClick={onBack} className="flex items-center gap-1.5 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground">
-        <ArrowLeft size={12} strokeWidth={2.5} />BACK
+        <ArrowLeft size={12} strokeWidth={2.5} />{t('BACK')}
       </button>
       <div className="h-4 w-px bg-border" />
       <h1 className="text-lg font-semibold tracking-tight text-foreground">{title}</h1>

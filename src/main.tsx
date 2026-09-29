@@ -2,11 +2,18 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '@/app/App'
 import './index.css'
+import { getSettings } from '@/services/settings'
 
 // Chỉ bản build (pnpm build → pnpm start): service worker cho phép cài MikMaster như app.
 // Không bật khi `pnpm dev` để khỏi bị cache làm lệch code đang sửa.
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
   window.addEventListener('load', () => { void navigator.serviceWorker.register('/sw.js') })
+}
+
+{
+  const { theme } = getSettings()
+  const light = theme === 'light' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: light)').matches)
+  document.documentElement.dataset.theme = light ? 'light' : 'dark'
 }
 
 createRoot(document.getElementById('root')!).render(

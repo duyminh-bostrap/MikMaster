@@ -3,6 +3,7 @@ import { formatHours } from '@/utils/format'
 import type { FleetStats } from '@/utils/fleet'
 import { TONE_BG, TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import type { Projector } from '@/types'
+import { t } from '@/i18n'
 
 const RADIUS = 22
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS
@@ -69,23 +70,23 @@ export function FleetMetrics({ stats, projectors, actions }: { stats: FleetStats
       <div className="flex items-center gap-3">
         <FleetHealthGauge online={stats.online} total={stats.total} />
         <div className="font-mono text-xs">
-          <p className="font-medium text-foreground">{stats.online}/{stats.total} Operational</p>
-          <p className="text-muted-foreground">Fleet Health</p>
+          <p className="font-medium text-foreground">{t('{online}/{total} Operational', { online: stats.online, total: stats.total })}</p>
+          <p className="text-muted-foreground">{t('Fleet Health')}</p>
         </div>
       </div>
       <Divider />
-      <Stat value={stats.alerts} label="Active Alerts" valueClassName={stats.alerts > 0 ? 'text-danger' : 'text-ok'} />
+      <Stat value={stats.alerts} label={t('Active Alerts')} valueClassName={stats.alerts > 0 ? 'text-danger' : 'text-ok'} />
       <Divider />
-      <Stat value={stats.avgTemp > 0 ? `${stats.avgTemp}°C` : '—'} label="Avg Temperature" valueClassName={avgTone ? TONE_TEXT[avgTone] : undefined} />
+      <Stat value={stats.avgTemp > 0 ? `${stats.avgTemp}°C` : '—'} label={t('Avg Temperature')} valueClassName={avgTone ? TONE_TEXT[avgTone] : undefined} />
       <Divider />
       <div className="flex flex-col gap-1">
         <TempChart projectors={projectors} />
         <span className="font-mono text-xs text-muted-foreground">
-          Hottest: {stats.hottest ? `${stats.hottest.name} ${stats.hottest.telemetry.temperatureC}°C` : '—'}
+          {t('Hottest:')} {stats.hottest ? `${stats.hottest.name} ${stats.hottest.telemetry.temperatureC}°C` : '—'}
         </span>
       </div>
       <Divider />
-      <Stat value={formatHours(stats.totalLampHours)} label="Total Lamp Hours" />
+      <Stat value={formatHours(stats.totalLampHours)} label={t('Total Lamp Hours')} />
       <div className="ml-auto">{actions}</div>
     </div>
     </div>

@@ -10,6 +10,10 @@ import { QuickControls } from '@/features/dashboard/QuickControls'
 import { Sidebar } from '@/features/dashboard/Sidebar'
 import { TopBar } from '@/features/dashboard/TopBar'
 import { ALL_BOOTHS, useBoothFilter } from '@/hooks/useBoothFilter'
+import { ProjectorFilterBar } from '@/features/dashboard/ProjectorFilterBar'
+import { useT } from '@/i18n'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { STATUS_FILTERS, matchesQuery, matchesStatus, type StatusFilter } from '@/utils/projectorFilter'
 import { computeFleetStats } from '@/utils/fleet'
 import { formatLongDate } from '@/utils/format'
 import { useProjectCommands } from '@/features/appmenu/useProjectCommands'
@@ -23,14 +27,27 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const cmd = useProjectCommands()
 
+  const t = useT()
   const scope = useMemo(
     () => (activeBooth === ALL_BOOTHS ? projectors : projectors.filter(p => p.boothId === activeBooth)),
     [activeBooth, projectors],
   )
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = useState<StatusFilter>('all')
+  const boothName = useCallback((id: string) => booths.find(b => b.id === id)?.name ?? '', [booths])
+  const matching = useMemo(() => scope.filter(p => matchesQuery(p, query, boothName(p.boothId))), [scope, query, boothName])
+  const visible = useMemo(() => matching.filter(p => matchesStatus(p, status)), [matching, status])
+  const counts = useMemo(() => Object.fromEntries(STATUS_FILTERS.map(s => [s, matching.filter(p => matchesStatus(p, s)).length])) as Record<StatusFilter, number>, [matching])
   const stats = useMemo(() => computeFleetStats(projectors), [projectors])
-  const scopeLabel = activeBooth === ALL_BOOTHS ? 'All Projectors' : (booths.find(b => b.id === activeBooth)?.name ?? '')
+  const inBooth = activeBooth !== ALL_BOOTHS
+  const scopeLabel = inBooth ? boothName(activeBooth) : t('All Projectors')
   const openProjector = (id: string) => navigate(`/project/projectors/${id}`)
-  const { moveToBooth } = useProjectActions()
+  const { moveToBooth, removeProjector } = useProjectActions()
+  const [confirmDialog, confirm] = useConfirm()
+  async function removeWithConfirm(id: string, name: string) {
+    const ok = await confirm({ title: t('REMOVE PROJECTOR'), message: t('Remove {name} from this project? The projector itself is not changed.', { name }), confirmLabel: t('REMOVE') })
+    if (ok) removeProjector(id)
+  }
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const menuProjector = menu ? projectors.find(p => p.id === menu.projectorId) : undefined
@@ -55,22 +72,29 @@ export default function DashboardPage() {
           activeBooth={activeBooth} onSelectBooth={setActiveBooth} onOpenProjector={openProjector}
           onSave={cmd.save}
           onEdit={setEditing}
+          onAddProjector={() => setEditing({ kind: 'addProjector', boothId: inBooth ? activeBooth : undefined })}
           onMoveProjector={moveProjector} onProjectorContextMenu={openMenu}
         />
       }
     >
       <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} />
-      <FleetMetrics stats={stats} projectors={projectors} actions={<QuickControls projectorIds={scope.map(p => p.id)} />} />
+      <FleetMetrics stats={stats} projectors={projectors} actions={inBooth
+        ? <QuickControls projectorIds={scope.map(p => p.id)} boothName={scopeLabel} />
+        : <span className="font-mono text-[10px] text-muted-foreground">{t('Open a booth to switch its projectors on or off.')}</span>} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
+      <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts} />
       <main className="flex-1 overflow-y-auto p-5">
-        <ProjectorGrid projectors={scope} onOpen={openProjector} onContextMenu={openMenu} />
+        <ProjectorGrid projectors={visible} onOpen={openProjector} onContextMenu={openMenu}
+          emptyText={scope.length === 0 ? (inBooth ? t('No projectors in this booth') : t('No projectors yet')) : t('No projector matches the filter')} />
       </main>
       {menu && menuProjector && (
         <ProjectorContextMenu anchor={menu} projector={menuProjector} booths={booths}
           onMove={boothId => moveProjector(menuProjector.id, boothId)} onOpen={() => openProjector(menuProjector.id)}
-          onEdit={() => setEditing({ kind: 'projector', id: menuProjector.id })} onClose={closeMenu} />
+          onEdit={() => setEditing({ kind: 'projector', id: menuProjector.id })}
+          onRemove={() => void removeWithConfirm(menuProjector.id, menuProjector.name)} onClose={closeMenu} />
       )}
       {editing && <EditDialog target={editing} onClose={closeEdit} />}
+      {confirmDialog}
       <AppFooter left={`MikMaster v${__APP_VERSION__}`} right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
     </AppShell>
   )

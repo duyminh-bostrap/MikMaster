@@ -33,6 +33,7 @@ export type ProjectAction =
   | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name'>> }
   | { type: 'booth/remove'; id: string; moveTo: string }
   | { type: 'projector/remove'; id: string }
+  | { type: 'projector/add'; projector: Projector }
   | { type: 'projector/patch'; id: string; patch: Partial<Omit<Projector, 'id'>> }
   | { type: 'projector/sync'; id: string; result: SyncResult }
   | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
@@ -86,6 +87,9 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
         projectors: state.projectors.map(p => (p.boothId === action.id ? { ...p, boothId: target.id, log: appendLog(p, 'info', `Moved to booth ${target.name}`) } : p)),
       }
     }
+
+    case 'projector/add':
+      return state.projectors.some(p => p.id === action.projector.id) ? state : { ...state, projectors: [...state.projectors, action.projector] }
 
     case 'projector/remove':
       return { ...state, projectors: state.projectors.filter(p => p.id !== action.id) }

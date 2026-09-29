@@ -9,6 +9,7 @@ import { useProjectActions, useProjectState } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
 import { lacksPassword, needsAuth, withCredentials } from '@/utils/credentials'
 import type { Projector } from '@/types'
+import { t } from '@/i18n'
 
 const NETWORK_ERRORS = new Set(['connect', 'timeout', 'network'])
 
@@ -41,9 +42,9 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
       if (!r.ok) {
         setBusy(false)
         setError(
-          r.code === 'auth' ? 'Wrong username or password.'
-          : NETWORK_ERRORS.has(r.code) ? `Cannot reach ${ip} — this is not a login problem. Check the IP address, cable and power (try PING below).`
-          : `The device answered, but not as ${protocol.type}: ${r.message}`,
+          r.code === 'auth' ? t('Wrong username or password.')
+          : NETWORK_ERRORS.has(r.code) ? t('Cannot reach {ip} — this is not a login problem. Check the IP address, cable and power (try PING below).', { ip })
+          : t('The device answered, but not as {protocol}: {message}', { protocol: protocol.type, message: r.message }),
         )
         return
       }
@@ -70,32 +71,32 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
   const onEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && canSubmit) void signIn() }
 
   return (
-    <div className={mode === 'required' ? 'mb-5 rounded-sm border border-warn/40 bg-warn/5 p-3' : undefined}>
-      <SectionHeader label={mode === 'required' ? 'LOGIN REQUIRED' : 'CHANGE LOGIN'} />
-      <div className="mb-5 flex flex-col gap-2.5">
+    <div>
+      <SectionHeader label={mode === 'required' ? t('LOGIN REQUIRED') : t('CHANGE LOGIN')} />
+      <div className="flex flex-col gap-2.5">
         {mode === 'required' && (
           <p className="font-mono text-[10px] leading-relaxed text-warn">
-            {p.connection === 'auth-failed' ? 'The projector refused the login.' : 'This projector is protected by a password.'} Sign in to control it.
+            {p.connection === 'auth-failed' ? t('The projector refused the login.') : t('This projector is protected by a password.')} {t('Sign in to control it.')}
           </p>
         )}
         <div className="grid grid-cols-2 gap-2">
-          <Field label="USERNAME">{id => <TextInput id={id} value={username} autoComplete="off" autoFocus={mode === 'required'} onKeyDown={onEnter} onChange={e => { setUsername(e.target.value); setError('') }} className="px-2 py-1.5 text-xs" />}</Field>
-          <Field label="PASSWORD">{id => <PasswordInput id={id} value={password} onKeyDown={onEnter} onChange={e => { setPassword(e.target.value); setError('') }} className="px-2 py-1.5 text-xs" />}</Field>
+          <Field label={t('USERNAME')}>{id => <TextInput id={id} value={username} autoComplete="off" autoFocus={mode === 'required'} onKeyDown={onEnter} onChange={e => { setUsername(e.target.value); setError('') }} className="px-2 py-1.5 text-xs" />}</Field>
+          <Field label={t('PASSWORD')}>{id => <PasswordInput id={id} value={password} onKeyDown={onEnter} onChange={e => { setPassword(e.target.value); setError('') }} className="px-2 py-1.5 text-xs" />}</Field>
         </div>
         {others.length > 0 && (
           <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px] text-muted-foreground">
-            <Checkbox checked={applyAll} onChange={setApplyAll} label="Use for all devices" />
-            Also use for {others.length} other device{others.length > 1 ? 's' : ''} that need a login
+            <Checkbox checked={applyAll} onChange={setApplyAll} label={t('Use for all devices')} />
+            {t('Also use for {n} other device(s) that need a login', { n: others.length })}
           </label>
         )}
         {error && <p role="alert" className="font-mono text-[10px] leading-relaxed text-danger">{error}</p>}
         <Button variant="primary" disabled={!canSubmit} onClick={() => void signIn()}>
-          <LogIn size={12} />{busy ? 'CHECKING…' : 'SIGN IN'}
+          <LogIn size={12} />{busy ? t('CHECKING…') : t('SIGN IN')}
         </Button>
         {mode === 'change' && (
           <div className="flex gap-2">
-            <Button className="flex-1" onClick={onDone}>CANCEL</Button>
-            {!lacksPassword(p) && <Button className="flex-1" onClick={signOut}><LogOut size={10} />SIGN OUT</Button>}
+            <Button className="flex-1" onClick={onDone}>{t('CANCEL')}</Button>
+            {!lacksPassword(p) && <Button className="flex-1" onClick={signOut}><LogOut size={10} />{t('SIGN OUT')}</Button>}
           </div>
         )}
       </div>

@@ -8,9 +8,9 @@ import { appendLog } from '@/utils/projector'
 import { TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import { useProjectActions } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
-import { needsAuth } from '@/utils/credentials'
 import { PingCheck } from '@/features/ping/PingCheck'
 import type { ConnectionStatus, Projector } from '@/types'
+import { t } from '@/i18n'
 
 const CONNECTION: Record<ConnectionStatus, { label: string; tone: Tone }> = {
   connected: { label: 'CONNECTED', tone: 'ok' },
@@ -31,7 +31,7 @@ function Row({ label, value, valueClassName }: { label: string; value: string; v
 }
 
 /** Số liệu thiết bị, trạng thái kết nối và log lỗi. */
-export function DeviceStatus({ projector: p, onChangeLogin }: { projector: Projector; onChangeLogin?: () => void }) {
+export function DeviceStatus({ projector: p }: { projector: Projector }) {
   const { updateProjector, syncProjector } = useProjectActions()
   const { gateway } = useGateway()
   const [reconnecting, setReconnecting] = useState(false)
@@ -53,31 +53,22 @@ export function DeviceStatus({ projector: p, onChangeLogin }: { projector: Proje
 
   return (
     <>
-      <SectionHeader label="STATUS" />
+      <SectionHeader label={t('STATUS')} />
       <div className="mb-5 flex flex-col gap-2">
         <div className="flex items-center justify-between">
-          <Badge tone={conn.tone}>{conn.label}</Badge>
-          {p.connection !== 'connected' && <Button size="xs" variant="accent" disabled={reconnecting} onClick={() => void reconnect()}>{reconnecting ? 'CONNECTING…' : 'RECONNECT'}</Button>}
+          <Badge tone={conn.tone}>{t(conn.label)}</Badge>
+          {p.connection !== 'connected' && <Button size="xs" variant="accent" disabled={reconnecting} onClick={() => void reconnect()}>{reconnecting ? t('CONNECTING…') : t('RECONNECT')}</Button>}
         </div>
         <PingCheck key={`${p.id}:${p.network.ip}:${p.network.protocol.port}`} projector={p} />
-        {needsAuth(p.network.protocol.type) && onChangeLogin && (
-          <div className="flex items-baseline justify-between font-mono">
-            <span className="text-[10px] tracking-[0.08em] text-muted-foreground">LOGIN</span>
-            <span className="flex items-baseline gap-2 text-xs text-foreground">
-              {p.network.protocol.password ? (p.network.protocol.username || '••••') : 'none'}
-              <button type="button" onClick={onChangeLogin} className="text-[10px] text-accent hover:underline">Change</button>
-            </span>
-          </div>
-        )}
-        <Row label="MODEL" value={p.model} />
-        <Row label="LAMP HOURS" value={lampHours > 0 ? formatHours(lampHours) : '—'} />
-        <Row label="BRIGHTNESS" value={`${brightness}%`} />
-        <Row label="TEMPERATURE" value={temperatureC > 0 ? `${temperatureC}°C` : '—'} valueClassName={TONE_TEXT[temperatureTone(temperatureC)]} />
+        <Row label={t('MODEL')} value={p.model} />
+        <Row label={t('LAMP HOURS')} value={lampHours > 0 ? formatHours(lampHours) : '—'} />
+        <Row label={t('BRIGHTNESS')} value={`${brightness}%`} />
+        <Row label={t('TEMPERATURE')} value={temperatureC > 0 ? `${temperatureC}°C` : '—'} valueClassName={TONE_TEXT[temperatureTone(temperatureC)]} />
       </div>
 
-      <SectionHeader label="EVENT LOG" />
+      <SectionHeader label={t('EVENT LOG')} />
       {p.log.length === 0 ? (
-        <p className="font-mono text-[10px] text-muted-foreground">No events</p>
+        <p className="font-mono text-[10px] text-muted-foreground">{t('No events')}</p>
       ) : (
         <ul className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
           {p.log.map(e => (

@@ -20,6 +20,7 @@ import { ProjectFileError } from '@/services/projectFile'
 import type { ProjectSnapshot } from '@/services/projectRepository'
 import { useGateway } from '@/store/useGateway'
 import type { SavedProjectSummary } from '@/types'
+import { t } from '@/i18n'
 
 type Mode = 'choose' | 'new' | 'load' | 'file'
 
@@ -56,7 +57,7 @@ export default function StartPage() {
     try {
       await cmd.openFile()
     } catch (e) {
-      setFileError(e instanceof ProjectFileError ? e.message : 'Could not read the file.')
+      setFileError(e instanceof ProjectFileError ? e.message : t('Could not read the file.'))
     }
   }
 
@@ -79,8 +80,8 @@ export default function StartPage() {
       <main className="flex flex-1 flex-col items-center justify-center gap-4 p-8">
         {gatewayMode === 'locked' && (
           <div role="alert" className="flex w-full max-w-2xl items-center justify-between gap-3 rounded-sm border border-warn/40 bg-warn/10 px-4 py-2 font-mono text-xs text-warn">
-            The gateway is running but needs an access token — until then the app is only a simulation.
-            <Button size="xs" variant="warn" onClick={() => setTokenOpen(true)}>ENTER TOKEN</Button>
+            {t('The gateway is running but needs an access token — until then the app is only a simulation.')}
+            <Button size="xs" variant="warn" onClick={() => setTokenOpen(true)}>{t('ENTER TOKEN')}</Button>
           </div>
         )}
         {tokenOpen && <GatewayTokenDialog onClose={() => setTokenOpen(false)} />}
@@ -92,7 +93,7 @@ export default function StartPage() {
         {mode === 'new' && <NewProjectWizard key={location.key} onBack={() => setMode('choose')} onLaunch={cmd.launch} />}
       </main>
 
-      <AppFooter left="MikMaster — Professional AV Control" right={<><GatewayBadge /><StatusDot tone="ok" className="size-1.5" />Network ready</>} />
+      <AppFooter left="MikMaster — Professional AV Control" right={<><GatewayBadge /><StatusDot tone="ok" className="size-1.5" />{t('Network ready')}</>} />
     </div>
   )
 }

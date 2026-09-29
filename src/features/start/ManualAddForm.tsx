@@ -7,6 +7,7 @@ import { MODEL_PRESETS } from '@/constants/models'
 import { PROTOCOL_OPTIONS } from '@/constants/protocols'
 import type { ProtocolType } from '@/types'
 import type { ManualDeviceInput } from './useNewProjectDraft'
+import { t } from '@/i18n'
 
 export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => string | null }) {
   const [ip, setIp] = useState('')
@@ -31,19 +32,19 @@ export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => 
   const onEnter = (e: React.KeyboardEvent) => e.key === 'Enter' && submit()
 
   return (
-    <Panel title="MANUAL ADD" bodyClassName="flex flex-col gap-3">
+    <Panel title={t('MANUAL ADD')} bodyClassName="flex flex-col gap-3">
       <p className="text-xs leading-relaxed text-muted-foreground">Add a device not detected by scan (different subnet or ping-blocked).</p>
-      <Field label="MODEL">
+      <Field label={t('MODEL')}>
         {id => (
           <SelectInput id={id} value={preset} onChange={e => choosePreset(e.target.value)}>
-            <option value="">Other / generic</option>
+            <option value="">{t('Other / generic')}</option>
             {MODEL_PRESETS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
           </SelectInput>
         )}
       </Field>
-      <Field label="IP ADDRESS">{id => <TextInput id={id} value={ip} invalid={!!error} placeholder="192.168.1.100" onChange={e => { setIp(e.target.value); setError('') }} onKeyDown={onEnter} />}</Field>
-      <Field label="DISPLAY NAME (opt.)">{id => <TextInput id={id} value={name} placeholder="e.g. Backup Unit" onChange={e => setName(e.target.value)} onKeyDown={onEnter} />}</Field>
-      <Field label="PROTOCOL">
+      <Field label={t('IP ADDRESS')}>{id => <TextInput id={id} value={ip} invalid={!!error} placeholder="192.168.1.100" onChange={e => { setIp(e.target.value); setError('') }} onKeyDown={onEnter} />}</Field>
+      <Field label={t('DISPLAY NAME (opt.)')}>{id => <TextInput id={id} value={name} placeholder={t('e.g. Backup Unit')} onChange={e => setName(e.target.value)} onKeyDown={onEnter} />}</Field>
+      <Field label={t('PROTOCOL')}>
         {id => (
           <SelectInput id={id} value={protocol} onChange={e => setProtocol(e.target.value as ProtocolType)}>
             {PROTOCOL_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label} · {o.defaultPort}</option>)}
@@ -51,7 +52,7 @@ export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => 
         )}
       </Field>
       {error && <p role="alert" className="font-mono text-xs text-danger">{error}</p>}
-      <Button size="md" onClick={submit}><Plus size={12} strokeWidth={2.5} />ADD DEVICE</Button>
+      <Button size="md" onClick={submit}><Plus size={12} strokeWidth={2.5} />{t('ADD DEVICE')}</Button>
     </Panel>
   )
 }

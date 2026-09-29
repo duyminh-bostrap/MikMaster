@@ -53,7 +53,9 @@ Hai chế độ chạy, hiển thị ở chân trang:
 |---|---|---|
 | Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
 | **Chuyển máy sang booth khác**: kéo thả hoặc chuột phải | ✅ | |
-| Quick Controls ALL ON / ALL OFF / SHUTTER theo project hoặc booth | 🧪 | |
+| Bật / tắt / shutter cả booth — chỉ trong trang của booth; ALL ON bật lần lượt (mặc định cách 5 giây, đổi trong Cài đặt), có nút dừng; tắt máy / đóng shutter hàng loạt hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
+| Tìm máy (tên, IP, model, booth; phím /) và lọc theo trạng thái | ✅ | |
+| Thêm / sửa / gỡ máy chiếu trên Dashboard (nút ở cuối sidebar, chuột phải vào thẻ) | ✅ | |
 | Chỉ số: Fleet Health, cảnh báo, nhiệt độ TB, giờ đèn | ✅ | |
 | Poll trạng thái thật 4 giây | 🧪 | Chỉ giao thức có driver |
 
@@ -67,7 +69,15 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Lens Shift / Zoom / Focus, Lens Preset | 🎭 | LIVE bị khoá: không gửi lệnh đoán vào động cơ ống kính |
 | Raw Command | 🧪 | Đối chiếu lệnh với máy thật |
 
-## 5. Chạy / đóng gói
+## 5. Cài đặt, ngôn ngữ, trợ giúp
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Cài đặt: theme Tối / Sáng / Theo hệ thống, ngôn ngữ English / Tiếng Việt, khoảng cách bật máy | ✅ | Lưu trong trình duyệt |
+| Hướng dẫn và Giới thiệu trong menu logo | ✅ | |
+| Đăng nhập máy ở góc trên bên phải trang máy chiếu | ✅ | Chỉ hiện khi máy cần đăng nhập |
+
+## 6. Chạy / đóng gói
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|

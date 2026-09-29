@@ -1,6 +1,7 @@
 import { FileUp, FolderOpen, Plus } from 'lucide-react'
 import { FILE_EXTENSION } from '@/services/projectFile'
 import type { ReactNode } from 'react'
+import { t } from '@/i18n'
 
 function ModeCard({ icon, tone, kicker, title, description, cta, onClick }: {
   icon: ReactNode
@@ -28,24 +29,24 @@ export function ChooseMode({ savedCount, onNew, onLoad, onOpenFile }: { savedCou
   return (
     <div className="flex w-full max-w-2xl flex-col items-center gap-8">
       <div className="text-center">
-        <p className="mb-3 font-mono text-xs tracking-[0.2em] text-accent">AV CONTROL SYSTEM</p>
-        <h1 className="mb-3 text-3xl font-semibold tracking-tight text-foreground">Start a Session</h1>
+        <p className="mb-3 font-mono text-xs tracking-[0.2em] text-accent">{t('AV CONTROL SYSTEM')}</p>
+        <h1 className="mb-3 text-3xl font-semibold tracking-tight text-foreground">{t('Start a Session')}</h1>
         <p className="mx-auto max-w-[440px] text-sm text-muted-foreground">
-          Create a new project or load a saved configuration to resume controlling your projector fleet.
+          {t('Create a new project or load a saved configuration to resume controlling your projector fleet.')}
         </p>
       </div>
       <div className="grid w-full grid-cols-2 gap-4">
-        <ModeCard tone="primary" icon={<Plus size={18} />} kicker="NEW PROJECT" title="Create & Scan"
-          description="Set up a fresh project, scan your network for projectors, and assign them to booths."
-          cta="Start from scratch →" onClick={onNew} />
-        <ModeCard tone="accent" icon={<FolderOpen size={18} />} kicker="LOAD PROJECT" title="Resume Session"
-          description="Restore a previously saved project including IP list, booth configuration, and all lens presets."
-          cta={`${savedCount} saved projects →`} onClick={onLoad} />
+        <ModeCard tone="primary" icon={<Plus size={18} />} kicker={t('NEW PROJECT')} title={t('Create & Scan')}
+          description={t('Set up a fresh project, scan your network for projectors, and assign them to booths.')}
+          cta={t('Start from scratch →')} onClick={onNew} />
+        <ModeCard tone="accent" icon={<FolderOpen size={18} />} kicker={t('LOAD PROJECT')} title={t('Resume Session')}
+          description={t('Restore a previously saved project including IP list, booth configuration, and all lens presets.')}
+          cta={t('{n} saved projects →', { n: savedCount })} onClick={onLoad} />
       </div>
       <button type="button" onClick={onOpenFile} className="flex items-center gap-2 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground">
-        <FileUp size={13} />Open a project file ({FILE_EXTENSION}) from this computer
+        <FileUp size={13} />{t('Open a project file ({ext}) from this computer', { ext: FILE_EXTENSION })}
       </button>
-      <p className="font-mono text-xs text-muted-foreground">PJLink · Christie · Barco · Epson · Sony · Panasonic</p>
+      <p className="font-mono text-xs text-muted-foreground">{t('PJLink · Christie · Barco · Epson · Sony · Panasonic')}</p>
     </div>
   )
 }

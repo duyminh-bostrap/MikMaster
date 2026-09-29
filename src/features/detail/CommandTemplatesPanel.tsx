@@ -6,6 +6,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useProjectActions } from '@/store/hooks'
 import { appendLog } from '@/utils/projector'
 import type { Projector } from '@/types'
+import { t } from '@/i18n'
 
 const LABEL: Record<(typeof TEMPLATE_KEYS)[number], string> = {
   powerOn: 'POWER ON', powerOff: 'POWER OFF', shutterClose: 'SHUTTER CLOSE', shutterOpen: 'SHUTTER OPEN',
@@ -50,21 +51,21 @@ export function CommandTemplatesPanel({ projector: p }: { projector: Projector }
 
   return (
     <>
-      <SectionHeader label="COMMANDS" />
+      <SectionHeader label={t('COMMANDS')} />
       <div className="mb-5 flex flex-col gap-2.5">
         <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">
-          This protocol has no standard commands. Power and Shutter buttons send what you enter here. {SYNTAX[type]}
+          {t('This protocol has no standard commands. Power and Shutter buttons send what you enter here.')} {t(SYNTAX[type] ?? '')}
         </p>
         {TEMPLATE_KEYS.map(k => (
-          <Field key={k} label={LABEL[k]}>
+          <Field key={k} label={t(LABEL[k])}>
             {id => <TextInput id={id} value={draft[k] ?? ''} placeholder={EXAMPLE[type]?.[k] ?? ''} autoComplete="off" spellCheck={false}
               onChange={e => setDraft({ ...draft, [k]: e.target.value })} className="px-2 py-1.5 text-xs" />}
           </Field>
         ))}
         {(incomplete('powerOn', 'powerOff') || incomplete('shutterClose', 'shutterOpen')) && (
-          <p className="font-mono text-[10px] text-warn">Fill both commands of a pair (ON and OFF, CLOSE and OPEN) to enable that button.</p>
+          <p className="font-mono text-[10px] text-warn">{t('Fill both commands of a pair (ON and OFF, CLOSE and OPEN) to enable that button.')}</p>
         )}
-        <Button variant="primary" disabled={!dirty} onClick={save}>SAVE COMMANDS</Button>
+        <Button variant="primary" disabled={!dirty} onClick={save}>{t('SAVE COMMANDS')}</Button>
       </div>
     </>
   )

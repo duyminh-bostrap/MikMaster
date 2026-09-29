@@ -31,14 +31,17 @@ export function PopupMenu({ at, label, onClose, children, className }: {
   useEffect(() => {
     const close = (e: Event) => { if (!(e.target instanceof Node && ref.current?.contains(e.target))) onClose() }
     const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose() }
+    // Cuộn trễ (vừa cuộn thẻ vào tầm nhìn / cuộn quán tính) ngay lúc mở không được đóng menu.
+    const openedAt = Date.now()
+    const onScroll = () => { if (Date.now() - openedAt > 150) onClose() }
     window.addEventListener('pointerdown', close)
-    window.addEventListener('scroll', onClose, true)
+    window.addEventListener('scroll', onScroll, true)
     window.addEventListener('resize', onClose)
     window.addEventListener('keydown', onKey)
     ref.current?.querySelector<HTMLButtonElement>('button:not([disabled])')?.focus()
     return () => {
       window.removeEventListener('pointerdown', close)
-      window.removeEventListener('scroll', onClose, true)
+      window.removeEventListener('scroll', onScroll, true)
       window.removeEventListener('resize', onClose)
       window.removeEventListener('keydown', onKey)
     }

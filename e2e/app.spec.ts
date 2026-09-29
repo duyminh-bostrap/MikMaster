@@ -63,7 +63,11 @@ test('detail page: power ON/OFF only, ping needs the gateway, breadcrumb back to
   await card(page, 'PJ-01').click()
   await expect(page).toHaveURL(/projectors\/PJ-01/)
   await expect(page.getByRole('button', { name: 'STBY' })).toHaveCount(0)
-  await page.getByRole('button', { name: 'OFF', exact: true }).first().click()
+  const left = page.locator('aside').first()
+  await left.getByRole('button', { name: 'ON', exact: true }).first().click()
+  await left.getByRole('button', { name: 'OFF', exact: true }).first().click()
+  // Tắt máy luôn hỏi xác nhận.
+  await page.getByRole('dialog', { name: 'TURN OFF PROJECTOR' }).getByRole('button', { name: 'TURN OFF' }).click()
   await expect(page.locator('header')).toContainText('OFF')
   await expect(page.getByRole('button', { name: /PING/ })).toBeDisabled()
 
@@ -143,20 +147,58 @@ test('login screen only while a projector needs a login; controls hidden until t
   await expect(page.getByText('LENS SHIFT')).toHaveCount(0)
   await expect(page.getByText(/Sign in to this projector/)).toBeVisible()
 
-  await left.getByLabel('USERNAME', { exact: true }).fill('admin')
-  await left.getByLabel('PASSWORD', { exact: true }).fill('admin')
-  await left.getByRole('button', { name: 'SIGN IN' }).click()
+  // Khung đăng nhập mở sẵn ở góc trên bên phải.
+  const login = page.getByRole('dialog', { name: 'LOGIN REQUIRED' })
+  await expect(login).toBeVisible()
+  await login.getByLabel('USERNAME', { exact: true }).fill('admin')
+  await login.getByLabel('PASSWORD', { exact: true }).fill('admin')
+  await login.getByRole('button', { name: 'SIGN IN' }).click()
   await expect(left.getByText('LOGIN REQUIRED')).toHaveCount(0)
   await expect(left.getByText('POWER', { exact: true })).toBeVisible()
   await expect(page.getByText('LENS SHIFT')).toBeVisible()
 
-  // Đổi tài khoản khi cần: "Change" trong STATUS mở lại ô đăng nhập, Cancel đóng.
-  await left.getByRole('button', { name: 'Change' }).click()
-  await expect(left.getByText('CHANGE LOGIN')).toBeVisible()
-  await left.getByRole('button', { name: 'CANCEL' }).click()
-  await expect(left.getByText('CHANGE LOGIN')).toHaveCount(0)
+  // Đã đăng nhập: bấm tên tài khoản (góc phải) để đổi / đăng xuất; Cancel đóng.
+  await page.locator('header').getByRole('button', { name: /admin/ }).click()
+  await expect(page.getByRole('dialog', { name: 'CHANGE LOGIN' })).toBeVisible()
+  await page.getByRole('dialog', { name: 'CHANGE LOGIN' }).getByRole('button', { name: 'CANCEL' }).click()
+  await expect(page.getByRole('dialog', { name: 'CHANGE LOGIN' })).toHaveCount(0)
 
   // Máy không cần đăng nhập (Christie) không bao giờ hiện ô đăng nhập.
   await page.goto('/#/project/projectors/PJ-01')
   await expect(page.getByText(/LOGIN REQUIRED|CHANGE LOGIN/)).toHaveCount(0)
+  await expect(page.locator('header').getByRole('button', { name: /SIGN IN/ })).toHaveCount(0)
+})
+
+test('booth page: ALL ON one by one, ALL OFF asks first; filter and add projectors', async ({ page }) => {
+  await createProject(page, 'Booth Show')
+  // Tất cả: không có nút bật/tắt hàng loạt.
+  await expect(page.getByRole('button', { name: /ALL ON/ })).toHaveCount(0)
+  await page.getByRole('tab', { name: /^Booth 1/ }).click()
+  await page.getByRole('button', { name: /ALL OFF/ }).click()
+  await page.getByRole('dialog', { name: 'TURN OFF PROJECTORS' }).getByRole('button', { name: 'CANCEL' }).click()
+  await page.getByRole('button', { name: /ALL ON/ }).click()
+  await expect(page.getByText(/Powering on 1\/6/)).toBeVisible()
+  await page.getByRole('button', { name: 'STOP' }).click()
+  await expect(page.getByText(/Powering on/)).toHaveCount(0)
+
+  // Tìm nhanh.
+  await page.getByRole('tab', { name: /^All/ }).click()
+  await page.getByLabel('Search projectors').fill('rq35k')
+  await expect(page.locator('article')).toHaveCount(3)
+  await page.getByLabel('Search projectors').fill('')
+
+  // Thêm máy.
+  await page.getByRole('button', { name: 'ADD PROJECTOR' }).click()
+  const dialog = page.getByRole('dialog', { name: 'ADD PROJECTOR' })
+  await dialog.getByLabel('IP ADDRESS').fill('192.168.1.200')
+  await dialog.getByLabel('DISPLAY NAME (opt.)').fill('Spare')
+  await dialog.getByRole('button', { name: 'ADD', exact: true }).click()
+  await expect(page.locator('article', { hasText: 'Spare' })).toBeVisible()
+  await expect(page.getByRole('tab', { name: /^All/ })).toContainText('7')
+
+  // Sửa / gỡ bằng chuột phải.
+  await page.locator('article', { hasText: 'Spare' }).click({ button: 'right' })
+  await page.getByRole('menuitem', { name: /Remove from project/ }).click()
+  await page.getByRole('dialog', { name: 'REMOVE PROJECTOR' }).getByRole('button', { name: 'REMOVE' }).click()
+  await expect(page.locator('article', { hasText: 'Spare' })).toHaveCount(0)
 })

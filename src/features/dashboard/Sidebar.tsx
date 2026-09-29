@@ -9,7 +9,7 @@ import { cn } from '@/utils/cn'
 import type { Booth, Project, Projector } from '@/types'
 import type { EditTarget } from './EditDialogs'
 import { BoothDropZone, projectorDragProps } from './moveProjector'
-import { QuickControls } from './QuickControls'
+import { t } from '@/i18n'
 
 interface SidebarProps {
   project: Project
@@ -20,6 +20,7 @@ interface SidebarProps {
   onOpenProjector: (id: string) => void
   onSave: () => Promise<boolean>
   onEdit: (target: EditTarget) => void
+  onAddProjector: () => void
   onMoveProjector: (projectorId: string, boothId: string) => void
   onProjectorContextMenu: (e: React.MouseEvent, projectorId: string) => void
 }
@@ -28,7 +29,7 @@ const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(naviga
 
 const DELETE_BUTTON = 'flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100'
 
-export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave, onEdit, onMoveProjector, onProjectorContextMenu }: SidebarProps) {
+export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave, onEdit, onAddProjector, onMoveProjector, onProjectorContextMenu }: SidebarProps) {
   // Booth mới thêm (không có trong lần render đầu) vẫn mở sẵn: lưu những booth đã thu gọn thay vì đã mở.
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const expanded = { has: (id: string) => !collapsed.has(id) }
@@ -67,15 +68,15 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
           {dirty && (
             <button type="button" onClick={() => void onSave()} title={`Unsaved changes — click to save (${IS_MAC ? '⌘S' : 'Ctrl+S'})`}
               className="flex items-center gap-1 rounded-sm px-1 text-[10px] text-warn transition-colors hover:bg-warn/10">
-              <span className="size-1.5 rounded-full bg-warn" />UNSAVED
+              <span className="size-1.5 rounded-full bg-warn" />{t('UNSAVED')}
             </button>
           )}
         </p>
-        <InlineEdit label="Project name" value={project.name} onSave={name => updateProject({ name })}
+        <InlineEdit label={t('Project name')} value={project.name} onSave={name => updateProject({ name })}
           className="mb-0.5 block text-sm font-semibold leading-tight text-foreground" />
       </div>
 
-      <nav aria-label="Booths" className="flex-1 overflow-y-auto py-2">
+      <nav aria-label={t('Booths')} className="flex-1 overflow-y-auto py-2">
         <button
           type="button"
           onClick={() => onSelectBooth(ALL_BOOTHS)}
@@ -83,7 +84,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
         >
           <span className="flex items-center gap-2">
             <LayoutGrid size={12} className={allActive ? 'text-primary' : 'text-muted-foreground'} />
-            <span className={cn('text-xs font-medium', allActive ? 'text-primary' : 'text-foreground')}>All Projectors</span>
+            <span className={cn('text-xs font-medium', allActive ? 'text-primary' : 'text-foreground')}>{t('All Projectors')}</span>
           </span>
           <span className="font-mono text-xs text-muted-foreground">{projectors.length}</span>
         </button>
@@ -116,14 +117,14 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                 </button>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <InlineEdit label="Booth name" value={booth.name} onSave={name => updateBooth(booth.id, { name })}
+                    <InlineEdit label={t('Booth name')} value={booth.name} onSave={name => updateBooth(booth.id, { name })}
                       editRequest={renaming === booth.id ? 1 : 0}
                       className={cn('truncate text-xs font-semibold', isActive ? 'text-primary' : 'text-foreground')} />
                     {hasAlert && <StatusDot tone="danger" className="size-1.5" />}
                   </div>
                 </div>
                 {booths.length > 1 && (
-                  <button type="button" aria-label={`Delete ${booth.name}`} title="Delete booth" className={cn(DELETE_BUTTON, 'mr-1')}
+                  <button type="button" aria-label={`Delete ${booth.name}`} title={t('Delete booth')} className={cn(DELETE_BUTTON, 'mr-1')}
                     onClick={e => { e.stopPropagation(); onEdit({ kind: 'deleteBooth', id: booth.id }) }}><Trash2 size={10} /></button>
                 )}
                 <div className="flex flex-col items-end gap-0.5 font-mono">
@@ -134,7 +135,6 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
 
               {isOpen && (
                 <>
-                  <div className="px-4 pb-1"><QuickControls projectorIds={inBooth.map(p => p.id)} variant="compact" /></div>
                   {inBooth.map(p => (
                     <button
                       key={p.id}
@@ -157,11 +157,19 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
           )
         })}
 
-        <button type="button" onClick={newBooth}
-          className="mx-4 mt-2 flex w-[calc(100%-2rem)] items-center justify-center gap-1.5 rounded-sm border border-dashed border-border py-1.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
-          <Plus size={10} />ADD BOOTH
-        </button>
       </nav>
+
+      {/* Thêm booth / máy chiếu: cố định ở cuối sidebar. */}
+      <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
+        <button type="button" onClick={newBooth}
+          className="flex items-center justify-center gap-1.5 rounded-sm border border-dashed border-border py-1.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
+          <Plus size={10} />{t('ADD BOOTH')}
+        </button>
+        <button type="button" onClick={onAddProjector}
+          className="flex items-center justify-center gap-1.5 rounded-sm border border-accent/30 bg-accent/10 py-1.5 font-mono text-[10px] text-accent transition-colors hover:bg-accent/20">
+          <Plus size={10} />{t('ADD PROJECTOR')}
+        </button>
+      </div>
 
     </aside>
   )

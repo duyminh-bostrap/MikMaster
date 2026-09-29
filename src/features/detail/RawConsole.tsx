@@ -4,6 +4,7 @@ import { TextInput } from '@/components/ui/Field'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { useGateway } from '@/store/useGateway'
 import type { Projector } from '@/types'
+import { t } from '@/i18n'
 
 const RAW_HINTS: Partial<Record<Projector['network']['protocol']['type'], string>> = {
   'panasonic-nt-control': 'e.g. QPW',
@@ -41,10 +42,10 @@ export function RawConsole({ projector: p }: { projector: Projector }) {
 
   return (
     <>
-      <SectionHeader label="RAW COMMAND" />
+      <SectionHeader label={t('RAW COMMAND')} />
       <div className="flex gap-1.5">
-        <TextInput aria-label="Raw command" value={text} placeholder={hint} className="px-2 py-1.5 text-xs" onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && void send()} />
-        <Button variant="accent" disabled={busy || !text.trim()} onClick={() => void send()}>SEND</Button>
+        <TextInput aria-label={t('Raw command')} value={text} placeholder={hint} className="px-2 py-1.5 text-xs" onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && void send()} />
+        <Button variant="accent" disabled={busy || !text.trim()} onClick={() => void send()}>{t('SEND')}</Button>
       </div>
       <ul className="mt-2 flex max-h-32 flex-col gap-1 overflow-y-auto font-mono text-[10px] leading-snug">
         {lines.map(l => (

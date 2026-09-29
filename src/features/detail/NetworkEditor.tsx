@@ -8,6 +8,7 @@ import { isValidIPv4 } from '@/utils/network'
 import { appendLog } from '@/utils/projector'
 import { useProjectActions } from '@/store/hooks'
 import type { Projector, ProtocolType } from '@/types'
+import { t } from '@/i18n'
 
 /** Chỉnh IP / Port / giao thức (tài khoản đăng nhập nằm ở AccountPanel). Chỉ áp dụng khi bấm APPLY để tránh gửi cấu hình dở dang. */
 export function NetworkEditor({ projector: p }: { projector: Projector }) {
@@ -43,9 +44,9 @@ export function NetworkEditor({ projector: p }: { projector: Projector }) {
 
   return (
     <>
-      <SectionHeader label="NETWORK / PROTOCOL" />
+      <SectionHeader label={t('NETWORK / PROTOCOL')} />
       <div className="mb-5 flex flex-col gap-2.5">
-        <Field label="PROTOCOL">
+        <Field label={t('PROTOCOL')}>
           {id => (
             <SelectInput id={id} value={type} onChange={e => changeType(e.target.value as ProtocolType)} className="px-2 py-1.5 text-xs">
               {PROTOCOL_OPTIONS.map(o => <option key={o.type} value={o.type}>{o.label}</option>)}
@@ -53,10 +54,10 @@ export function NetworkEditor({ projector: p }: { projector: Projector }) {
           )}
         </Field>
         <div className="grid grid-cols-[1fr_80px] gap-2">
-          <Field label="IP ADDRESS">{id => <TextInput id={id} value={ip} invalid={!ipValid} onChange={e => setIp(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
-          <Field label="PORT">{id => <TextInput id={id} value={port} invalid={!portValid} inputMode="numeric" onChange={e => setPort(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
+          <Field label={t('IP ADDRESS')}>{id => <TextInput id={id} value={ip} invalid={!ipValid} onChange={e => setIp(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
+          <Field label={t('PORT')}>{id => <TextInput id={id} value={port} invalid={!portValid} inputMode="numeric" onChange={e => setPort(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
         </div>
-        <Button variant="primary" disabled={!dirty || !ipValid || !portValid} onClick={apply}>APPLY</Button>
+        <Button variant="primary" disabled={!dirty || !ipValid || !portValid} onClick={apply}>{t('APPLY')}</Button>
       </div>
     </>
   )

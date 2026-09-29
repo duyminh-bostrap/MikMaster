@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/utils/cn'
+import { t } from '@/i18n'
 
 /** Double-click để sửa tại chỗ: Enter / bấm ra ngoài = lưu, Esc = huỷ. Rỗng thì giữ tên cũ. */
 export function InlineEdit({ value, onSave, className, inputClassName, label, editRequest = 0 }: {
@@ -50,7 +51,7 @@ export function InlineEdit({ value, onSave, className, inputClassName, label, ed
 
   return (
     <span
-      title="Double-click to rename"
+      title={t('Double-click to rename')}
       onDoubleClick={e => { e.stopPropagation(); cancelled.current = false; setDraft(value) }}
       className={cn('cursor-text', className)}
     >

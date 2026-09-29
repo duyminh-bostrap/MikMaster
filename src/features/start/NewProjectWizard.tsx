@@ -16,6 +16,7 @@ import { ManualAddForm } from './ManualAddForm'
 import { ScanPanel } from './ScanPanel'
 import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
+import { t } from '@/i18n'
 
 const DEFAULT_RANGE = { from: '192.168.1.1', to: '192.168.1.254' }
 const STEPS = ['PROJECT', 'SCAN'] as const
@@ -36,7 +37,7 @@ function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
                 i === step ? 'border-primary bg-primary text-primary-foreground' : done ? 'border-primary/60 text-primary' : 'border-border')}>
                 {done ? <Check size={10} strokeWidth={3} /> : i + 1}
               </span>
-              {label}
+              {t(label)}
             </button>
           </li>
         )
@@ -77,18 +78,18 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
 
   return (
     <div className={cn('w-full', step === 1 ? 'max-w-6xl' : 'max-w-xl')}>
-      <StepHeader title="New Project" onBack={back}
-        aside={step === 1 && draft.devices.length > 0 ? <Badge tone="accent">{draft.devices.length} found · {draft.selectedCount} selected</Badge> : undefined} />
+      <StepHeader title={t('New Project')} onBack={back}
+        aside={step === 1 && draft.devices.length > 0 ? <Badge tone="accent">{t('{found} found · {selected} selected', { found: draft.devices.length, selected: draft.selectedCount })}</Badge> : undefined} />
       <Stepper step={step} onGo={setStep} />
 
       {step === 0 && (
         <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); next() }}>
-          <Panel title="PROJECT" bodyClassName="flex flex-col gap-3">
-            <Field label="PROJECT NAME">{id => <TextInput id={id} autoFocus value={draft.name} placeholder="e.g. Grand Tech Summit 2026" onChange={e => draft.setName(e.target.value)} />}</Field>
+          <Panel title={t('PROJECT')} bodyClassName="flex flex-col gap-3">
+            <Field label={t('PROJECT NAME')}>{id => <TextInput id={id} autoFocus value={draft.name} placeholder={t('e.g. Grand Tech Summit 2026')} onChange={e => draft.setName(e.target.value)} />}</Field>
           </Panel>
           <BoothEditor booths={draft.booths} onAdd={draft.addBooth} onRemove={draft.removeBooth} />
-          <p className="-mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">Booths are optional — every device starts in the first booth, and you can rename or move devices later on the dashboard.</p>
-          <Button type="submit" size="md" variant="primary" className="self-end px-6">NEXT: SCAN<ArrowRight size={13} strokeWidth={2.5} /></Button>
+          <p className="-mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Booths are optional — every device starts in the first booth, and you can rename or move devices later on the dashboard.')}</p>
+          <Button type="submit" size="md" variant="primary" className="self-end px-6">{t('NEXT: SCAN')}<ArrowRight size={13} strokeWidth={2.5} /></Button>
         </form>
       )}
 

@@ -1,4 +1,5 @@
-import { Ban, Power } from 'lucide-react'
+import { Ban, Power, PowerOff } from 'lucide-react'
+import { useT } from '@/i18n'
 import type { KeyboardEvent } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { PowerDot } from '@/components/ui/StatusDot'
@@ -9,18 +10,18 @@ import type { Projector } from '@/types'
 import { PreviewScreen } from './PreviewScreen'
 import { TempBar } from './TempBar'
 
-const POWER_LABEL = { on: 'ON', standby: 'OFF', off: 'OFF' } as const
-
 interface ProjectorCardProps {
   projector: Projector
   onOpen: () => void
-  onTogglePower: () => void
+  onPowerOn: () => void
+  onPowerOff: () => void
   onToggleShutter: () => void
   onContextMenu?: (e: React.MouseEvent) => void
   dragProps?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean }
 }
 
-export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShutter, onContextMenu, dragProps }: ProjectorCardProps) {
+export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onToggleShutter, onContextMenu, dragProps }: ProjectorCardProps) {
+  const t = useT()
   const hasError = p.errors.length > 0
 
   function handleKey(e: KeyboardEvent) {
@@ -51,11 +52,11 @@ export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShu
           <span className="truncate font-mono text-xs text-accent/60">{p.network.ip}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
-          {p.connection === 'protocol-error' && <Badge tone="danger">PROTOCOL</Badge>}
-          {p.connection === 'auth-failed' && <Badge tone="warn">LOGIN</Badge>}
+          {p.connection === 'protocol-error' && <Badge tone="danger">{t('PROTOCOL')}</Badge>}
+          {p.connection === 'auth-failed' && <Badge tone="warn">{t('LOGIN')}</Badge>}
           {hasError && <Badge tone="danger">{p.errors[0]}</Badge>}
-          {p.shutter && <Badge tone="warn">SHUTTER</Badge>}
-          {p.testPattern.enabled && <Badge tone="accent">PATTERN</Badge>}
+          {p.shutter && <Badge tone="warn">{t('SHUTTER')}</Badge>}
+          {p.testPattern.enabled && <Badge tone="accent">{t('PATTERN')}</Badge>}
         </div>
       </div>
 
@@ -73,27 +74,25 @@ export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShu
         <TempBar tempC={p.telemetry.temperatureC} />
       </div>
 
-      <div className="flex border-t border-border">
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onTogglePower() }}
-          className={cn('flex flex-1 items-center justify-center gap-1 border-r border-border py-1.5 font-mono text-xs font-medium', p.power === 'on' ? 'text-ok' : 'text-muted-foreground')}
-        >
-          <Power size={10} strokeWidth={2} />
-          {POWER_LABEL[p.power]}
+      {/* ON bên trái, OFF bên phải; nút ứng với trạng thái hiện tại được tô. Shutter ở ô cuối. */}
+      <div className="flex border-t border-border font-mono text-xs font-medium">
+        <button type="button" aria-pressed={p.power === 'on'} onClick={e => { e.stopPropagation(); onPowerOn() }}
+          className={cn('flex flex-1 items-center justify-center gap-1 border-r border-border py-1.5 transition-colors', p.power === 'on' ? 'bg-ok/10 text-ok' : 'text-muted-foreground hover:text-ok')}>
+          <Power size={10} strokeWidth={2} />{t('ON')}
         </button>
-        <button
-          type="button"
-          onClick={e => { e.stopPropagation(); onToggleShutter() }}
-          className={cn('flex flex-1 items-center justify-center gap-1 py-1.5 font-mono text-xs font-medium', p.shutter ? 'text-warn' : 'text-muted-foreground')}
-        >
-          <Ban size={10} strokeWidth={2} />
-          {p.shutter ? 'CLOSED' : 'OPEN'}
+        <button type="button" aria-pressed={p.power !== 'on'} onClick={e => { e.stopPropagation(); onPowerOff() }}
+          className={cn('flex flex-1 items-center justify-center gap-1 border-r border-border py-1.5 transition-colors', p.power !== 'on' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
+          <PowerOff size={10} strokeWidth={2} />{t('OFF')}
+        </button>
+        <button type="button" aria-pressed={p.shutter} onClick={e => { e.stopPropagation(); onToggleShutter() }}
+          title={p.shutter ? t('Open the shutter') : t('Close the shutter')}
+          className={cn('flex flex-1 items-center justify-center gap-1 py-1.5 transition-colors', p.shutter ? 'bg-warn/10 text-warn' : 'text-muted-foreground hover:text-warn')}>
+          <Ban size={10} strokeWidth={2} />{p.shutter ? t('SHUTTER CLOSED') : t('SHUTTER')}
         </button>
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border border-primary/20 bg-primary/[0.03] opacity-0 transition-opacity group-hover:opacity-100">
-        <span className="font-mono text-xs tracking-[0.08em] text-primary">OPEN CONTROL →</span>
+        <span className="font-mono text-xs tracking-[0.08em] text-primary">{t('OPEN CONTROL →')}</span>
       </div>
     </article>
   )

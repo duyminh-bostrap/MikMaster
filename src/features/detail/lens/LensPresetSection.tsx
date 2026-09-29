@@ -6,6 +6,7 @@ import { LENS_SLOTS } from '@/constants/lens'
 import { useProjectActions } from '@/store/hooks'
 import type { LensSlot, Projector } from '@/types'
 import { PresetSlotCard } from './PresetSlotCard'
+import { t } from '@/i18n'
 
 /** 4 slot Lens Preset: Save (kèm đặt tên), Load, Unload. */
 export function LensPresetSection({ projector: p }: { projector: Projector }) {
@@ -26,7 +27,7 @@ export function LensPresetSection({ projector: p }: { projector: Projector }) {
 
   return (
     <>
-      <SectionHeader label="LENS PRESETS" />
+      <SectionHeader label={t('LENS PRESETS')} />
 
       {savingSlot !== null && (
         <div className="mb-3 rounded-sm border border-primary/25 bg-primary/[0.06] p-3">
@@ -35,8 +36,8 @@ export function LensPresetSection({ projector: p }: { projector: Projector }) {
             autoFocus
             value={name}
             onChange={e => setName(e.target.value)}
-            placeholder="Preset name…"
-            aria-label="Preset name"
+            placeholder={t('Preset name…')}
+            aria-label={t('Preset name')}
             className="mb-2 px-2 py-1.5 text-xs"
             onKeyDown={e => {
               if (e.key === 'Enter') commitSave()
@@ -44,8 +45,8 @@ export function LensPresetSection({ projector: p }: { projector: Projector }) {
             }}
           />
           <div className="flex gap-1">
-            <Button variant="primary" className="flex-1" disabled={!name.trim()} onClick={commitSave}>SAVE</Button>
-            <Button onClick={() => setSavingSlot(null)}>CANCEL</Button>
+            <Button variant="primary" className="flex-1" disabled={!name.trim()} onClick={commitSave}>{t('SAVE')}</Button>
+            <Button onClick={() => setSavingSlot(null)}>{t('CANCEL')}</Button>
           </div>
         </div>
       )}

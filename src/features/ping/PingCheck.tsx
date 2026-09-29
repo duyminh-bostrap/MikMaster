@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn'
 import { formatClock } from '@/utils/format'
 import type { Projector } from '@/types'
 import { pingVerdict, usePing, VERDICT_TEXT } from './usePing'
+import { t } from '@/i18n'
 
 function Row({ label, r, na }: { label: string; r: PingResultDto | null; na: string }) {
   return (
@@ -26,23 +27,23 @@ export function PingCheck({ projector: p, compact = false }: { projector: Projec
     <div className={cn('flex flex-col gap-1.5', !compact && 'rounded-sm border border-border bg-muted/40 p-2.5')}>
       <div className="flex items-center justify-between gap-2">
         <span className="font-mono text-[10px] tracking-[0.08em] text-muted-foreground">
-          {compact ? 'PING' : `PING ${p.network.ip}`}
+          {compact ? t('PING') : `${t('PING')} ${p.network.ip}`}
         </span>
         <Button size="xs" variant="accent" disabled={!available || running} onClick={() => void run()}
-          title={available ? 'Check the IP and the control port' : 'Needs the gateway (pnpm server): browsers cannot ping'}>
+          title={available ? t('Check the IP and the control port') : t('Needs the gateway (pnpm server): browsers cannot ping')}>
           {running ? <Loader2 size={10} className="animate-spin" /> : <Activity size={10} />}
-          {running ? 'PINGING…' : result ? 'AGAIN' : 'PING'}
+          {running ? t('PINGING…') : result ? t('AGAIN') : t('PING')}
         </Button>
       </div>
-      {!available && <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">Needs the gateway (<code>pnpm server</code>) — a browser cannot ping.</p>}
+      {!available && <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Needs the gateway (pnpm server) — a browser cannot ping.')}</p>}
       {error && <p role="alert" className="font-mono text-[10px] text-danger">{error}</p>}
       {result && verdict && (
         <div aria-live="polite" className="flex flex-col gap-1">
           <p className={cn('font-mono text-[10px] font-medium', verdict === 'ok' || verdict === 'no-icmp' ? 'text-ok' : verdict === 'port-closed' ? 'text-warn' : 'text-danger')}>
-            {VERDICT_TEXT[verdict]}
+            {t(VERDICT_TEXT[verdict])}
           </p>
-          <Row label="NETWORK (ICMP)" r={result.icmp} na="not available" />
-          <Row label={`PORT ${result.port} (TCP)`} r={result.tcp} na="UDP — not checked" />
+          <Row label={t('NETWORK (ICMP)')} r={result.icmp} na={t('not available')} />
+          <Row label={`PORT ${result.port} (TCP)`} r={result.tcp} na={t('UDP — not checked')} />
           {!compact && <span className="font-mono text-[9px] text-muted-foreground/70">at {formatClock(new Date(result.at))}</span>}
         </div>
       )}

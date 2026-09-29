@@ -5,16 +5,20 @@ import type { InputSource, LensPosition, LensSlot, PowerState, Projector, TestPa
 import { getDeviceCredentials, getSharedCredentials } from '@/services/credentialCache'
 import { fillMissingCredentials } from '@/utils/credentials'
 import type { DeviceEffects } from './deviceEffects'
+import { cancelPowerSequence, removeFromPowerSequence, startPowerOnSequence } from './powerSequence'
+import { getSettings } from '@/services/settings'
 import type { ProjectAction, ProjectState } from './projectReducer'
 
 /** Lớp API mà UI gọi; UI không bao giờ tự dựng action object. */
 export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects: DeviceEffects | null = null) {
   return {
-    launchProject: (payload: Extract<ProjectAction, { type: 'project/launch' }>['payload']) =>
+    launchProject: (payload: Extract<ProjectAction, { type: 'project/launch' }>['payload']) => {
+      cancelPowerSequence() // chuỗi bật máy của project cũ không được chạy tiếp sang project mới
       dispatch({
         type: 'project/launch',
         payload: { ...payload, projectors: fillMissingCredentials(payload.projectors, { device: getDeviceCredentials, shared: getSharedCredentials }) },
-      }),
+      })
+    },
     setCredentials: (ids: string[], creds: { username?: string; password?: string }) =>
       dispatch({ type: 'projectors/setCredentials', ids, ...creds }),
     closeProject: () => dispatch({ type: 'project/close' }),
@@ -28,11 +32,21 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     updateBooth: (id: string, patch: { name?: string }) => dispatch({ type: 'booth/update', id, patch }),
     removeBooth: (id: string, moveTo: string) => dispatch({ type: 'booth/remove', id, moveTo }),
     removeProjector: (id: string) => dispatch({ type: 'projector/remove', id }),
+    addProjector: (projector: Projector) => dispatch({ type: 'projector/add', projector }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>
       dispatch({ type: 'projector/patch', id, patch }),
     moveToBooth: (ids: string[], booth: { id: string; name: string }) =>
       dispatch({ type: 'projectors/move', ids, boothId: booth.id, boothName: booth.name }),
     setPower: (ids: string[], power: PowerState) => {
+      if (power === 'on') {
+        // Nhiều máy → bật lần lượt theo cài đặt để tránh sụt điện.
+        startPowerOnSequence(ids, getSettings().powerOnDelaySec * 1000, id => {
+          dispatch({ type: 'projectors/setPower', ids: [id], power })
+          effects?.power([id], power)
+        })
+        return
+      }
+      removeFromPowerSequence(ids)
       dispatch({ type: 'projectors/setPower', ids, power })
       effects?.power(ids, power)
     },

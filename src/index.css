@@ -47,6 +47,32 @@
   }
 }
 
+/*
+ * Theme sáng: ghi đè các token trên. Màn preview (screen-on/off) giữ tối cho giống màn chiếu thật.
+ */
+:root[data-theme='light'] {
+  --color-background: #f4f6f9;
+  --color-foreground: #0f172a;
+  --color-card: #ffffff;
+  --color-card-foreground: #1e293b;
+  --color-primary: #f59e0b;
+  --color-primary-foreground: #1a1000;
+  --color-secondary: #e8edf3;
+  --color-secondary-foreground: #334155;
+  --color-muted: #eef2f6;
+  --color-muted-foreground: #5b6b80;
+  --color-accent: #0891b2;
+  --color-accent-foreground: #ffffff;
+  --color-border: #d5dde7;
+  --color-ok: #16a34a;
+  --color-warn: #d97706;
+  --color-danger: #dc2626;
+  --color-off: #cbd5e1;
+  --color-elevated: #f1f5f9;
+  --color-elevated-hover: #e2e8f0;
+  --color-inset: #e9eef4;
+}
+
 @layer base {
   body {
     background-color: var(--color-background);
