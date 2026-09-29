@@ -1,6 +1,8 @@
 {
   "version": "0.2.0",
   "configurations": [
+    { "name": "Build (pnpm build)", "type": "node", "request": "launch", "runtimeExecutable": "pnpm", "runtimeArgs": ["build"], "console": "integratedTerminal" },
+    { "name": "Web dev (vite)", "type": "node", "request": "launch", "runtimeExecutable": "pnpm", "runtimeArgs": ["dev"], "console": "integratedTerminal" },
     { "name": "Gateway", "type": "node", "request": "launch", "runtimeExecutable": "pnpm", "runtimeArgs": ["server"], "console": "integratedTerminal" },
     { "name": "Vitest: file hiện tại", "type": "node", "request": "launch", "runtimeExecutable": "pnpm", "runtimeArgs": ["exec", "vitest", "run", "${relativeFile}"], "console": "integratedTerminal" }
   ]

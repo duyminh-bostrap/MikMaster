@@ -14,11 +14,13 @@ import { computeFleetStats } from '@/utils/fleet'
 import { formatLongDate } from '@/utils/format'
 import { saveProject } from '@/services/projectRepository'
 import { useOpenProject } from '@/store/hooks'
+import { useGateway } from '@/store/useGateway'
 
 export default function DashboardPage() {
   const { project, booths, projectors } = useOpenProject()
   const [activeBooth, setActiveBooth] = useBoothFilter(booths)
   const navigate = useNavigate()
+  const { gateway } = useGateway()
 
   const scope = useMemo(
     () => (activeBooth === ALL_BOOTHS ? projectors : projectors.filter(p => p.boothId === activeBooth)),
@@ -34,7 +36,7 @@ export default function DashboardPage() {
         <Sidebar
           project={project} booths={booths} projectors={projectors}
           activeBooth={activeBooth} onSelectBooth={setActiveBooth} onOpenProjector={openProjector}
-          onSave={() => saveProject({ project, booths, projectors })}
+          onSave={() => saveProject({ project, booths, projectors }, gateway)}
         />
       }
     >

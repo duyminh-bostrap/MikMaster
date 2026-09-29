@@ -1,9 +1,13 @@
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
 import type http from 'node:http'
+import os from 'node:os'
+import path from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { after, before, describe, test } from 'node:test'
 import type { ScanFoundDto } from '../../shared/api.ts'
 import { createServer } from '../src/http.ts'
+import { createProjectStore } from '../src/store.ts'
 import { ChristieSimulator } from '../src/sim/christieSim.ts'
 import { PanasonicSimulator } from '../src/sim/panasonicSim.ts'
 import { PjlinkSimulator } from '../src/sim/pjlinkSim.ts'
@@ -149,5 +153,62 @@ describe('token auth', () => {
 
   test('scan endpoint is protected too', async () => {
     assert.equal((await fetch(`${url}/api/scan?subnet=127.0.0`)).status, 401)
+  })
+})
+
+describe('project storage', () => {
+  let s: http.Server, u: string, dir: string
+  const snap = (id: string, password?: string) => ({
+    project: { id, name: 'Show', venue: 'Hall', createdAt: '2026-01-01' },
+    booths: [{ id: 'b1', name: 'B' }],
+    projectors: [{ id: 'PJ-1', network: { ip: '10.0.0.1', protocol: { type: 'pjlink-class2', port: 4352, ...(password ? { password } : {}) } } }],
+  })
+  const put = (id: string, body: unknown) => fetch(`${u}/api/projects/${id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+
+  before(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-'))
+    s = createServer({ store: createProjectStore(dir) })
+    await new Promise<void>(r => s.listen(0, '127.0.0.1', r))
+    u = `http://127.0.0.1:${(s.address() as AddressInfo).port}`
+  })
+  after(async () => { await new Promise(r => s.close(r)); fs.rmSync(dir, { recursive: true, force: true }) })
+
+  test('save → list → load round trip returns the plaintext password', async () => {
+    assert.equal((await put('show-1', snap('show-1', 'hunter2'))).status, 200)
+    const list = await (await fetch(`${u}/api/projects`)).json() as any[]
+    assert.deepEqual([list[0].id, list[0].deviceCount], ['show-1', 1])
+    const loaded = await (await fetch(`${u}/api/projects/show-1`)).json() as any
+    assert.equal(loaded.projectors[0].network.protocol.password, 'hunter2')
+  })
+
+  test('password is encrypted at rest, file is not world-readable', () => {
+    const file = path.join(dir, 'projects', 'show-1.json')
+    const raw = fs.readFileSync(file, 'utf8')
+    assert.ok(!raw.includes('hunter2'))
+    assert.match(raw, /enc:v1:/)
+    assert.equal(fs.statSync(file).mode & 0o077, 0)
+  })
+
+  test('a different key cannot read the password but the project still opens', async () => {
+    const other = createProjectStore(dir, Buffer.alloc(32, 7))
+    const loaded = other.load('show-1')!
+    assert.equal(loaded.projectors[0]!.network!.protocol!.password, undefined)
+    assert.equal(loaded.project.name, 'Show')
+  })
+
+  test('validation: bad id, mismatched id, missing shape, unknown project', async () => {
+    assert.equal((await put('..%2Fetc', snap('x'))).status, 400)
+    assert.equal((await put('a', snap('b'))).status, 400)
+    assert.equal((await put('a', { project: { id: 'a', name: 'x' } })).status, 400)
+    assert.equal((await fetch(`${u}/api/projects/nope`)).status, 404)
+  })
+
+  test('delete', async () => {
+    assert.equal((await fetch(`${u}/api/projects/show-1`, { method: 'DELETE' })).status, 200)
+    assert.equal((await fetch(`${u}/api/projects/show-1`, { method: 'DELETE' })).status, 404)
+  })
+
+  test('without a store the routes are 501', async () => {
+    assert.equal((await fetch(`${base}/api/projects`)).status, 501)
   })
 })

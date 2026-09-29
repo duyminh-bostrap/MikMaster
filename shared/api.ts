@@ -58,7 +58,7 @@ export interface StatusDto {
 }
 
 export type ApiErrorCode =
-  | 'connect' | 'timeout' | 'auth' | 'protocol' | 'device' | 'unsupported' | 'bad-request' | 'forbidden-host' | 'unauthorized'
+  | 'connect' | 'timeout' | 'auth' | 'protocol' | 'device' | 'unsupported' | 'bad-request' | 'forbidden-host' | 'unauthorized' | 'not-found'
 
 export interface ApiErrorDto {
   error: { code: ApiErrorCode; message: string }
@@ -86,4 +86,20 @@ export interface HealthDto {
   authRequired: boolean
   /** Token client gửi kèm (nếu có) có hợp lệ không. */
   authorized: boolean
+}
+
+export interface ProjectSummaryDto {
+  id: string
+  name: string
+  venue: string
+  /** ISO 8601 */
+  savedAt: string
+  deviceCount: number
+}
+
+/** Hình dạng tối thiểu server cần biết; phần còn lại của project/booth/projector được lưu nguyên. */
+export interface ProjectSnapshotDto {
+  project: { id: string; name: string; venue?: string; createdAt?: string; [k: string]: unknown }
+  booths: unknown[]
+  projectors: Array<{ network?: { protocol?: { password?: string; [k: string]: unknown }; [k: string]: unknown }; [k: string]: unknown }>
 }

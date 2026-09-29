@@ -1,4 +1,4 @@
-import type { ApiErrorCode, CommandDto, HealthDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
+import type { ApiErrorCode, CommandDto, HealthDto, ProjectSnapshotDto, ProjectSummaryDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
@@ -15,6 +15,9 @@ export interface Gateway {
   status(p: Projector): Promise<GatewayResult<StatusDto>>
   command(p: Projector, command: CommandDto): Promise<GatewayResult<null>>
   raw(p: Projector, text: string): Promise<GatewayResult<string>>
+  listProjects(): Promise<GatewayResult<ProjectSummaryDto[]>>
+  loadProject(id: string): Promise<GatewayResult<ProjectSnapshotDto>>
+  saveProject(snapshot: ProjectSnapshotDto): Promise<GatewayResult<ProjectSummaryDto>>
   /** Trả về hàm huỷ. */
   scan(subnet: string, handlers: ScanHandlers): () => void
 }
@@ -43,11 +46,11 @@ export function loadToken(): string | null {
   }
 }
 
-async function call<T>(base: string, token: string | null, path: string, body: unknown): Promise<GatewayResult<T>> {
+async function call<T>(base: string, token: string | null, path: string, body?: unknown, method = 'POST'): Promise<GatewayResult<T>> {
   try {
     const headers: Record<string, string> = { 'Content-Type': 'application/json' }
     if (token) headers.Authorization = `Bearer ${token}`
-    const res = await fetch(base + path, { method: 'POST', headers, body: JSON.stringify(body) })
+    const res = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
     const json = await res.json().catch(() => null)
     if (res.ok) return { ok: true, value: json as T }
     const err = json?.error
@@ -68,6 +71,9 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
       const r = await call<{ reply: string }>(base, token, '/api/devices/raw', { target: toTarget(p), text })
       return r.ok ? { ok: true, value: r.value.reply } : r
     },
+    listProjects: () => call<ProjectSummaryDto[]>(base, token, '/api/projects', undefined, 'GET'),
+    loadProject: id => call<ProjectSnapshotDto>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'GET'),
+    saveProject: snapshot => call<ProjectSummaryDto>(base, token, `/api/projects/${encodeURIComponent(snapshot.project.id)}`, snapshot, 'PUT'),
     scan(subnet, h) {
       const source = new EventSource(`${base}/api/scan?subnet=${encodeURIComponent(subnet)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
       let finished = false

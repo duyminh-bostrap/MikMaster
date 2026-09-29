@@ -1,9 +1,11 @@
+import type { ProjectSnapshotDto } from '../../shared/api.ts'
+import type { Gateway } from './gateway'
 import { createMockProjectors, MOCK_BOOTHS, MOCK_SAVED_PROJECTS } from '@/data/mock'
 import type { Booth, Project, Projector, SavedProjectSummary } from '@/types'
 
 /**
- * Điểm nối để thay bằng backend/Tauri/Electron sau này.
- * Hiện tại: dự án mẫu + lưu bản sao vào localStorage.
+ * Có gateway → lưu/đọc phía server (mật khẩu máy chiếu được mã hoá trên đĩa).
+ * Không có → dự án mẫu + localStorage (KHÔNG lưu mật khẩu máy chiếu ở đó).
  */
 export interface ProjectSnapshot {
   project: Project
@@ -22,12 +24,19 @@ function readStored(): Record<string, { summary: SavedProjectSummary; snapshot: 
   }
 }
 
-export function listSavedProjects(): SavedProjectSummary[] {
-  const stored = Object.values(readStored()).map(entry => entry.summary)
-  return [...stored, ...MOCK_SAVED_PROJECTS].sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+function listLocal(): SavedProjectSummary[] {
+  return [...Object.values(readStored()).map(entry => entry.summary), ...MOCK_SAVED_PROJECTS]
 }
 
-export function loadProject(id: string): ProjectSnapshot | null {
+/** Gộp server + localStorage + mẫu; trùng id thì ưu tiên server. */
+export async function listSavedProjects(gateway: Gateway | null): Promise<SavedProjectSummary[]> {
+  const remote = gateway ? await gateway.listProjects() : null
+  const all = [...(remote?.ok ? remote.value : []), ...listLocal()]
+  const unique = [...new Map(all.map(p => [p.id, p])).values()]
+  return unique.sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+}
+
+function loadLocal(id: string): ProjectSnapshot | null {
   const stored = readStored()[id]
   if (stored) return stored.snapshot
 
@@ -40,8 +49,35 @@ export function loadProject(id: string): ProjectSnapshot | null {
   }
 }
 
+export async function loadProject(id: string, gateway: Gateway | null): Promise<ProjectSnapshot | null> {
+  if (gateway) {
+    const r = await gateway.loadProject(id)
+    if (r.ok) return r.value as unknown as ProjectSnapshot
+  }
+  return loadLocal(id)
+}
+
+function withoutPasswords(snapshot: ProjectSnapshot): ProjectSnapshot {
+  return {
+    ...snapshot,
+    projectors: snapshot.projectors.map(p => {
+      const { password: _omit, ...protocol } = p.network.protocol
+      return { ...p, network: { ...p.network, protocol } }
+    }),
+  }
+}
+
+/** Trả về `false` nếu không lưu được ở đâu cả. */
+export async function saveProject(snapshot: ProjectSnapshot, gateway: Gateway | null): Promise<boolean> {
+  if (gateway) {
+    const r = await gateway.saveProject(snapshot as unknown as ProjectSnapshotDto)
+    if (r.ok) return true
+  }
+  return saveLocal(snapshot)
+}
+
 /** Trả về `false` nếu trình duyệt từ chối ghi (hết quota, chế độ riêng tư...). */
-export function saveProject(snapshot: ProjectSnapshot): boolean {
+function saveLocal(snapshot: ProjectSnapshot): boolean {
   try {
     const stored = readStored()
     stored[snapshot.project.id] = {
@@ -52,7 +88,7 @@ export function saveProject(snapshot: ProjectSnapshot): boolean {
         savedAt: new Date().toISOString(),
         deviceCount: snapshot.projectors.length,
       },
-      snapshot,
+      snapshot: withoutPasswords(snapshot),
     }
     localStorage.setItem(STORAGE_KEY, JSON.stringify(stored))
     return true

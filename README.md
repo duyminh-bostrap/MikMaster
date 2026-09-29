@@ -55,6 +55,8 @@ Bind ra mạng (`HOST=0.0.0.0`) bắt buộc có token: đặt `MIKMASTER_TOKEN=
 > lệnh dựa trên nguồn thứ cấp (ghi rõ trong đầu file `server/src/drivers/*.ts`). Chỉ bật những lệnh có nguồn dẫn chứng:
 > Lens, Test Pattern chưa bật ở chế độ LIVE. Dùng **RAW COMMAND** ở trang Detail để đối chiếu với máy thật.
 
+Project lưu ở `data/` (đổi bằng `MIKMASTER_DATA`, đã gitignore); mật khẩu máy chiếu được mã hoá, khoá ở `data/secret.key` hoặc `MIKMASTER_KEY` (base64, 32 byte) — hãy sao lưu khoá cùng dữ liệu.
+
 ## Còn là giả lập ở chế độ SIMULATED
 
 Quét mạng, phím OSD, Reconnect, Lens, Test Pattern và telemetry đều là dữ liệu giả.

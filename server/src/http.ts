@@ -9,14 +9,16 @@ import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
 import { scanSubnet, SCAN_PROTOCOLS } from './scan.ts'
+import { isValidProjectId, validateSnapshot, type ProjectStore } from './store.ts'
 import { extractToken, isAllowedHost, isValidSubnetPrefix, tokenMatches } from './security.ts'
 
 const MAX_BODY = 64 * 1024
+const MAX_PROJECT_BODY = 2 * 1024 * 1024
 const DEFAULT_TIMEOUT_MS = 3000
 
 const STATUS: Record<ApiErrorCode, number> = {
   'bad-request': 400, 'forbidden-host': 403, unsupported: 501,
-  unauthorized: 401, connect: 502, timeout: 504, auth: 502, protocol: 502, device: 502,
+  unauthorized: 401, 'not-found': 404, connect: 502, timeout: 504, auth: 502, protocol: 502, device: 502,
 }
 
 function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
@@ -31,12 +33,12 @@ function sendError(res: http.ServerResponse, err: unknown): void {
   sendJson(res, 500, { error: { code: 'protocol', message: 'Internal server error' } })
 }
 
-async function readJson(req: http.IncomingMessage): Promise<unknown> {
+async function readJson(req: http.IncomingMessage, maxBody = MAX_BODY): Promise<unknown> {
   const chunks: Buffer[] = []
   let size = 0
   for await (const chunk of req) {
     size += (chunk as Buffer).length
-    if (size > MAX_BODY) throw new DeviceError('bad-request', 'Request body too large')
+    if (size > maxBody) throw new DeviceError('bad-request', 'Request body too large')
     chunks.push(chunk as Buffer)
   }
   try { return JSON.parse(Buffer.concat(chunks).toString('utf8') || '{}') } catch { throw new DeviceError('bad-request', 'Body is not valid JSON') }
@@ -61,7 +63,7 @@ function requireCapability(protocol: DriverProtocol, cap: 'raw' | CommandDto['ki
   if (!LIVE_CAPABILITIES[protocol].includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"`)
 }
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string): Promise<void> {
+async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore): Promise<void> {
   const route = `${req.method} ${url.pathname}`
   const authorized = token === undefined || tokenMatches(token, extractToken(req.headers.authorization, url))
 
@@ -71,6 +73,30 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     return sendJson(res, 200, body)
   }
   if (!authorized) throw new DeviceError('unauthorized', 'Missing or invalid gateway token')
+
+  const projectMatch = /^\/api\/projects(?:\/([^/]+))?$/.exec(url.pathname)
+  if (projectMatch) {
+    if (!store) throw new DeviceError('unsupported', 'Project storage is not enabled on this gateway')
+    const id = projectMatch[1] ? decodeURIComponent(projectMatch[1]) : undefined
+    if (id === undefined && req.method === 'GET') return sendJson(res, 200, store.list())
+    if (id !== undefined) {
+      if (!isValidProjectId(id)) throw new DeviceError('bad-request', 'Invalid project id')
+      if (req.method === 'GET') {
+        const snapshot = store.load(id)
+        if (!snapshot) throw new DeviceError('not-found', `No project "${id}"`)
+        return sendJson(res, 200, snapshot)
+      }
+      if (req.method === 'PUT') {
+        const snapshot = validateSnapshot(await readJson(req, MAX_PROJECT_BODY))
+        if (snapshot.project.id !== id) throw new DeviceError('bad-request', 'project.id does not match the URL')
+        return sendJson(res, 200, store.save(snapshot))
+      }
+      if (req.method === 'DELETE') {
+        if (!store.remove(id)) throw new DeviceError('not-found', `No project "${id}"`)
+        return sendJson(res, 200, { ok: true })
+      }
+    }
+  }
 
   if (route === 'GET /api/scan') {
     const subnet = url.searchParams.get('subnet') ?? ''
@@ -124,12 +150,12 @@ function serveStatic(dir: string, url: URL, res: http.ServerResponse): void {
   fs.createReadStream(file).pipe(res)
 }
 
-export function createServer(options: { staticDir?: string; token?: string } = {}): http.Server {
+export function createServer(options: { staticDir?: string; token?: string; store?: ProjectStore } = {}): http.Server {
   const staticDir = options.staticDir && fs.existsSync(options.staticDir) ? path.resolve(options.staticDir) : undefined
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname.startsWith('/api/')) {
-      handleApi(req, res, url, options.token).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
+      handleApi(req, res, url, options.token, options.store).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
     } else if (staticDir) {
       serveStatic(staticDir, url, res)
     } else {

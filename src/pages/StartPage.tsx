@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { AppLogo } from '@/components/layout/AppLogo'
@@ -12,12 +12,22 @@ import { useClock } from '@/hooks/useClock'
 import { formatClock } from '@/utils/format'
 import { listSavedProjects, loadProject, type ProjectSnapshot } from '@/services/projectRepository'
 import { useProjectActions } from '@/store/hooks'
+import { useGateway } from '@/store/useGateway'
+import type { SavedProjectSummary } from '@/types'
 
 type Mode = 'choose' | 'new' | 'load'
 
 export default function StartPage() {
   const [mode, setMode] = useState<Mode>('choose')
-  const [saved] = useState(listSavedProjects)
+  const { gateway, mode: gatewayMode } = useGateway()
+  const [saved, setSaved] = useState<SavedProjectSummary[]>([])
+  // Đợi phát hiện gateway xong mới đọc danh sách, để thấy cả project lưu trên server.
+  useEffect(() => {
+    if (gatewayMode === 'checking') return
+    let cancelled = false
+    void listSavedProjects(gateway).then(list => { if (!cancelled) setSaved(list) })
+    return () => { cancelled = true }
+  }, [gateway, gatewayMode])
   const { launchProject } = useProjectActions()
   const navigate = useNavigate()
   const now = useClock()
@@ -27,8 +37,8 @@ export default function StartPage() {
     navigate('/project')
   }
 
-  function loadSaved(id: string) {
-    const snapshot = loadProject(id)
+  async function loadSaved(id: string) {
+    const snapshot = await loadProject(id, gateway)
     if (snapshot) launch(snapshot)
   }
 

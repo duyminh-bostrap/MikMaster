@@ -15,7 +15,7 @@ interface SidebarProps {
   activeBooth: string
   onSelectBooth: (boothId: string) => void
   onOpenProjector: (id: string) => void
-  onSave: () => boolean
+  onSave: () => Promise<boolean>
 }
 
 export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave }: SidebarProps) {
@@ -30,8 +30,8 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
     })
   }
 
-  function handleSave() {
-    setSaveState(onSave() ? 'saved' : 'failed')
+  async function handleSave() {
+    setSaveState((await onSave()) ? 'saved' : 'failed')
     setTimeout(() => setSaveState('idle'), 1800)
   }
 
