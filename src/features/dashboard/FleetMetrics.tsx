@@ -67,7 +67,6 @@ export function FleetMetrics({ stats, projectors, power, actions }: { stats: Fle
   return (
     <div className="@container shrink-0 border-b border-border bg-muted">
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3">
-      {power && <>{power}<Divider /></>}
       <div className="flex items-center gap-3">
         <FleetHealthGauge online={stats.online} total={stats.total} />
         <div className="font-mono text-xs">
@@ -88,7 +87,11 @@ export function FleetMetrics({ stats, projectors, power, actions }: { stats: Fle
       </div>
       <Divider />
       <Stat value={formatHours(stats.totalLampHours)} label={t('Total Lamp Hours')} />
-      <div className="ml-auto">{actions}</div>
+    </div>
+    {/* Hàng 2: nút điều khiển — bật / tắt bên trái, rồi shutter, OSD, test pattern. */}
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-3 border-t border-border/60 px-5 py-2.5">
+      {power && <>{power}<div className="h-10 w-px bg-border" /></>}
+      {actions}
     </div>
     </div>
   )
