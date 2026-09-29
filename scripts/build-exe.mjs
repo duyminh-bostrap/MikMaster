@@ -7,7 +7,6 @@
 // trên máy Windows của GitHub Actions: workflow "Build executables".
 import { execFileSync } from 'node:child_process'
 import fs from 'node:fs'
-import { createRequire } from 'node:module'
 import path from 'node:path'
 import { build } from 'esbuild'
 
@@ -75,8 +74,8 @@ if (platform === 'darwin') run('codesign', ['--remove-signature', exe])
 
 if (platform === 'win32') {
   // Icon + thông tin phiên bản của file .exe (trước khi nhúng, vì rcedit ghi lại vùng resource).
-  const rcedit = createRequire(import.meta.url)('rcedit')
-  await (rcedit.default ?? rcedit)(exe, {
+  const { rcedit } = await import('rcedit')
+  await rcedit(exe, {
     icon: path.join(root, 'build-assets/icon.ico'),
     'file-version': pkg.version, 'product-version': pkg.version,
     'version-string': { ProductName: 'MikMaster', FileDescription: 'MikMaster — AV projector control', CompanyName: 'MikMaster', OriginalFilename: 'MikMaster.exe' },
