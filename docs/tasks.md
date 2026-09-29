@@ -37,7 +37,7 @@ Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử m
 | C3 | **Có tài liệu chính thức** (Panasonic PT-RQ35K command list + Christie Griffyn serial API) rồi làm: Lens Shift/Zoom/Focus, Lens Memory, Test Pattern, OSD Back/Exit, Input Christie | Cao | Chặn bởi C1/C2 và tài liệu; không gửi lệnh đoán vào động cơ ống kính |
 | C4 | Telemetry cho Panasonic/Christie: nhiệt độ, giờ laser, mã lỗi | Trung bình | Cần tên lệnh truy vấn từ tài liệu; hiện hiển thị `—` |
 | C5 | Driver TCP chung, UDP, Art-Net, HTTP API | Trung bình | Hiện chọn được trong UI nhưng trả `501` |
-| C6 | Xác thực cho gateway (token) trước khi cho phép `HOST` khác `127.0.0.1` | Trung bình | |
+| C6 | Xác thực token cho gateway; `HOST` ngoài loopback tự sinh token nếu chưa đặt `MIKMASTER_TOKEN` | ✅ | Bearer hoặc `?token=` (web lưu vào localStorage). Sai/thiếu token → web rơi về SIMULATED, chưa có màn hình nhập token |
 | C7 | Lưu project phía server (thay `localStorage`); mã hoá/không lưu mật khẩu máy chiếu dạng thường | Trung bình | |
 | C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Trình duyệt không mở được socket TCP nên gateway là bắt buộc |
 | C9 | Đưa test frontend vào repo (Vitest cho reducer/`applyRemote`, Playwright cho luồng chính) và CI | Thấp | |

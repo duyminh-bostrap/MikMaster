@@ -48,6 +48,8 @@ pnpm sim         # máy giả lập để thử khi chưa có phần cứng
 pnpm test:server
 ```
 
+Bind ra mạng (`HOST=0.0.0.0`) bắt buộc có token: đặt `MIKMASTER_TOKEN=...` hoặc để gateway tự sinh và in ra; mở `http://host:8787/?token=<token>` một lần.
+
 > **Driver chưa được thử trên máy thật.** Tài liệu gốc của Panasonic/Christie không truy cập được lúc viết;
 > lệnh dựa trên nguồn thứ cấp (ghi rõ trong đầu file `server/src/drivers/*.ts`). Chỉ bật những lệnh có nguồn dẫn chứng:
 > Lens, Test Pattern chưa bật ở chế độ LIVE. Dùng **RAW COMMAND** ở trang Detail để đối chiếu với máy thật.

@@ -9,14 +9,14 @@ import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
 import { scanSubnet, SCAN_PROTOCOLS } from './scan.ts'
-import { isAllowedHost, isValidSubnetPrefix } from './security.ts'
+import { extractToken, isAllowedHost, isValidSubnetPrefix, tokenMatches } from './security.ts'
 
 const MAX_BODY = 64 * 1024
 const DEFAULT_TIMEOUT_MS = 3000
 
 const STATUS: Record<ApiErrorCode, number> = {
   'bad-request': 400, 'forbidden-host': 403, unsupported: 501,
-  connect: 502, timeout: 504, auth: 502, protocol: 502, device: 502,
+  unauthorized: 401, connect: 502, timeout: 504, auth: 502, protocol: 502, device: 502,
 }
 
 function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
@@ -61,13 +61,16 @@ function requireCapability(protocol: DriverProtocol, cap: 'raw' | CommandDto['ki
   if (!LIVE_CAPABILITIES[protocol].includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"`)
 }
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL): Promise<void> {
+async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string): Promise<void> {
   const route = `${req.method} ${url.pathname}`
+  const authorized = token === undefined || tokenMatches(token, extractToken(req.headers.authorization, url))
 
+  // Health luôn mở để web biết có gateway và có cần token hay không.
   if (route === 'GET /api/health') {
-    const body: HealthDto = { ok: true, drivers: LIVE_CAPABILITIES }
+    const body: HealthDto = { ok: true, drivers: LIVE_CAPABILITIES, authRequired: token !== undefined, authorized }
     return sendJson(res, 200, body)
   }
+  if (!authorized) throw new DeviceError('unauthorized', 'Missing or invalid gateway token')
 
   if (route === 'GET /api/scan') {
     const subnet = url.searchParams.get('subnet') ?? ''
@@ -121,12 +124,12 @@ function serveStatic(dir: string, url: URL, res: http.ServerResponse): void {
   fs.createReadStream(file).pipe(res)
 }
 
-export function createServer(options: { staticDir?: string } = {}): http.Server {
+export function createServer(options: { staticDir?: string; token?: string } = {}): http.Server {
   const staticDir = options.staticDir && fs.existsSync(options.staticDir) ? path.resolve(options.staticDir) : undefined
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname.startsWith('/api/')) {
-      handleApi(req, res, url).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
+      handleApi(req, res, url, options.token).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
     } else if (staticDir) {
       serveStatic(staticDir, url, res)
     } else {

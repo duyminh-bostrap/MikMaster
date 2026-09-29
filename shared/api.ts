@@ -49,7 +49,7 @@ export interface StatusDto {
 }
 
 export type ApiErrorCode =
-  | 'connect' | 'timeout' | 'auth' | 'protocol' | 'device' | 'unsupported' | 'bad-request' | 'forbidden-host'
+  | 'connect' | 'timeout' | 'auth' | 'protocol' | 'device' | 'unsupported' | 'bad-request' | 'forbidden-host' | 'unauthorized'
 
 export interface ApiErrorDto {
   error: { code: ApiErrorCode; message: string }
@@ -73,4 +73,8 @@ export interface ScanProgressDto {
 export interface HealthDto {
   ok: true
   drivers: Record<DriverProtocol, readonly Capability[]>
+  /** Gateway đòi token (bắt buộc khi bind ngoài loopback). */
+  authRequired: boolean
+  /** Token client gửi kèm (nếu có) có hợp lệ không. */
+  authorized: boolean
 }

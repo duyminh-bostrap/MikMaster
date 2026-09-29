@@ -114,3 +114,40 @@ describe('subnet scan over SSE', () => {
     assert.equal((await fetch(`${base}/api/scan?subnet=8.8.8`)).status, 400)
   })
 })
+
+describe('token auth', () => {
+  let secured: http.Server
+  let url: string
+  before(async () => {
+    secured = createServer({ token: 's3cret-token' })
+    await new Promise<void>(r => secured.listen(0, '127.0.0.1', r))
+    url = `http://127.0.0.1:${(secured.address() as AddressInfo).port}`
+  })
+  after(async () => { await new Promise(r => secured.close(r)) })
+
+  const body = JSON.stringify({ target: { ip: '127.0.0.1', protocol: { type: 'pjlink', port: 1 } } })
+  const call = (headers: Record<string, string> = {}, q = '') =>
+    fetch(`${url}/api/devices/status${q}`, { method: 'POST', headers: { 'Content-Type': 'application/json', ...headers }, body })
+
+  test('health stays open and reports auth state', async () => {
+    const anon = await (await fetch(`${url}/api/health`)).json() as any
+    assert.deepEqual([anon.authRequired, anon.authorized], [true, false])
+    const ok = await (await fetch(`${url}/api/health`, { headers: { Authorization: 'Bearer s3cret-token' } })).json() as any
+    assert.equal(ok.authorized, true)
+  })
+
+  test('rejects missing or wrong token with 401', async () => {
+    assert.equal((await call()).status, 401)
+    assert.equal((await call({ Authorization: 'Bearer nope' })).status, 401)
+    assert.equal((await call({}, '?token=nope')).status, 401)
+  })
+
+  test('accepts Bearer header or ?token= (past auth: fails on device, not 401)', async () => {
+    assert.notEqual((await call({ Authorization: 'Bearer s3cret-token' })).status, 401)
+    assert.notEqual((await call({}, '?token=s3cret-token')).status, 401)
+  })
+
+  test('scan endpoint is protected too', async () => {
+    assert.equal((await fetch(`${url}/api/scan?subnet=127.0.0`)).status, 401)
+  })
+})

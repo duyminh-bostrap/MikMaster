@@ -24,9 +24,30 @@ export function toTarget(p: Projector): TargetDto {
   return { ip: p.network.ip, protocol: { type, port, username, password } }
 }
 
-async function call<T>(base: string, path: string, body: unknown): Promise<GatewayResult<T>> {
+const TOKEN_KEY = 'mikmaster.gatewayToken'
+
+/** Token lấy từ `?token=` (rồi xoá khỏi URL) hoặc localStorage. */
+export function loadToken(): string | null {
   try {
-    const res = await fetch(base + path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    const url = new URL(window.location.href)
+    const fromUrl = url.searchParams.get('token')
+    if (fromUrl) {
+      localStorage.setItem(TOKEN_KEY, fromUrl)
+      url.searchParams.delete('token')
+      window.history.replaceState(null, '', url.toString())
+      return fromUrl
+    }
+    return localStorage.getItem(TOKEN_KEY)
+  } catch {
+    return null
+  }
+}
+
+async function call<T>(base: string, token: string | null, path: string, body: unknown): Promise<GatewayResult<T>> {
+  try {
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+    if (token) headers.Authorization = `Bearer ${token}`
+    const res = await fetch(base + path, { method: 'POST', headers, body: JSON.stringify(body) })
     const json = await res.json().catch(() => null)
     if (res.ok) return { ok: true, value: json as T }
     const err = json?.error
@@ -36,19 +57,19 @@ async function call<T>(base: string, path: string, body: unknown): Promise<Gatew
   }
 }
 
-export function createHttpGateway(base = ''): Gateway {
+export function createHttpGateway(base = '', token: string | null = null): Gateway {
   return {
-    status: p => call<StatusDto>(base, '/api/devices/status', { target: toTarget(p) }),
+    status: p => call<StatusDto>(base, token, '/api/devices/status', { target: toTarget(p) }),
     command: async (p, command) => {
-      const r = await call<{ ok: true }>(base, '/api/devices/command', { target: toTarget(p), command })
+      const r = await call<{ ok: true }>(base, token, '/api/devices/command', { target: toTarget(p), command })
       return r.ok ? { ok: true, value: null } : r
     },
     raw: async (p, text) => {
-      const r = await call<{ reply: string }>(base, '/api/devices/raw', { target: toTarget(p), text })
+      const r = await call<{ reply: string }>(base, token, '/api/devices/raw', { target: toTarget(p), text })
       return r.ok ? { ok: true, value: r.value.reply } : r
     },
     scan(subnet, h) {
-      const source = new EventSource(`${base}/api/scan?subnet=${encodeURIComponent(subnet)}`)
+      const source = new EventSource(`${base}/api/scan?subnet=${encodeURIComponent(subnet)}${token ? `&token=${encodeURIComponent(token)}` : ''}`)
       let finished = false
       const finish = () => { finished = true; source.close() }
       source.addEventListener('progress', e => { const d = JSON.parse((e as MessageEvent).data); h.onProgress(d.pct, d.ip) })
@@ -64,9 +85,16 @@ export function createHttpGateway(base = ''): Gateway {
 /** Trả `null` nếu không có gateway (chưa chạy `pnpm server`) → app dùng chế độ mô phỏng. */
 export async function detectGateway(base = ''): Promise<Gateway | null> {
   try {
-    const res = await fetch(`${base}/api/health`, { signal: AbortSignal.timeout(1500) })
+    const token = loadToken()
+    const res = await fetch(`${base}/api/health`, {
+      signal: AbortSignal.timeout(1500),
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    })
     const json = (await res.json()) as Partial<HealthDto>
-    return res.ok && json.ok === true ? createHttpGateway(base) : null
+    if (!res.ok || json.ok !== true) return null
+    // Gateway đòi token mà ta không có/sai → coi như không dùng được (SIMULATED).
+    if (json.authRequired && !json.authorized) return null
+    return createHttpGateway(base, token)
   } catch {
     return null
   }
