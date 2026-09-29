@@ -25,7 +25,7 @@ export function ScanPanel({ subnet, onSubnetChange, status, progress, currentIp,
     : null
 
   return (
-    <Panel title={`AUTO SCAN — ${subnet}.0/24`} aside={aside}>
+    <Panel title={`AUTO SCAN — ${subnet}.1 – ${subnet}.254`} aside={aside}>
       {status === 'idle' ? (
         <div className="flex flex-col items-center gap-4 py-6">
           <div className="flex size-14 items-center justify-center rounded-full border border-border bg-muted text-muted-foreground">
