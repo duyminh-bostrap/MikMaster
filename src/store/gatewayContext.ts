@@ -11,7 +11,7 @@ export interface GatewayState {
   tokenRejected: boolean
   /** Thử token mới; `true` nếu gateway nhận. */
   unlock: (token: string) => Promise<boolean>
-  /** Phát hiện lại gateway (ví dụ vừa chạy `pnpm server`). */
+  /** Phát hiện lại gateway (ví dụ vừa chạy `pnpm run server`). */
   retry: () => void
   /** Tắt MikMaster (gateway). `true` nếu gateway đã nhận lệnh. */
   quit: () => Promise<boolean>

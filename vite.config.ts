@@ -16,7 +16,7 @@ export default defineConfig({
   build: { chunkSizeWarningLimit: 800 },
   server: {
     port: 5173,
-    // `pnpm server` chạy gateway ở 8787; nếu không chạy, app tự dùng chế độ mô phỏng.
+    // `pnpm run server` chạy gateway ở 8787; nếu không chạy, app tự dùng chế độ mô phỏng.
     // MIKMASTER_NO_GATEWAY=1 (test e2e): không proxy → app luôn ở chế độ SIMULATED.
     // MIKMASTER_GATEWAY: gateway ở cổng khác (ví dụ khi MikMaster.app đang chiếm 8787).
     proxy: process.env.MIKMASTER_NO_GATEWAY ? undefined : { '/api': process.env.MIKMASTER_GATEWAY ?? 'http://127.0.0.1:8787' },

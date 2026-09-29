@@ -116,7 +116,7 @@ export type Detection =
   /** Có gateway nhưng thiếu / sai token. */
   | { kind: 'locked'; hadToken: boolean }
 
-/** `none` nếu không có gateway (chưa chạy `pnpm server`) → app dùng chế độ mô phỏng. */
+/** `none` nếu không có gateway (chưa chạy `pnpm run server`) → app dùng chế độ mô phỏng. */
 export async function detectGateway(base = '', explicitToken?: string): Promise<Detection> {
   try {
     const token = explicitToken ?? loadToken()

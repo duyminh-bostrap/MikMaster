@@ -22,7 +22,7 @@ export function GatewayBadge() {
     )
   }
   return (
-    <button type="button" onClick={retry} title={t('Look for the gateway again (after starting pnpm server)')}>
+    <button type="button" onClick={retry} title={t('Look for the gateway again (after starting pnpm run server)')}>
       <Badge tone="warn">{t('SIMULATED · NO GATEWAY')} <RotateCcw size={9} className="ml-1 inline" /></Badge>
     </button>
   )

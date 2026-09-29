@@ -13,7 +13,7 @@ Kiến trúc dữ liệu: **Project → Booth → Projector**. Máy chiếu mụ
 
 Hai chế độ chạy, hiển thị ở chân trang:
 
-- **LIVE** — có gateway (`pnpm server` / `pnpm start`): lệnh và trạng thái đi tới máy chiếu thật.
+- **LIVE** — có gateway (`pnpm run server` / `pnpm start`): lệnh và trạng thái đi tới máy chiếu thật.
 - **SIMULATED** — không có gateway: dữ liệu mẫu, để demo và phát triển UI. Bấm huy hiệu để tìm lại gateway.
 - **GATEWAY LOCKED** — gateway chạy ở chế độ mở ra mạng và cần token: bấm huy hiệu để nhập.
 

@@ -55,7 +55,7 @@ Cập nhật: 2026-09-29 (khuya, sau khi kiểm máy thật). Ký hiệu: ✅ xo
 ```bash
 pnpm install
 pnpm dev            # web, chế độ SIMULATED
-pnpm server         # gateway :8787 → web chuyển sang LIVE
+pnpm run server         # gateway :8787 → web chuyển sang LIVE
 pnpm sim            # 3 máy giả lập trên 127.0.0.21/22/23 (macOS: chạy `pnpm sim:mac-alias` một lần, cần mật khẩu)
 pnpm test           # Vitest (frontend)
 pnpm test:watch

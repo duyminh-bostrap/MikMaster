@@ -119,4 +119,4 @@ Chạy lệnh trong thư mục MikMaster, sau `pnpm build`. Gỡ: `launchctl unl
 
 ## Khi phát triển
 
-`pnpm dev` (giao diện, http://localhost:5173) + `pnpm server` (gateway) — hoặc F5 trong VS Code, cấu hình **Dev: Gateway + Web**.
+`pnpm dev` (giao diện, http://localhost:5173) + `pnpm run server` (gateway) — hoặc F5 trong VS Code, cấu hình **Dev: Gateway + Web**.

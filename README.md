@@ -53,7 +53,7 @@ PJLink, **Panasonic NTCONTROL (PT-RQ35K)**, **Christie serial-over-IP (Griffyn)*
 có thì chạy `LIVE`, không thì `SIMULATED`.
 
 ```bash
-pnpm server      # http://127.0.0.1:8787 (vite proxy /api)
+pnpm run server      # http://127.0.0.1:8787 (vite proxy /api)
 pnpm sim         # máy giả lập để thử khi chưa có phần cứng (macOS: pnpm sim:mac-alias một lần)
 pnpm test:server
 ```

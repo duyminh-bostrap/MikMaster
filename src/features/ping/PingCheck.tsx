@@ -30,12 +30,12 @@ export function PingCheck({ projector: p, compact = false }: { projector: Projec
           {compact ? t('PING') : `${t('PING')} ${p.network.ip}`}
         </span>
         <Button size="xs" variant="accent" disabled={!available || running} onClick={() => void run()}
-          title={available ? t('Check the IP and the control port') : t('Needs the gateway (pnpm server): browsers cannot ping')}>
+          title={available ? t('Check the IP and the control port') : t('Needs the gateway (pnpm run server): browsers cannot ping')}>
           {running ? <Loader2 size={10} className="animate-spin" /> : <Activity size={10} />}
           {running ? t('PINGING…') : result ? t('AGAIN') : t('PING')}
         </Button>
       </div>
-      {!available && <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Needs the gateway (pnpm server) — a browser cannot ping.')}</p>}
+      {!available && <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Needs the gateway (pnpm run server) — a browser cannot ping.')}</p>}
       {error && <p role="alert" className="font-mono text-[10px] text-danger">{error}</p>}
       {result && verdict && (
         <div aria-live="polite" className="flex flex-col gap-1">
