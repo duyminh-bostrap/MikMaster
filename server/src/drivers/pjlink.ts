@@ -125,6 +125,13 @@ export const pjlinkDriver: Driver = {
     return s.conn.read()
   }),
 
+  async identify(t) {
+    try { return await withSession(t, identity) } catch (err) {
+      if (err instanceof DeviceError && err.code === 'auth') return { authRequired: true }
+      return null
+    }
+  },
+
   async probe(host, port, timeoutMs) {
     let s: Session | undefined
     try {

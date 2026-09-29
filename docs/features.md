@@ -54,9 +54,11 @@ Hai chế độ chạy, hiển thị ở chân trang:
 |---|---|---|
 | Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
 | **Chuyển máy sang booth khác**: kéo thả hoặc chuột phải | ✅ | |
-| Bật / tắt / shutter cả booth — chỉ trong trang của booth; ALL ON bật lần lượt (mặc định cách 5 giây, đổi trong Cài đặt), có nút dừng; tắt máy / đóng shutter hàng loạt hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
+| Điều khiển hàng loạt (tab Tất cả hoặc từng booth), nút icon: nguồn (bật lần lượt, mặc định cách 5 giây), shutter, OSD, test pattern; tắt máy / đóng shutter / hiện pattern hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
 | Tìm máy (tên, IP, model, booth; phím /) và lọc theo trạng thái | ✅ | |
 | Thêm / sửa / gỡ máy chiếu trên Dashboard (nút ở cuối sidebar, chuột phải vào thẻ) | ✅ | |
+| Nhập IP → tự nhận diện giao thức, cổng, model và đặt tên theo model | 🧪 | Cần gateway; model đọc qua PJLink (INF2) hoặc giao thức hãng |
+| Cổng điều khiển ẩn mặc định (dùng cổng chuẩn của giao thức), đổi được khi cần | ✅ | |
 | Chỉ số: Fleet Health, cảnh báo, nhiệt độ TB, giờ đèn | ✅ | |
 | Poll trạng thái thật 4 giây | 🧪 | Chỉ giao thức có driver |
 

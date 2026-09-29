@@ -116,6 +116,18 @@ export interface ScanFoundDto {
   model?: string
 }
 
+/** Kết quả nhận diện một IP (thêm máy bằng tay). `found: false` = không giao thức nào trả lời. */
+export interface IdentifyDto {
+  found: boolean
+  protocol?: DriverProtocol
+  port?: number
+  manufacturer?: string
+  model?: string
+  /** Tên máy do người dùng đặt trên máy chiếu (PJLink NAME), nếu có. */
+  name?: string
+  authRequired?: boolean
+}
+
 export interface ScanProgressDto {
   pct: number
   ip: string

@@ -1,4 +1,4 @@
-import { Ban, Power, PowerOff } from 'lucide-react'
+import { Eye, EyeOff, Power, PowerOff } from 'lucide-react'
 import { useT } from '@/i18n'
 import type { KeyboardEvent } from 'react'
 import { Badge } from '@/components/ui/Badge'
@@ -17,6 +17,23 @@ interface ProjectorCardProps {
   onToggleShutter: () => void
   onContextMenu?: (e: React.MouseEvent) => void
   dragProps?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean }
+}
+
+function CardButton({ label, active, activeClass, hoverClass, onClick, last, children }: {
+  label: string
+  active: boolean
+  activeClass: string
+  hoverClass: string
+  onClick: () => void
+  last?: boolean
+  children: React.ReactNode
+}) {
+  return (
+    <button type="button" aria-label={label} title={label} aria-pressed={active} onClick={e => { e.stopPropagation(); onClick() }}
+      className={cn('flex flex-1 items-center justify-center py-2 transition-colors', !last && 'border-r border-border', active ? activeClass : `text-muted-foreground ${hoverClass}`)}>
+      {children}
+    </button>
+  )
 }
 
 type BarState = 'on' | 'off' | 'offline' | 'login'
@@ -89,21 +106,13 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
         <TempBar tempC={p.telemetry.temperatureC} />
       </div>
 
-      {/* ON bên trái, OFF bên phải; nút ứng với trạng thái hiện tại được tô. Shutter ở ô cuối. */}
-      <div className="flex border-t border-border font-mono text-xs font-medium">
-        <button type="button" aria-pressed={p.power === 'on'} onClick={e => { e.stopPropagation(); onPowerOn() }}
-          className={cn('flex flex-1 items-center justify-center gap-1 border-r border-border py-1.5 transition-colors', p.power === 'on' ? 'bg-ok/10 text-ok' : 'text-muted-foreground hover:text-ok')}>
-          <Power size={10} strokeWidth={2} />{t('ON')}
-        </button>
-        <button type="button" aria-pressed={p.power !== 'on'} onClick={e => { e.stopPropagation(); onPowerOff() }}
-          className={cn('flex flex-1 items-center justify-center gap-1 border-r border-border py-1.5 transition-colors', p.power !== 'on' ? 'bg-muted text-foreground' : 'text-muted-foreground hover:text-foreground')}>
-          <PowerOff size={10} strokeWidth={2} />{t('OFF')}
-        </button>
-        <button type="button" aria-pressed={p.shutter} onClick={e => { e.stopPropagation(); onToggleShutter() }}
-          title={p.shutter ? t('Open the shutter') : t('Close the shutter')}
-          className={cn('flex flex-1 items-center justify-center gap-1 py-1.5 transition-colors', p.shutter ? 'bg-warn/10 text-warn' : 'text-muted-foreground hover:text-warn')}>
-          <Ban size={10} strokeWidth={2} />{p.shutter ? t('SHUTTER CLOSED') : t('SHUTTER')}
-        </button>
+      {/* Nút icon: bật (trái), tắt (phải), shutter. Nút đúng trạng thái hiện tại được tô; ý nghĩa ở tooltip. */}
+      <div className="flex border-t border-border">
+        <CardButton label={t('Turn on')} active={p.power === 'on'} activeClass="bg-ok/15 text-ok" hoverClass="hover:text-ok" onClick={onPowerOn}><Power size={14} /></CardButton>
+        <CardButton label={t('Turn off')} active={p.power !== 'on'} activeClass="bg-muted text-foreground" hoverClass="hover:text-foreground" onClick={onPowerOff}><PowerOff size={14} /></CardButton>
+        <CardButton label={p.shutter ? t('Open the shutter') : t('Close the shutter')} active={p.shutter} activeClass="bg-warn/15 text-warn" hoverClass="hover:text-warn" onClick={onToggleShutter} last>
+          {p.shutter ? <EyeOff size={14} /> : <Eye size={14} />}
+        </CardButton>
       </div>
 
       <div className="pointer-events-none absolute inset-0 z-10 flex items-center justify-center rounded-[inherit] border border-primary/20 bg-primary/[0.03] opacity-0 transition-opacity group-hover:opacity-100">

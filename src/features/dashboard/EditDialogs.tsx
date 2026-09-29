@@ -1,11 +1,14 @@
 import { Trash2 } from 'lucide-react'
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, SelectInput, TextInput } from '@/components/ui/Field'
 import { Modal } from '@/components/ui/Modal'
+import { PortField } from '@/components/ui/PortField'
 import { MODEL_PRESETS } from '@/constants/models'
 import { PROTOCOL_OPTIONS, defaultProtocolConfig, getProtocolOption } from '@/constants/protocols'
 import { useT } from '@/i18n'
+import { IdentifyStatus } from '@/features/identify/IdentifyStatus'
+import { modelLabel, suggestName, useIdentify } from '@/features/identify/useIdentify'
 import { getDeviceCredentials, getSharedCredentials } from '@/services/credentialCache'
 import { useOpenProject, useProjectActions } from '@/store/hooks'
 import { fillMissingCredentials, needsAuth } from '@/utils/credentials'
@@ -71,6 +74,16 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
   const [type, setType] = useState<ProtocolType>(p?.network.protocol.type ?? 'pjlink-class2')
   const [port, setPort] = useState(String(p?.network.protocol.port ?? getProtocolOption('pjlink-class2').defaultPort))
   const [confirmRemove, setConfirmRemove] = useState(false)
+  // Thêm máy: nhập IP → tự nhận diện, điền sẵn giao thức / cổng / model / tên (ô người dùng đã sửa thì giữ nguyên).
+  const touched = useRef({ name: false, model: false, protocol: false })
+  const identify = useIdentify(ip, adding)
+  useEffect(() => {
+    if (identify.status !== 'found') return
+    const r = identify.result
+    if (!touched.current.protocol && r.protocol) { setType(r.protocol); setPort(String(r.port ?? defaultProtocolConfig(r.protocol).port)) }
+    if (!touched.current.model && (r.model || r.manufacturer)) setModel(modelLabel(r))
+    if (!touched.current.name) setName(suggestName(r, projectors.map(x => x.name)))
+  }, [identify, projectors])
   if (id && !p) return null
 
   const portNum = Number(port)
@@ -80,11 +93,13 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
   const valid = ipValid && portValid && !duplicate && (adding || name.trim() !== '')
 
   function chooseModel(label: string) {
+    touched.current.model = true
     setModel(label)
     const preset = MODEL_PRESETS.find(m => m.label === label)
     if (preset) changeType(preset.protocol)
   }
   function changeType(next: ProtocolType) {
+    touched.current.protocol = true
     setType(next)
     setPort(String(defaultProtocolConfig(next).port))
   }
@@ -136,11 +151,9 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
           </div>
         </>
       }>
-      <div className="grid grid-cols-[1fr_90px] gap-2">
-        <Field label={t('IP ADDRESS')}>{fid => <TextInput id={fid} value={ip} invalid={ip !== '' && (!ipValid || duplicate)} placeholder="192.168.1.100" onChange={e => setIp(e.target.value)} />}</Field>
-        <Field label={t('PORT')}>{fid => <TextInput id={fid} value={port} invalid={!portValid} inputMode="numeric" onChange={e => setPort(e.target.value)} />}</Field>
-      </div>
+      <Field label={t('IP ADDRESS')}>{fid => <TextInput id={fid} value={ip} invalid={ip !== '' && (!ipValid || duplicate)} placeholder="192.168.1.100" onChange={e => setIp(e.target.value)} />}</Field>
       {duplicate && <p className="-mt-1 font-mono text-[10px] text-danger">{t('Another projector already uses this IP and port.')}</p>}
+      {adding && <div className="-mt-1"><IdentifyStatus state={identify} /></div>}
       <Field label={t('PROTOCOL')}>
         {fid => (
           <SelectInput id={fid} value={type} onChange={e => changeType(e.target.value as ProtocolType)}>
@@ -148,8 +161,9 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
           </SelectInput>
         )}
       </Field>
+      <div className="-mt-1"><PortField key={type} value={port} defaultPort={getProtocolOption(type).defaultPort} onChange={setPort} invalid={!portValid} /></div>
       <Field label={adding ? t('DISPLAY NAME (opt.)') : t('DISPLAY NAME')}>
-        {fid => <TextInput id={fid} value={name} invalid={!adding && name.trim() === ''} placeholder={adding ? `Projector ${ip || '…'}` : ''} onChange={e => setName(e.target.value)} />}
+        {fid => <TextInput id={fid} value={name} invalid={!adding && name.trim() === ''} placeholder={adding ? `Projector ${ip || '…'}` : ''} onChange={e => { touched.current.name = true; setName(e.target.value) }} />}
       </Field>
       <Field label={t('BOOTH')}>
         {fid => (

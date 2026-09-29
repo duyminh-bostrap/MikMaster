@@ -1,4 +1,4 @@
-import type { ApiErrorCode, CommandDto, HealthDto, PingDto, ProjectSnapshotDto, ProjectSummaryDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
+import type { ApiErrorCode, CommandDto, HealthDto, IdentifyDto, PingDto, ProjectSnapshotDto, ProjectSummaryDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
@@ -17,6 +17,8 @@ export interface Gateway {
   raw(p: Projector, text: string): Promise<GatewayResult<string>>
   /** Tắt gateway (và MikMaster). */
   quit(): Promise<GatewayResult<unknown>>
+  /** Nhận diện máy ở một IP: giao thức, cổng, hãng, model. */
+  identify(ip: string, creds?: { username?: string; password?: string }): Promise<GatewayResult<IdentifyDto>>
   /** ICMP ping + thử mở cổng điều khiển TCP. */
   ping(p: Projector): Promise<GatewayResult<PingDto>>
   listProjects(): Promise<GatewayResult<ProjectSummaryDto[]>>
@@ -77,6 +79,7 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
       return r.ok ? { ok: true, value: r.value.reply } : r
     },
     quit: () => call<unknown>(base, token, '/api/app/quit', {}),
+    identify: (ip, creds) => call<IdentifyDto>(base, token, '/api/devices/identify', { ip, ...creds }),
     ping: p => call<PingDto>(base, token, '/api/devices/ping', { target: toTarget(p) }),
     listProjects: () => call<ProjectSummaryDto[]>(base, token, '/api/projects', undefined, 'GET'),
     loadProject: id => call<ProjectSnapshotDto>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'GET'),

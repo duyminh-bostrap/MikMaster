@@ -171,12 +171,18 @@ test('login screen only while a projector needs a login; controls hidden until t
 
 test('booth page: ALL ON one by one, ALL OFF asks first; filter and add projectors', async ({ page }) => {
   await createProject(page, 'Booth Show')
-  // Tất cả: không có nút bật/tắt hàng loạt.
-  await expect(page.getByRole('button', { name: /ALL ON/ })).toHaveCount(0)
+  // Tab Tất cả cũng có điều khiển hàng loạt (nút icon, tên nằm ở aria-label).
+  await expect(page.getByRole('button', { name: /^All on/ })).toBeVisible()
   await page.getByRole('tab', { name: /^Booth 1/ }).click()
-  await page.getByRole('button', { name: /ALL OFF/ }).click()
+  await page.getByRole('button', { name: 'All off' }).click()
   await page.getByRole('dialog', { name: 'TURN OFF PROJECTORS' }).getByRole('button', { name: 'CANCEL' }).click()
-  await page.getByRole('button', { name: /ALL ON/ }).click()
+  // OSD và test pattern cho cả booth.
+  await page.getByRole('button', { name: 'OSD off for all' }).click()
+  await page.getByRole('button', { name: 'Show test pattern on all' }).click()
+  await page.getByRole('dialog', { name: 'SHOW TEST PATTERN' }).getByRole('button', { name: 'SHOW PATTERN' }).click()
+  await expect(page.locator('article', { hasText: 'PATTERN' }).first()).toBeVisible()
+  await page.getByRole('button', { name: 'Hide test pattern on all' }).click()
+  await page.getByRole('button', { name: /^All on/ }).click()
   await expect(page.getByText(/Powering on 1\/6/)).toBeVisible()
   await page.getByRole('button', { name: 'STOP' }).click()
   await expect(page.getByText(/Powering on/)).toHaveCount(0)

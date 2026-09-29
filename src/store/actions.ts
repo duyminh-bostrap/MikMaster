@@ -65,6 +65,8 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
       dispatch({ type: 'projector/setTestPattern', id, patch })
       if (patch.enabled !== undefined) effects?.testPattern([id], patch.enabled)
     },
+    /** OSD chưa có lệnh đã xác minh: chỉ đổi trạng thái trong app. */
+    setOsdMany: (ids: string[], osd: boolean) => dispatch({ type: 'projectors/setOsd', ids, osd }),
     /** Cả booth: bật / tắt / chọn pattern cho nhiều máy. */
     setTestPatternMany: (ids: string[], patch: Partial<TestPatternState>) => {
       dispatch({ type: 'projectors/setTestPattern', ids, patch })

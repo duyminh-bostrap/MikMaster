@@ -1,75 +1,105 @@
-import { Ban, Grid3x3, Power, PowerOff, SunMedium } from 'lucide-react'
-import { useState } from 'react'
-import { TEST_PATTERNS } from '@/constants/testPatterns'
-import type { TestPatternType } from '@/types'
-import { Button } from '@/components/ui/Button'
+import { Captions, CaptionsOff, Eye, EyeOff, Grid3x3, Power, PowerOff, SquareDashed, type LucideIcon } from 'lucide-react'
+import { useState, type ReactNode } from 'react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { TEST_PATTERNS } from '@/constants/testPatterns'
 import { useT } from '@/i18n'
 import { useSettings } from '@/services/settings'
 import { useProjectActions } from '@/store/hooks'
+import { cn } from '@/utils/cn'
+import type { TestPatternType } from '@/types'
+
+type Tone = 'ok' | 'neutral' | 'warn' | 'accent'
+
+const TONE: Record<Tone, string> = {
+  ok: 'text-ok hover:bg-ok/15',
+  neutral: 'text-foreground/80 hover:bg-elevated-hover',
+  warn: 'text-warn hover:bg-warn/15',
+  accent: 'text-accent hover:bg-accent/15',
+}
+
+/** Nút chỉ có icon; ý nghĩa nằm ở tooltip + aria-label. `badge` = chữ nhỏ ở góc (ví dụ "5s"). */
+function IconButton({ icon: Icon, label, tone, onClick, disabled, badge }: {
+  icon: LucideIcon
+  label: string
+  tone: Tone
+  onClick: () => void
+  disabled?: boolean
+  badge?: string
+}) {
+  return (
+    <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick}
+      className={cn('relative flex size-8 items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-40', TONE[tone])}>
+      <Icon size={15} strokeWidth={2} />
+      {badge && <span className="absolute -top-1 -right-1 rounded-full bg-ok px-1 font-mono text-[8px] leading-3 text-background">{badge}</span>}
+    </button>
+  )
+}
+
+/** Nhóm nút dính liền, có nhãn nhỏ phía trên. */
+function Group({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <span className="font-mono text-[9px] tracking-[0.1em] text-muted-foreground">{label}</span>
+      <div className="flex items-center divide-x divide-border overflow-visible rounded-sm border border-border bg-card">{children}</div>
+    </div>
+  )
+}
 
 /**
- * Bật / tắt / shutter cả một booth. Chỉ đặt trong trang của booth (không ở sidebar, để khó bấm nhầm).
- * Tắt máy và đóng shutter hàng loạt đều hỏi xác nhận; bật thì bật lần lượt theo cài đặt.
+ * Điều khiển hàng loạt cho cả project (tab Tất cả) hoặc một booth: nguồn, shutter, OSD, test pattern.
+ * Tắt máy, đóng shutter và hiện test pattern đều hỏi xác nhận; bật máy thì bật lần lượt theo cài đặt.
  */
-export function QuickControls({ projectorIds, boothName }: { projectorIds: string[]; boothName: string }) {
+export function QuickControls({ projectorIds, scopeLabel }: { projectorIds: string[]; scopeLabel: string }) {
   const t = useT()
-  const { setPower, setShutter, setTestPatternMany } = useProjectActions()
-  const [pattern, setPattern] = useState<TestPatternType>('grid')
+  const { setPower, setShutter, setOsdMany, setTestPatternMany } = useProjectActions()
   const { powerOnDelaySec } = useSettings()
   const [confirmDialog, confirm] = useConfirm()
+  const [pattern, setPattern] = useState<TestPatternType>('grid')
   const n = projectorIds.length
   const disabled = n === 0
+  const stagger = n > 1 && powerOnDelaySec > 0
+  const vars = { n, booth: scopeLabel }
 
   async function allOff() {
-    const ok = await confirm({
-      title: t('TURN OFF PROJECTORS'),
-      message: t('Turn off all {n} projectors in "{booth}"? Their image goes dark.', { n, booth: boothName }),
-      confirmLabel: t('TURN OFF'),
-    })
-    if (ok) setPower(projectorIds, 'standby')
+    if (await confirm({ title: t('TURN OFF PROJECTORS'), message: t('Turn off all {n} projectors in "{booth}"? Their image goes dark.', vars), confirmLabel: t('TURN OFF') })) {
+      setPower(projectorIds, 'standby')
+    }
   }
-
   async function closeShutters() {
-    const ok = await confirm({
-      title: t('CLOSE SHUTTERS'),
-      message: t('Close the shutter on all {n} projectors in "{booth}"? Their image is blanked.', { n, booth: boothName }),
-      confirmLabel: t('CLOSE SHUTTERS'),
-      tone: 'warn',
-    })
-    if (ok) setShutter(projectorIds, true)
+    if (await confirm({ title: t('CLOSE SHUTTERS'), message: t('Close the shutter on all {n} projectors in "{booth}"? Their image is blanked.', vars), confirmLabel: t('CLOSE SHUTTERS'), tone: 'warn' })) {
+      setShutter(projectorIds, true)
+    }
   }
-
   async function patternOn() {
-    const ok = await confirm({
-      title: t('SHOW TEST PATTERN'),
-      message: t('Show the "{pattern}" test pattern on all {n} projectors in "{booth}"? It replaces the image.', { n, booth: boothName, pattern: t(TEST_PATTERNS.find(x => x.type === pattern)?.label ?? pattern) }),
-      confirmLabel: t('SHOW PATTERN'),
-      tone: 'accent',
-    })
-    if (ok) setTestPatternMany(projectorIds, { enabled: true, type: pattern })
+    const name = t(TEST_PATTERNS.find(x => x.type === pattern)?.label ?? pattern)
+    if (await confirm({ title: t('SHOW TEST PATTERN'), message: t('Show the "{pattern}" test pattern on all {n} projectors in "{booth}"? It replaces the image.', { ...vars, pattern: name }), confirmLabel: t('SHOW PATTERN'), tone: 'accent' })) {
+      setTestPatternMany(projectorIds, { enabled: true, type: pattern })
+    }
   }
 
   return (
-    <div className="flex flex-wrap items-center gap-2">
-      <Button variant="ok" disabled={disabled} onClick={() => setPower(projectorIds, 'on')}
-        title={n > 1 && powerOnDelaySec > 0 ? t('One by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : undefined}>
-        <Power size={11} />{t('ALL ON')}
-        {n > 1 && powerOnDelaySec > 0 && <span className="font-normal opacity-70">· {powerOnDelaySec}s</span>}
-      </Button>
-      <Button variant="secondary" disabled={disabled} onClick={() => void allOff()}><PowerOff size={11} />{t('ALL OFF')}</Button>
-      <div className="h-4 w-px bg-border" />
-      <Button variant="warn" disabled={disabled} onClick={() => void closeShutters()}><Ban size={11} />{t('SHUTTER CLOSE')}</Button>
-      <Button variant="secondary" disabled={disabled} onClick={() => setShutter(projectorIds, false)}><SunMedium size={11} />{t('SHUTTER OPEN')}</Button>
-      <div className="h-4 w-px bg-border" />
-      <div className="flex items-center gap-1">
-        <select aria-label={t('Test pattern')} value={pattern} onChange={e => setPattern(e.target.value as TestPatternType)} disabled={disabled}
-          className="rounded-sm border border-border bg-muted px-1.5 py-1.5 font-mono text-xs text-foreground outline-none focus:border-primary/60">
+    <div className="flex flex-wrap items-end gap-3">
+      <Group label={t('POWER')}>
+        <IconButton icon={Power} tone="ok" disabled={disabled} onClick={() => setPower(projectorIds, 'on')}
+          label={stagger ? t('All on — one by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : t('All on')} badge={stagger ? `${powerOnDelaySec}s` : undefined} />
+        <IconButton icon={PowerOff} tone="neutral" disabled={disabled} onClick={() => void allOff()} label={t('All off')} />
+      </Group>
+      <Group label={t('SHUTTER')}>
+        <IconButton icon={Eye} tone="neutral" disabled={disabled} onClick={() => setShutter(projectorIds, false)} label={t('Open all shutters (show image)')} />
+        <IconButton icon={EyeOff} tone="warn" disabled={disabled} onClick={() => void closeShutters()} label={t('Close all shutters (blank image)')} />
+      </Group>
+      <Group label={t('OSD')}>
+        <IconButton icon={Captions} tone="neutral" disabled={disabled} onClick={() => setOsdMany(projectorIds, true)} label={t('OSD on for all')} />
+        <IconButton icon={CaptionsOff} tone="neutral" disabled={disabled} onClick={() => setOsdMany(projectorIds, false)} label={t('OSD off for all')} />
+      </Group>
+      <Group label={t('TEST PATTERN')}>
+        <select aria-label={t('Test pattern')} value={pattern} disabled={disabled} onChange={e => setPattern(e.target.value as TestPatternType)}
+          className="h-8 bg-transparent px-2 font-mono text-[11px] text-foreground outline-none">
           {TEST_PATTERNS.map(p => <option key={p.type} value={p.type}>{t(p.label)}</option>)}
         </select>
-        <Button variant="accent" disabled={disabled} onClick={() => void patternOn()}><Grid3x3 size={11} />{t('PATTERN ON')}</Button>
-        <Button variant="secondary" disabled={disabled} onClick={() => setTestPatternMany(projectorIds, { enabled: false })}>{t('PATTERN OFF')}</Button>
-      </div>
+        <IconButton icon={Grid3x3} tone="accent" disabled={disabled} onClick={() => void patternOn()} label={t('Show test pattern on all')} />
+        <IconButton icon={SquareDashed} tone="neutral" disabled={disabled} onClick={() => setTestPatternMany(projectorIds, { enabled: false })} label={t('Hide test pattern on all')} />
+      </Group>
       {confirmDialog}
     </div>
   )

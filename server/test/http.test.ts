@@ -337,3 +337,15 @@ describe('test pattern via user commands', () => {
     assert.equal(r.status, 501)
   })
 })
+
+describe('identify one IP', () => {
+  test('finds the Panasonic simulator on its port range? (uses default ports) → not found on loopback without sims', async () => {
+    const r = await post('/api/devices/identify', { ip: '127.0.0.99' })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.found, false)
+  })
+
+  test('refuses public IPs', async () => {
+    assert.equal((await post('/api/devices/identify', { ip: '8.8.8.8' })).status, 403)
+  })
+})

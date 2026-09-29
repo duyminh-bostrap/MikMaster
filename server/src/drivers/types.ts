@@ -19,4 +19,6 @@ export interface Driver {
   raw(target: DriverTarget, text: string): Promise<string>
   /** Dùng khi quét mạng: trả `null` nếu cổng này không phải thiết bị của driver. */
   probe(host: string, port: number, timeoutMs: number): Promise<ProbeResult | null>
+  /** Như probe nhưng có tài khoản (đọc được model / tên ở máy có mật khẩu). */
+  identify?(target: DriverTarget): Promise<ProbeResult | null>
 }

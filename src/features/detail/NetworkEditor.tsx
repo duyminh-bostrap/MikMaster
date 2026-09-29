@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { Field, SelectInput, TextInput } from '@/components/ui/Field'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+import { PortField } from '@/components/ui/PortField'
 import { PROTOCOL_OPTIONS, defaultProtocolConfig, getProtocolOption } from '@/constants/protocols'
 import { needsAuth } from '@/utils/credentials'
 import { isValidIPv4 } from '@/utils/network'
@@ -53,10 +54,8 @@ export function NetworkEditor({ projector: p }: { projector: Projector }) {
             </SelectInput>
           )}
         </Field>
-        <div className="grid grid-cols-[1fr_80px] gap-2">
-          <Field label={t('IP ADDRESS')}>{id => <TextInput id={id} value={ip} invalid={!ipValid} onChange={e => setIp(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
-          <Field label={t('PORT')}>{id => <TextInput id={id} value={port} invalid={!portValid} inputMode="numeric" onChange={e => setPort(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
-        </div>
+        <Field label={t('IP ADDRESS')}>{id => <TextInput id={id} value={ip} invalid={!ipValid} onChange={e => setIp(e.target.value)} className="px-2 py-1.5 text-xs" />}</Field>
+        <PortField key={type} value={port} defaultPort={getProtocolOption(type).defaultPort} onChange={setPort} invalid={!portValid} />
         <Button variant="primary" disabled={!dirty || !ipValid || !portValid} onClick={apply}>{t('APPLY')}</Button>
       </div>
     </>

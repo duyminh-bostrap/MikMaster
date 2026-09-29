@@ -229,3 +229,30 @@ describe('Barco Pulse driver (JSON-RPC)', async () => {
     assert.equal(await barcoPulseDriver.probe('127.0.0.1', 1, 300), null)
   })
 })
+
+describe('identifyDevice', async () => {
+  const { identifyDevice } = await import('../src/identify.ts')
+  // Cùng một máy trả lời cả PJLink (có model qua INF2) lẫn Panasonic NTCONTROL.
+  const pj = new PjlinkSimulator({ name: 'Stage L', manufacturer: 'Panasonic', model: 'PT-RQ35K', password: 'pw' })
+  const pana = new PanasonicSimulator()
+  before(async () => { await pj.start(); await pana.start() })
+  after(async () => { await pj.stop(); await pana.stop() })
+  const ports = () => ({ 'pjlink-class1': pj.port, 'panasonic-nt-control': pana.port, 'christie-serial-ip': 1, 'barco-pulse': 1 })
+
+  test('prefers the vendor protocol and reads the model through PJLink with the login', async () => {
+    const r = await identifyDevice('127.0.0.1', { password: 'pw' }, 800, ports())
+    assert.deepEqual([r.found, r.protocol, r.port, r.model, r.name], [true, 'panasonic-nt-control', pana.port, 'PT-RQ35K', 'Stage L'])
+  })
+
+  test('without the PJLink password the model falls back to what the vendor protocol reports', async () => {
+    const r = await identifyDevice('127.0.0.1', {}, 800, ports())
+    assert.equal(r.found, true)
+    assert.equal(r.name, undefined) // tên máy chỉ đọc được qua PJLink
+    assert.equal(r.model, 'RQ35K') // Panasonic NTCONTROL không khoá báo model
+  })
+
+  test('PJLink only → reported as PJLink Class 2 with its model', async () => {
+    const r = await identifyDevice('127.0.0.1', { password: 'pw' }, 800, { ...ports(), 'panasonic-nt-control': 1 })
+    assert.deepEqual([r.protocol, r.model], ['pjlink-class2', 'PT-RQ35K'])
+  })
+})

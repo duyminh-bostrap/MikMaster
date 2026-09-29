@@ -6,6 +6,7 @@ import {
 import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
+import { identifyDevice } from './identify.ts'
 import { pingDevice } from './ping.ts'
 import { fsStatic, type StaticSource } from './static.ts'
 import { checkScanRange } from '../../shared/ipRange.ts'
@@ -126,6 +127,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     const port = Number(t.protocol.port)
     if (!Number.isInteger(port) || port < 1 || port > 65535) throw new DeviceError('bad-request', 'Invalid port')
     return sendJson(res, 200, await pingDevice(t.ip, port, UDP_PROTOCOLS.includes(String(t.protocol.type))))
+  }
+
+  if (route === 'POST /api/devices/identify') {
+    const body = await readJson(req)
+    if (!isObject(body) || typeof body.ip !== 'string') throw new DeviceError('bad-request', 'Missing ip')
+    if (!isAllowedHost(body.ip)) throw new DeviceError('forbidden-host', `${body.ip} is not a private/loopback IPv4 address`)
+    const creds = { username: typeof body.username === 'string' ? body.username : undefined, password: typeof body.password === 'string' ? body.password : undefined }
+    return sendJson(res, 200, await identifyDevice(body.ip, creds))
   }
 
   if (route === 'GET /api/scan') {

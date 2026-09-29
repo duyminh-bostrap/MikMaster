@@ -78,9 +78,7 @@ export default function DashboardPage() {
       }
     >
       <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} />
-      <FleetMetrics stats={stats} projectors={projectors} actions={inBooth
-        ? <QuickControls projectorIds={scope.map(p => p.id)} boothName={scopeLabel} />
-        : <span className="font-mono text-[10px] text-muted-foreground">{t('Open a booth to switch its projectors on or off.')}</span>} />
+      <FleetMetrics stats={stats} projectors={projectors} actions={<QuickControls projectorIds={scope.map(p => p.id)} scopeLabel={scopeLabel} />} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts} />
       <main className="flex-1 overflow-y-auto p-5">

@@ -105,7 +105,7 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
             {(scan.status === 'done' || draft.devices.length > 0) && (
               <LaunchPanel selected={draft.selectedCount} loginTargets={loginTargets} onLaunch={launch} />
             )}
-            <ManualAddForm onAdd={draft.addManual} />
+            <ManualAddForm onAdd={draft.addManual} takenNames={draft.devices.map(d => d.projector.name)} />
           </div>
         </div>
       )}
