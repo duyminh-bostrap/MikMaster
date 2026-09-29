@@ -255,4 +255,14 @@ describe('identifyDevice', async () => {
     const r = await identifyDevice('127.0.0.1', { password: 'pw' }, 800, { ...ports(), 'panasonic-nt-control': 1 })
     assert.deepEqual([r.protocol, r.model], ['pjlink-class2', 'PT-RQ35K'])
   })
+
+  test('NTCONTROL needs a login but PJLink does not → picks PJLink (status readable without a password)', async () => {
+    const open = new PjlinkSimulator({ name: 'HEXO', manufacturer: 'Panasonic', model: 'PT-RQ35K' })
+    const locked = new PanasonicSimulator({ credentials: { username: 'admin1', password: 'secret' } })
+    await open.start(); await locked.start()
+    try {
+      const r = await identifyDevice('127.0.0.1', {}, 800, { 'pjlink-class1': open.port, 'panasonic-nt-control': locked.port, 'christie-serial-ip': 1, 'barco-pulse': 1 })
+      assert.deepEqual([r.protocol, r.port, r.model, r.name, r.authRequired], ['pjlink-class2', open.port, 'PT-RQ35K', 'HEXO', false])
+    } finally { await open.stop(); await locked.stop() }
+  })
 })
