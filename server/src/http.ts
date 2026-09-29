@@ -1,6 +1,4 @@
-import fs from 'node:fs'
 import http from 'node:http'
-import path from 'node:path'
 import {
   DEFAULT_PORTS, LIVE_CAPABILITIES, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
   type ApiErrorCode, type CommandDto, type CommandTemplates, type DriverProtocol, type HealthDto, type TargetDto,
@@ -9,6 +7,7 @@ import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
 import { pingDevice } from './ping.ts'
+import { fsStatic, type StaticSource } from './static.ts'
 import { checkScanRange } from '../../shared/ipRange.ts'
 import { scanRange, SCAN_PROTOCOLS } from './scan.ts'
 import { isValidProjectId, validateSnapshot, type ProjectStore } from './store.ts'
@@ -167,20 +166,15 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   throw new DeviceError('bad-request', `Unknown route ${route}`)
 }
 
-const MIME: Record<string, string> = {
-  '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json',
-  '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
+function serveStatic(source: StaticSource, url: URL, res: http.ServerResponse): void {
+  const file = source(url.pathname)
+  if (!file) return sendJson(res, 404, { error: { code: 'bad-request', message: 'Not found' } })
+  res.writeHead(200, { 'Content-Type': file.type, 'Content-Length': file.body.length })
+  res.end(file.body)
 }
 
-function serveStatic(dir: string, url: URL, res: http.ServerResponse): void {
-  const requested = path.normalize(path.join(dir, decodeURIComponent(url.pathname)))
-  const file = requested.startsWith(dir) && fs.existsSync(requested) && fs.statSync(requested).isFile() ? requested : path.join(dir, 'index.html')
-  res.writeHead(200, { 'Content-Type': MIME[path.extname(file)] ?? 'application/octet-stream' })
-  fs.createReadStream(file).pipe(res)
-}
-
-export function createServer(options: { staticDir?: string; token?: string; store?: ProjectStore } = {}): http.Server {
-  const staticDir = options.staticDir && fs.existsSync(options.staticDir) ? path.resolve(options.staticDir) : undefined
+export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore } = {}): http.Server {
+  const staticSource = options.staticSource ?? (options.staticDir ? fsStatic(options.staticDir) : undefined)
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname.startsWith('/api/')) {
@@ -189,8 +183,8 @@ export function createServer(options: { staticDir?: string; token?: string; stor
         return sendJson(res, 403, { error: { code: 'forbidden-host', message: 'Requests must be addressed to localhost' } })
       }
       handleApi(req, res, url, options.token, options.store).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
-    } else if (staticDir) {
-      serveStatic(staticDir, url, res)
+    } else if (staticSource) {
+      serveStatic(staticSource, url, res)
     } else {
       sendJson(res, 404, { error: { code: 'bad-request', message: 'Not found' } })
     }

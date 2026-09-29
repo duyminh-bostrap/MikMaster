@@ -7,7 +7,22 @@ MikMaster gồm hai phần chạy chung một tiến trình trên máy của b�
 
 Máy chạy MikMaster phải cắm cùng mạng với máy chiếu (cùng dải IP, ví dụ `192.168.1.x`).
 
-## 1. Cài một lần
+## Cách nhanh nhất: file chạy sẵn (không cần cài gì)
+
+1. Tải **MikMaster.exe** (Windows) hoặc **MikMaster** (Mac) — tab *Actions → Build executables* (hoặc mục *Releases*) trên GitHub.
+2. Chép vào máy cần dùng, **bấm đúp**. Một cửa sổ đen hiện địa chỉ và trình duyệt tự mở MikMaster. Giữ cửa sổ đó mở trong lúc dùng; đóng nó là tắt MikMaster.
+3. Lần đầu mở:
+   - **Windows**: SmartScreen báo "Windows protected your PC" (file chưa ký số) → *More info* → *Run anyway*. Windows Firewall có thể hỏi quyền mạng → cho phép **Private networks** để quét và điều khiển máy chiếu.
+   - **Mac**: chuột phải vào file → *Open* → *Open* (file chưa được Apple công chứng).
+4. Dữ liệu project nằm ở `%APPDATA%\MikMaster` (Windows) hoặc `~/Library/Application Support/MikMaster` (Mac) — thay bản .exe mới không mất dữ liệu.
+
+Bấm đúp lần nữa khi đang chạy: không mở bản thứ hai, chỉ mở lại trình duyệt tới bản đang chạy.
+
+Tự build file chạy: `pnpm build:exe` → `release/` (build cho hệ điều hành đang dùng; cần Node **chính thức** từ nodejs.org — bản Homebrew không đóng gói được, hoặc chỉ định `node scripts/build-exe.mjs --node /đường/dẫn/node`).
+
+## Chạy từ mã nguồn
+
+### 1. Cài một lần
 
 1. **Node.js 22 trở lên.** Kiểm tra: `node -v` → phải ra `v22.x` trở lên.
    - macOS (Homebrew): `brew install node@22`, rồi thêm vào PATH:
@@ -21,7 +36,7 @@ Máy chạy MikMaster phải cắm cùng mạng với máy chiếu (cùng dải 
    pnpm install
    ```
 
-## 2. Chạy
+### 2. Chạy
 
 ```bash
 pnpm start
@@ -35,31 +50,31 @@ Chân trang hiện **LIVE · GATEWAY CONNECTED** là đang điều khiển máy 
 - Đã có tiến trình khác dùng cổng 8787: MikMaster báo lỗi và dừng — có thể nó đang chạy sẵn, hoặc đổi cổng: `PORT=8800 pnpm serve`.
 - Safari không hiểu `mikmaster.localhost`: dùng http://127.0.0.1:8787 (hoặc Chrome / Edge / Firefox).
 
-## 3. Cài như một app (cửa sổ riêng, icon ở Dock / Taskbar)
+## Cài như một app (cửa sổ riêng, icon ở Dock / Taskbar)
 
 Mở http://mikmaster.localhost:8787 bằng **Chrome hoặc Edge** → biểu tượng **Cài đặt** (⊕) ở thanh địa chỉ
 (hoặc menu ⋮ → *Cast, save and share* → *Install page as app*).
 
 App đã cài vẫn cần gateway đang chạy (`pnpm serve`) mới điều khiển được máy chiếu; không có gateway thì app mở ở chế độ SIMULATED.
 
-## 4. Dữ liệu
+## Dữ liệu
 
-- Project lưu trong thư mục `data/` của mã nguồn (đổi bằng biến `MIKMASTER_DATA`).
+- Chạy từ mã nguồn: project lưu trong thư mục `data/` (đổi bằng biến `MIKMASTER_DATA`). File chạy sẵn: thư mục ứng dụng ở trên.
 - Mật khẩu máy chiếu được mã hoá bằng khoá `data/secret.key` — **sao lưu file này cùng `data/projects/`**; mất khoá thì phải nhập lại mật khẩu.
 - Có thể xuất từng project ra file `*.mikmaster.json` (menu logo → Export, ⇧⌘S) để mang sang máy khác. File không chứa mật khẩu.
 
-## 5. Dùng từ máy khác trong mạng (tuỳ chọn)
+## Dùng từ máy khác trong mạng (tuỳ chọn)
 
 Mặc định chỉ máy đang chạy MikMaster mở được. Muốn máy khác (tablet, laptop khác) cùng điều khiển:
 
 ```bash
-HOST=0.0.0.0 pnpm serve
+HOST=0.0.0.0 pnpm serve        # file chạy sẵn trên Windows (cmd): set "HOST=0.0.0.0" && MikMaster.exe
 ```
 
 Gateway in ra một **token**; trên máy kia mở `http://<IP máy chạy MikMaster>:8787/?token=<token>` một lần (trình duyệt nhớ token).
 Qua IP mạng LAN thì không cài được như app (trình duyệt chỉ cho cài với `localhost` hoặc HTTPS).
 
-## 6. Tự chạy khi bật máy (macOS, tuỳ chọn)
+## Tự chạy khi bật máy (macOS, tuỳ chọn)
 
 ```bash
 cat > ~/Library/LaunchAgents/com.mikmaster.gateway.plist <<EOF

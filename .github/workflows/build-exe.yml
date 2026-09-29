@@ -1,0 +1,41 @@
+name: Build executables
+# MikMaster.exe (Windows) và MikMaster (macOS) — một file, không cần cài Node.
+# Chạy tay (tab Actions → Build executables → Run workflow) hoặc khi đẩy tag v* (tạo luôn Release).
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            file: MikMaster.exe
+            artifact: MikMaster-windows-x64
+          - os: macos-latest
+            file: MikMaster
+            artifact: MikMaster-macos-arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      # Node chính thức (có "cầu chì" SEA để nhúng ứng dụng vào file chạy).
+      - uses: actions/setup-node@v4
+        with: { node-version: 22, cache: pnpm }
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm build:exe
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: release/${{ matrix.file }}
+          if-no-files-found: error
+      - if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: release/${{ matrix.file }}

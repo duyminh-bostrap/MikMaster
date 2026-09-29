@@ -41,6 +41,7 @@ utils/        credentials, document (theo dõi thay đổi), sync, lens, fleet�
 ```bash
 pnpm start       # build + chạy gateway + mở http://mikmaster.localhost:8787
 pnpm serve       # lần sau, không build lại
+pnpm build:exe   # đóng gói 1 file chạy (release/MikMaster.exe trên Windows) — máy khác không cần cài Node
 ```
 
 Hướng dẫn đầy đủ (cài Node, cài như app, dữ liệu, dùng từ máy khác, tự chạy khi bật máy): [`docs/setup.md`](docs/setup.md).

@@ -18,12 +18,25 @@ function pingArgs(ip: string): string[] {
   return ['-c', '1', '-W', String(TIMEOUT_MS / 1000), ip]
 }
 
+// Tìm `ping` qua PATH trước; bản đóng gói có thể được mở với PATH tối giản (macOS để ping ở /sbin).
+const PING_CANDIDATES = process.platform === 'win32' ? ['ping'] : ['ping', '/sbin/ping', '/bin/ping', '/usr/bin/ping', '/usr/sbin/ping']
+
 /** `null` nếu máy chạy gateway không có lệnh `ping`. */
-export function icmpPing(ip: string): Promise<PingResultDto | null> {
+export async function icmpPing(ip: string): Promise<PingResultDto | null> {
+  for (const bin of PING_CANDIDATES) {
+    const r = await runPing(bin, ip)
+    if (r !== 'missing') return r
+  }
+  return null
+}
+
+function runPing(bin: string, ip: string): Promise<PingResultDto | 'missing'> {
   return new Promise(resolve => {
     const started = Date.now()
-    execFile('ping', pingArgs(ip), { timeout: TIMEOUT_MS + 1500 }, (err, stdout) => {
-      if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') return resolve(null)
+    execFile(bin, pingArgs(ip), { timeout: TIMEOUT_MS + 1500 }, (err, stdout) => {
+      if (err && (err as NodeJS.ErrnoException).code === 'ENOENT') return resolve('missing')
+      // Windows: "Destination host unreachable" vẫn trả mã thoát 0 → chỉ tin khi có dòng trả lời (có TTL=).
+      if (process.platform === 'win32' && !/TTL=/i.test(stdout)) return resolve({ ok: false, error: 'No reply' })
       const time = /time[=<]\s*([\d.]+)\s*ms/i.exec(stdout)
       if (!err && time) return resolve({ ok: true, ms: Math.max(0, Math.round(Number(time[1]) * 10) / 10) })
       if (!err) return resolve({ ok: true, ms: Date.now() - started })
