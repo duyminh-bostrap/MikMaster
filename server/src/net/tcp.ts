@@ -43,6 +43,28 @@ export const splitParens: FrameSplitter = buffer => {
   return { frames, rest: buffer.slice(start === -1 ? consumed : start) }
 }
 
+/** JSON-RPC qua TCP (Barco Pulse): mỗi khung là một đối tượng / mảng JSON trọn vẹn, không có ký tự phân cách. */
+export const splitJson: FrameSplitter = buffer => {
+  const frames: string[] = []
+  let depth = 0, start = -1, inString = false, escaped = false, consumed = 0
+  for (let i = 0; i < buffer.length; i++) {
+    const ch = buffer[i]
+    if (inString) {
+      if (escaped) escaped = false
+      else if (ch === '\\') escaped = true
+      else if (ch === '"') inString = false
+      continue
+    }
+    if (ch === '"') { inString = true; continue }
+    if (ch === '{' || ch === '[') { if (depth === 0) start = i; depth++ }
+    else if ((ch === '}' || ch === ']') && depth > 0) {
+      depth--
+      if (depth === 0) { frames.push(buffer.slice(start, i + 1)); consumed = i + 1; start = -1 }
+    } else if (depth === 0) consumed = i + 1 // khoảng trắng / xuống dòng giữa các khung
+  }
+  return { frames, rest: buffer.slice(start === -1 ? consumed : start) }
+}
+
 export class TcpConnection {
   private socket: net.Socket
   private splitter: FrameSplitter

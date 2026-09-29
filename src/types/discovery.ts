@@ -9,6 +9,5 @@ export interface DiscoveredDevice {
   name?: string
   manufacturer?: string
   model?: string
-  location?: string
   suggestedBoothId?: string
 }

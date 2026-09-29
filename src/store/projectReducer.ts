@@ -42,6 +42,7 @@ export type ProjectAction =
   | { type: 'projectors/setPower'; ids: string[]; power: PowerState }
   | { type: 'projectors/setShutter'; ids: string[]; shutter: boolean }
   | { type: 'projector/setTestPattern'; id: string; patch: Partial<TestPatternState> }
+  | { type: 'projectors/setTestPattern'; ids: string[]; patch: Partial<TestPatternState> }
   | { type: 'lens/adjust'; id: string; delta: Partial<LensPosition> }
   | { type: 'lens/resetShift'; id: string }
   | { type: 'lens/savePreset'; id: string; slot: LensSlot; name: string }
@@ -121,6 +122,9 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'projectors/setShutter':
       return mapProjectors(state, action.ids, p => ({ ...p, shutter: action.shutter }))
+
+    case 'projectors/setTestPattern':
+      return mapProjectors(state, action.ids, p => ({ ...p, testPattern: { ...p.testPattern, ...action.patch } }))
 
     case 'projector/setTestPattern':
       return mapProjectors(state, [action.id], p => ({ ...p, testPattern: { ...p.testPattern, ...action.patch } }))

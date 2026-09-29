@@ -1,4 +1,5 @@
 import type { DriverProtocol } from '../../../shared/api.ts'
+import { barcoPulseDriver } from './barcoPulse.ts'
 import { christieDriver } from './christie.ts'
 import { artNetDriver, genericTcpDriver, genericUdpDriver, httpApiDriver } from './generic.ts'
 import { panasonicDriver } from './panasonic.ts'
@@ -10,6 +11,7 @@ export const DRIVERS: Record<DriverProtocol, Driver> = {
   'pjlink-class2': pjlinkDriver,
   'panasonic-nt-control': panasonicDriver,
   'christie-serial-ip': christieDriver,
+  'barco-pulse': barcoPulseDriver,
   'generic-tcp': genericTcpDriver,
   'generic-udp': genericUdpDriver,
   'art-net': artNetDriver,

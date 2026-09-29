@@ -7,7 +7,7 @@ export function PreviewPanel({ projector }: { projector: Projector }) {
       <div className="w-full max-w-[640px]">
         <PreviewScreen projector={projector} size="lg" />
         <div className="mt-2 flex items-center justify-between px-1 font-mono text-xs text-muted-foreground">
-          <span>{projector.name} · {projector.location}</span>
+          <span>{projector.name} · {projector.model}</span>
           <span>{projector.id}</span>
         </div>
       </div>

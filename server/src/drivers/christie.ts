@@ -8,8 +8,9 @@ import type { Driver, DriverTarget, ProbeResult } from './types.ts'
  * Nguồn: thư viện christie-mseries (dòng M) và kết quả tìm kiếm tài liệu Christie; tài liệu
  * riêng của Griffyn CHƯA truy cập được và CHƯA thử trên máy thật.
  *
- *   Lệnh    : "(PWR1)" đặt, "(PWR?)" hỏi — mã 3 chữ, có thể kèm subcode 4 chữ "(FUNC+SUBC ...)"
- *   Phản hồi: `(PWR!000 "Standby Mode")` — mã, dấu "!", giá trị số, mô tả trong nháy kép
+ *   Lệnh    : "(PWR 1)" đặt (dữ liệu cách mã một dấu cách), "(PWR?)" hỏi — mã 3 chữ, có thể kèm subcode "(FUNC+SUBC ...)"
+ *   Phản hồi: `(PWR!000 "Standby Mode")` hoặc `(PWR! 001 "On")` — mã, "!", giá trị số độ dài cố định, mô tả
+ *   (Tài liệu tổng hợp do người dùng cung cấp, 2026-09: xác nhận PWR 1/0, SHU 1 = đóng / 0 = mở, cổng 3002.)
  *
  * Các điểm chưa chắc, cố ý tách riêng để sửa một chỗ khi có tài liệu Griffyn:
  *   - POWER_STATE: ý nghĩa các giá trị số ngoài 0/1 → suy từ phần mô tả.
@@ -21,7 +22,7 @@ const SHUTTER_OPEN = '0'
 interface Reply { code: string; value: string; description: string }
 
 function parseFrame(frame: string): Reply {
-  const m = /^\(([A-Z]{3}(?:\+[A-Z]{4})?)!(\S*)(?:\s+"(.*)")?\s*\)$/.exec(frame)
+  const m = /^\(([A-Z]{3}(?:\+[A-Z0-9]{4})?)!\s*([^\s")]*)(?:\s+"(.*)")?\s*\)$/.exec(frame)
   if (!m) throw new DeviceError('device', `Projector replied ${frame.slice(0, 80)}`)
   return { code: m[1]!, value: m[2] ?? '', description: m[3] ?? '' }
 }
@@ -66,8 +67,8 @@ export const christieDriver: Driver = {
 
   async command(t, c: CommandDto) {
     switch (c.kind) {
-      case 'power': parseFrame(await exchange(t, `(PWR${c.value === 'on' ? 1 : 0})`)); return
-      case 'shutter': parseFrame(await exchange(t, `(SHU${c.closed ? SHUTTER_CLOSED : SHUTTER_OPEN})`)); return
+      case 'power': parseFrame(await exchange(t, `(PWR ${c.value === 'on' ? 1 : 0})`)); return
+      case 'shutter': parseFrame(await exchange(t, `(SHU ${c.closed ? SHUTTER_CLOSED : SHUTTER_OPEN})`)); return
       case 'input': throw new DeviceError('unsupported', 'Christie input/channel mapping is not verified for Griffyn')
       case 'osd': throw new DeviceError('unsupported', 'Christie OSD navigation has no verified command')
     }

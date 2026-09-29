@@ -43,8 +43,9 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Reconnect | ✅ | LIVE: đọc trạng thái thật ngay |
 | Cảnh báo rớt mạng / sai giao thức / sai mật khẩu | ✅ | Ngừng poll máy bị từ chối xác thực để máy chiếu không khoá cổng |
 | PJLink Class 1/2 | 🧪 | MD5, POWR/INPT/AVMT/ERST/LAMP/INF |
-| Panasonic NTCONTROL (RQ35K) | 🧪 | Banner + MD5/SHA-256 challenge |
-| Christie serial-over-IP (Griffyn) | 🧪 | Khung `(CODE…)` |
+| Panasonic NTCONTROL (RQ35K) | 🧪 | Banner + MD5/SHA-256 challenge; tối thiểu 0,5 s giữa các lệnh; mã lỗi ER401/ER402 |
+| Christie serial-over-IP (Griffyn) | 🧪 | Khung `(CODE…)`; lệnh `(PWR 1)` / `(SHU 1)` theo tài liệu người dùng cung cấp (09/2026) |
+| Barco Pulse (UDX, F-series…) — JSON-RPC 2.0, cổng 9090 | 🧪 | Bật / tắt, shutter, trạng thái; chưa có input. Theo tài liệu người dùng cung cấp |
 | TCP chung, UDP, Art-Net, HTTP API | ✅ | RAW COMMAND + **mẫu lệnh** Power / Shutter do người dùng khai báo |
 
 ## 3. Dashboard
@@ -65,7 +66,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 |---|---|---|
 | Power ON / OFF, Shutter, Input | 🧪 | Christie chưa có Input |
 | OSD ON / OFF | 🎭 | Chưa có lệnh đã xác minh: chỉ đổi trạng thái trong app |
-| Test Pattern | 🎭 | LIVE bị khoá: chưa có lệnh xác minh |
+| Test Pattern (từng máy và cả booth) | 🧪 | Mô phỏng: dùng ngay. Chạy thật: nhập lệnh bật / tắt test pattern (từ manual của máy) ở mục LỆNH — chưa có lệnh hãng đã xác minh |
 | Lens Shift / Zoom / Focus, Lens Preset | 🎭 | LIVE bị khoá: không gửi lệnh đoán vào động cơ ống kính |
 | Raw Command | 🧪 | Đối chiếu lệnh với máy thật |
 

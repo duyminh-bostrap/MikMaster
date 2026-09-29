@@ -9,6 +9,7 @@ import { t } from '@/i18n'
 const RAW_HINTS: Partial<Record<Projector['network']['protocol']['type'], string>> = {
   'panasonic-nt-control': 'e.g. QPW',
   'christie-serial-ip': 'e.g. (PWR?)',
+  'barco-pulse': 'e.g. property.get {"property":"system.state"}',
   'generic-tcp': 'e.g. PWR ON\\r\\n  (\\r \\n \\xHH)',
   'generic-udp': 'e.g. ping  (\\r \\n \\xHH)',
   'art-net': 'e.g. 0 1=255 5-8=128  (universe ch=value)',

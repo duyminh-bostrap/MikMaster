@@ -23,14 +23,16 @@ export interface DeviceEffects {
   shutter(ids: string[], closed: boolean): void
   input(id: string, input: InputSource): void
   osd(id: string, key: OsdKeyDto): void
+  testPattern(ids: string[], enabled: boolean): void
 }
 
 export function createDeviceEffects(gateway: Gateway, find: (id: string) => Projector | undefined, dispatch: Dispatch<ProjectAction>): DeviceEffects {
-  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd', send: (p: Projector) => ReturnType<Gateway['command']>) {
+  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd' | 'testPattern', send: (p: Projector) => ReturnType<Gateway['command']>) {
     const p = find(id)
     if (!p) return
     if (!deviceCapabilities(p).includes(capability)) {
-      const why = TEMPLATE_PROTOCOLS.includes(p.network.protocol.type) ? 'no command template configured on the projector page' : `${p.network.protocol.type} has no verified live command`
+      const why = capability === 'testPattern' ? 'no test pattern command set in COMMANDS on the projector page'
+        : TEMPLATE_PROTOCOLS.includes(p.network.protocol.type) ? 'no command template configured on the projector page' : `${p.network.protocol.type} has no verified live command`
       dispatch({ type: 'projector/log', id, level: 'warn', message: `"${capability}" is not sent to the device: ${why} (local change only)` })
       return
     }
@@ -47,5 +49,6 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
     shutter: (ids, closed) => ids.forEach(id => void run(id, 'shutter', p => gateway.command(p, { kind: 'shutter', closed }))),
     input: (id, input) => void run(id, 'input', p => gateway.command(p, { kind: 'input', input })),
     osd: (id, key) => void run(id, 'osd', p => gateway.command(p, { kind: 'osd', key })),
+    testPattern: (ids, enabled) => ids.forEach(id => void run(id, 'testPattern', p => gateway.command(p, { kind: 'testPattern', enabled }))),
   }
 }

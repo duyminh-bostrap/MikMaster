@@ -2,7 +2,7 @@ import type net from 'node:net'
 import { splitParens } from '../net/tcp.ts'
 import { SimServer } from './base.ts'
 
-/** Mô phỏng serial-over-IP của Christie: `(PWR1)`, `(PWR?)` → `(PWR!001 "Power On")`. */
+/** Mô phỏng serial-over-IP của Christie: `(PWR 1)` hoặc `(PWR1)`, `(PWR?)` → `(PWR!001 "Power On")`. */
 export class ChristieSimulator extends SimServer {
   power = 0
   shutter = 0
@@ -25,7 +25,7 @@ export class ChristieSimulator extends SimServer {
   }
 
   private handle(frame: string): string {
-    const m = /^\(([A-Z]{3})(\?|\d+)?\)$/.exec(frame)
+    const m = /^\(([A-Z]{3}) ?(\?|\d+)?\)$/.exec(frame)
     if (!m) return '(ERR "Unrecognized command")'
     const [, code, arg] = m
     if (code === 'PWR') {

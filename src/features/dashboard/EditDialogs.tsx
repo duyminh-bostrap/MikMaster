@@ -55,7 +55,7 @@ function DeleteBoothDialog({ id, onClose }: { id: string; onClose: () => void })
 }
 
 /**
- * Thêm (không có `id`) hoặc sửa một máy: tên, vị trí, booth, model, IP, giao thức, cổng.
+ * Thêm (không có `id`) hoặc sửa một máy: tên, booth, model, IP, giao thức, cổng.
  * Đổi giao thức thì bỏ mẫu lệnh (cú pháp khác nhau) và tài khoản nếu giao thức mới không đăng nhập.
  */
 function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; boothId?: string; onClose: () => void }) {
@@ -65,7 +65,6 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
   const p = id ? projectors.find(x => x.id === id) : undefined
   const adding = !id
   const [name, setName] = useState(p?.name ?? '')
-  const [location, setLocation] = useState(p?.location ?? '')
   const [model, setModel] = useState(p?.model ?? '')
   const [boothId, setBoothId] = useState(p?.boothId ?? initialBooth ?? booths[0]?.id ?? '')
   const [ip, setIp] = useState(p?.network.ip ?? '')
@@ -96,7 +95,7 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
     if (adding) {
       const base = createProjector({
         id: nextProjectorId(projectors), boothId, ip: cleanIp, protocol: type,
-        name: name.trim() || `Projector ${cleanIp}`, location: location.trim() || '—', model: model.trim() || undefined,
+        name: name.trim() || `Projector ${cleanIp}`, model: model.trim() || undefined,
       })
       const withPort = { ...base, network: { ...base.network, protocol: { ...base.network.protocol, port: portNum } } }
       // Máy mới cần đăng nhập: dùng tài khoản đã đăng nhập trong phiên này (nếu có).
@@ -114,7 +113,7 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
     }
     const networkChanged = cleanIp !== cur.network.ip || !sameProtocol || portNum !== cur.network.protocol.port
     updateProjector(cur.id, {
-      name: name.trim(), location: location.trim(), model: model.trim() || 'Unknown',
+      name: name.trim(), model: model.trim() || 'Unknown',
       ...(networkChanged ? { network: { ip: cleanIp, protocol }, connection: 'connected' as const, log: appendLog(cur, 'info', `Network config applied: ${getProtocolOption(type).label} ${cleanIp}:${portNum}`) } : {}),
     })
     const booth = booths.find(b => b.id === boothId)
@@ -152,16 +151,13 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
       <Field label={adding ? t('DISPLAY NAME (opt.)') : t('DISPLAY NAME')}>
         {fid => <TextInput id={fid} value={name} invalid={!adding && name.trim() === ''} placeholder={adding ? `Projector ${ip || '…'}` : ''} onChange={e => setName(e.target.value)} />}
       </Field>
-      <div className="grid grid-cols-2 gap-2">
-        <Field label={t('LOCATION')}>{fid => <TextInput id={fid} value={location} onChange={e => setLocation(e.target.value)} />}</Field>
-        <Field label={t('BOOTH')}>
-          {fid => (
-            <SelectInput id={fid} value={boothId} onChange={e => setBoothId(e.target.value)}>
-              {booths.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
-            </SelectInput>
-          )}
-        </Field>
-      </div>
+      <Field label={t('BOOTH')}>
+        {fid => (
+          <SelectInput id={fid} value={boothId} onChange={e => setBoothId(e.target.value)}>
+            {booths.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}
+          </SelectInput>
+        )}
+      </Field>
       <Field label={t('MODEL')}>
         {fid => (
           <>

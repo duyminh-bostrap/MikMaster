@@ -42,7 +42,6 @@ export interface Projector {
   id: string
   boothId: string
   name: string
-  location: string
   model: string
   network: NetworkConfig
   power: PowerState

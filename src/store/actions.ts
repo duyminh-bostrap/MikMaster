@@ -61,8 +61,15 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     sendOsd: (id: string, key: OsdKeyDto) => effects?.osd(id, key),
     syncProjector: (id: string, result: SyncResult) => dispatch({ type: 'projector/sync', id, result }),
     logEvent: (id: string, level: 'info' | 'warn' | 'error', message: string) => dispatch({ type: 'projector/log', id, level, message }),
-    setTestPattern: (id: string, patch: Partial<TestPatternState>) =>
-      dispatch({ type: 'projector/setTestPattern', id, patch }),
+    setTestPattern: (id: string, patch: Partial<TestPatternState>) => {
+      dispatch({ type: 'projector/setTestPattern', id, patch })
+      if (patch.enabled !== undefined) effects?.testPattern([id], patch.enabled)
+    },
+    /** Cả booth: bật / tắt / chọn pattern cho nhiều máy. */
+    setTestPatternMany: (ids: string[], patch: Partial<TestPatternState>) => {
+      dispatch({ type: 'projectors/setTestPattern', ids, patch })
+      if (patch.enabled !== undefined) effects?.testPattern(ids, patch.enabled)
+    },
     adjustLens: (id: string, delta: Partial<LensPosition>) => dispatch({ type: 'lens/adjust', id, delta }),
     resetLensShift: (id: string) => dispatch({ type: 'lens/resetShift', id }),
     saveLensPreset: (id: string, slot: LensSlot, name: string) =>

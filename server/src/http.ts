@@ -162,7 +162,12 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       if (!isObject(body.command) || typeof body.command.kind !== 'string') throw new DeviceError('bad-request', 'Missing command.kind')
       const command = body.command as unknown as CommandDto
       requireCapability(protocol, command.kind, target)
-      await driver.command(target, command)
+      if (command.kind === 'testPattern') {
+        // Không có lệnh test pattern chuẩn: gửi đúng lệnh người dùng khai báo qua đường RAW của driver.
+        await driver.raw(target, target.commands![command.enabled ? 'testPatternOn' : 'testPatternOff']!.trim())
+      } else {
+        await driver.command(target, command)
+      }
       return sendJson(res, 200, { ok: true })
     }
 

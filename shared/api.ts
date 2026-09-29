@@ -1,8 +1,8 @@
 /** Hợp đồng HTTP giữa web app và server/. Chỉ chứa type và hằng số, không phụ thuộc gì. */
 
-export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip' | 'generic-tcp' | 'generic-udp' | 'art-net' | 'http-api'
+export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip' | 'barco-pulse' | 'generic-tcp' | 'generic-udp' | 'art-net' | 'http-api'
 
-export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw'
+export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw' | 'testPattern'
 
 /**
  * Chỉ liệt kê lệnh đã có nguồn tham chiếu. Lens và Test Pattern CHƯA có ở đây
@@ -13,6 +13,7 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   'pjlink-class2': ['power', 'shutter', 'input', 'raw'],
   'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw'],
   'christie-serial-ip': ['power', 'shutter', 'raw'],
+  'barco-pulse': ['power', 'shutter', 'raw'],
   // Chỉ RAW COMMAND: không có lệnh chuẩn nên không poll, không có power/shutter.
   'generic-tcp': ['raw'],
   'generic-udp': ['raw'],
@@ -25,6 +26,7 @@ export const DEFAULT_PORTS: Record<DriverProtocol, number> = {
   'pjlink-class2': 4352,
   'panasonic-nt-control': 1024,
   'christie-serial-ip': 3002,
+  'barco-pulse': 9090,
   'generic-tcp': 4000,
   'generic-udp': 5000,
   'art-net': 6454,
@@ -41,27 +43,35 @@ export interface CommandTemplates {
   powerOff?: string
   shutterClose?: string
   shutterOpen?: string
+  /** Mọi giao thức: lệnh bật / tắt test pattern lấy từ manual của máy (chưa có lệnh hãng đã xác minh). */
+  testPatternOn?: string
+  testPatternOff?: string
 }
 
-export const TEMPLATE_KEYS = ['powerOn', 'powerOff', 'shutterClose', 'shutterOpen'] as const satisfies readonly (keyof CommandTemplates)[]
+export const TEMPLATE_KEYS = ['powerOn', 'powerOff', 'shutterClose', 'shutterOpen', 'testPatternOn', 'testPatternOff'] as const satisfies readonly (keyof CommandTemplates)[]
 
 /** Giao thức không có bộ lệnh chuẩn: Power / Shutter chỉ chạy khi người dùng khai báo mẫu lệnh. */
 export const TEMPLATE_PROTOCOLS: readonly string[] = ['generic-tcp', 'generic-udp', 'art-net', 'http-api']
 
 /** Mẫu lệnh cần cho một thao tác (power on/off, shutter đóng/mở). */
-export function templateKeyFor(command: { kind: string; value?: string; closed?: boolean }): keyof CommandTemplates | null {
+export function templateKeyFor(command: { kind: string; value?: string; closed?: boolean; enabled?: boolean }): keyof CommandTemplates | null {
   if (command.kind === 'power') return command.value === 'on' ? 'powerOn' : 'powerOff'
   if (command.kind === 'shutter') return command.closed ? 'shutterClose' : 'shutterOpen'
+  if (command.kind === 'testPattern') return command.enabled ? 'testPatternOn' : 'testPatternOff'
   return null
 }
 
 /** Khả năng thật của một máy: của driver, cộng Power / Shutter nếu giao thức chung đã có đủ mẫu lệnh. */
 export function effectiveCapabilities(type: string, commands?: CommandTemplates): readonly Capability[] {
   const base = isDriverProtocol(type) ? LIVE_CAPABILITIES[type] : []
-  if (!TEMPLATE_PROTOCOLS.includes(type) || !commands) return base
+  if (!commands || !base.includes('raw')) return base
   const extra: Capability[] = []
-  if (commands.powerOn && commands.powerOff) extra.push('power')
-  if (commands.shutterClose && commands.shutterOpen) extra.push('shutter')
+  if (TEMPLATE_PROTOCOLS.includes(type)) {
+    if (commands.powerOn && commands.powerOff) extra.push('power')
+    if (commands.shutterClose && commands.shutterOpen) extra.push('shutter')
+  }
+  // Test pattern: mọi giao thức có RAW, khi đã khai báo đủ cặp lệnh bật / tắt.
+  if (commands.testPatternOn && commands.testPatternOff) extra.push('testPattern')
   return [...extra, ...base]
 }
 
@@ -77,6 +87,8 @@ export type CommandDto =
   | { kind: 'shutter'; closed: boolean }
   | { kind: 'input'; input: string }
   | { kind: 'osd'; key: OsdKeyDto }
+  /** Gửi mẫu lệnh test pattern người dùng khai báo (chưa có lệnh chuẩn của hãng). */
+  | { kind: 'testPattern'; enabled: boolean }
 
 export interface StatusDto {
   power?: 'on' | 'standby' | 'cooling' | 'warmup'

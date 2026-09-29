@@ -52,7 +52,9 @@ export function parseProjectFile(text: string): ProjectSnapshot {
     while (seen.has(id)) id = `${id}-${i + 1}`
     seen.add(id)
     const base = createProjector({ id, boothId: boothList[0]!.id, name: `Projector ${ip}`, ip, protocol: typeof protocol.type === 'string' ? (protocol.type as never) : undefined })
-    const merged = { ...base, ...(p as Partial<Projector>), id } as Projector
+    // Bỏ các trường đã thôi dùng (location của máy — từ bản 0.4).
+    const { location: _dropped, ...rest } = p as Partial<Projector> & { location?: unknown }
+    const merged = { ...base, ...rest, id } as Projector
     return {
       ...merged,
       boothId: boothIds.has(merged.boothId) ? merged.boothId : boothList[0]!.id,

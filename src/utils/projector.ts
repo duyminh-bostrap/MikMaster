@@ -25,7 +25,6 @@ export function createProjector(input: {
   boothId: string
   name: string
   ip: string
-  location?: string
   model?: string
   protocol?: ProtocolType
 }): Projector {
@@ -33,7 +32,6 @@ export function createProjector(input: {
     id: input.id,
     boothId: input.boothId,
     name: input.name,
-    location: input.location ?? 'Unassigned',
     model: input.model ?? 'Unknown',
     network: { ip: input.ip, protocol: defaultProtocolConfig(input.protocol ?? 'pjlink-class2') },
     power: 'standby',

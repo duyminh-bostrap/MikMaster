@@ -18,7 +18,7 @@ export function matchesStatus(p: Projector, status: StatusFilter): boolean {
 export function matchesQuery(p: Projector, query: string, boothName = ''): boolean {
   const words = normalize(query).split(/\s+/).filter(Boolean)
   if (words.length === 0) return true
-  const hay = normalize([p.id, p.name, p.network.ip, p.model, p.location, boothName, p.network.protocol.type].join(' '))
+  const hay = normalize([p.id, p.name, p.network.ip, p.model, boothName, p.network.protocol.type].join(' '))
   return words.every(w => hay.includes(w))
 }
 

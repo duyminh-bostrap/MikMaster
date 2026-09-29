@@ -317,3 +317,23 @@ describe('quit', () => {
     await new Promise(r => s.close(r))
   })
 })
+
+describe('test pattern via user commands', () => {
+  const pj = (commands?: object) => ({ ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, ...(commands ? { commands } : {}) } })
+
+  test('vendor protocol without test pattern commands → 501', async () => {
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: true } })).status, 501)
+  })
+
+  test('with both commands the configured text is sent through RAW', async () => {
+    const before = christie.received.length
+    const r = await post('/api/devices/command', { target: pj({ testPatternOn: '(PWR?)', testPatternOff: '(SHU?)' }), command: { kind: 'testPattern', enabled: true } })
+    assert.equal(r.status, 200)
+    assert.deepEqual(christie.received.slice(before), ['(PWR?)'])
+  })
+
+  test('test pattern templates do not unlock other commands', async () => {
+    const r = await post('/api/devices/command', { target: pj({ testPatternOn: 'a', testPatternOff: 'b' }), command: { kind: 'input', input: 'HDMI 1' } })
+    assert.equal(r.status, 501)
+  })
+})

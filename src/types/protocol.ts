@@ -6,6 +6,7 @@ export type ProtocolType =
   | 'pjlink-class2'
   | 'christie-serial-ip'
   | 'barco-xlm'
+  | 'barco-pulse'
   | 'epson-escvp21'
   | 'sony-sdcp'
   | 'panasonic-nt-control'

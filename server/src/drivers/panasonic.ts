@@ -16,6 +16,8 @@ import type { Driver, DriverTarget, ProbeResult } from './types.ts'
  *   Máy đóng kết nối sau mỗi phản hồi → mỗi lệnh là một chu trình connect→handshake→lệnh→đóng.
  *
  * Tài khoản mặc định của hãng (admin1 / panasonic) chỉ dùng khi người dùng chưa nhập gì.
+ * Tài liệu tổng hợp do người dùng cung cấp (2026-09): xác nhận PON/POF/QPW/OSH:1-0/IIS:HD1, NTCONTROL 0/1,
+ * tối thiểu 0,5 s giữa các lệnh, mã lỗi ER401/ER402.
  */
 const DEFAULT_USER = 'admin1'
 const DEFAULT_PASS = 'panasonic'
@@ -58,12 +60,22 @@ function parseReply(reply: string): string {
     throw new DeviceError('auth', lock ? `Password rejected — device locked for ${lock[1]}s` : 'Username or password rejected')
   }
   if (/^ERR\d$/.test(reply)) throw new DeviceError('device', ERR_TEXT[reply] ?? reply)
+  // Mã lỗi dạng ER401 / ER402 (lệnh không nhận / sai tham số / máy đang bận).
+  if (/^ER\d{3}/.test(reply)) throw new DeviceError('device', `Command not accepted (${reply.slice(0, 5)}): wrong parameter or projector busy`)
   return reply.startsWith('00') ? reply.slice(2) : reply
 }
 
+/** Tài liệu hãng: cần tối thiểu 0,5 s giữa hai lệnh gửi tới một máy. */
+const MIN_GAP_MS = 500
+const lastCommandAt = new Map<string, number>()
+
 /** Một chu trình đầy đủ cho một lệnh. */
 function exchange(t: DriverTarget, command: string): Promise<string> {
-  return serialize(`${t.host}:${t.port}`, async () => {
+  const key = `${t.host}:${t.port}`
+  return serialize(key, async () => {
+    const wait = (lastCommandAt.get(key) ?? 0) + MIN_GAP_MS - Date.now()
+    if (wait > 0) await new Promise(r => setTimeout(r, wait))
+    lastCommandAt.set(key, Date.now())
     const conn = await TcpConnection.open(t.host, t.port, t.timeoutMs, splitOnCR)
     try {
       const banner = parseBanner(await conn.read())

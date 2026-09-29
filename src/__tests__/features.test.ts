@@ -58,7 +58,7 @@ describe('bật lần lượt', () => {
 })
 
 describe('bộ lọc máy chiếu', () => {
-  const p = { ...createProjector({ id: 'PJ-07', boothId: 'b', name: 'Màn Trái', ip: '192.168.1.57', model: 'Panasonic PT-RQ35K', location: 'Truss' }), power: 'on' as const }
+  const p = { ...createProjector({ id: 'PJ-07', boothId: 'b', name: 'Màn Trái', ip: '192.168.1.57', model: 'Panasonic PT-RQ35K' }), power: 'on' as const }
 
   test('tìm theo tên (không dấu), IP, model, booth, mã; nhiều từ phải khớp hết', () => {
     expect(matchesQuery(p, 'man trai')).toBe(true)

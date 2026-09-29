@@ -14,7 +14,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "start": "pnpm build && node server/src/index.ts --open",
-    "sim:mac-alias": "sudo ifconfig lo0 alias 127.0.0.21 up && sudo ifconfig lo0 alias 127.0.0.22 up && sudo ifconfig lo0 alias 127.0.0.23 up",
+    "sim:mac-alias": "sudo ifconfig lo0 alias 127.0.0.21 up && sudo ifconfig lo0 alias 127.0.0.22 up && sudo ifconfig lo0 alias 127.0.0.23 up && sudo ifconfig lo0 alias 127.0.0.24 up",
     "test:e2e": "playwright test",
     "serve": "node server/src/index.ts --open",
     "build:exe": "pnpm build && node scripts/build-exe.mjs"

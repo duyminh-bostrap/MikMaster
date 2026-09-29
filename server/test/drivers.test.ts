@@ -21,6 +21,18 @@ describe('splitParens', () => {
     assert.deepEqual(frames, ['(PWR!001 "On (ok)")', '(SHU!000 "Open")'])
     assert.equal(rest, '(PW')
   })
+
+  test('Christie reply with a space after "!" (as in the vendor notes) is parsed', async () => {
+    const { christieDriver } = await import('../src/drivers/christie.ts')
+    const net = await import('node:net')
+    const srv = net.createServer(s => s.on('data', () => s.write('(PWR! 001 "On")')))
+    await new Promise<void>(r => srv.listen(0, '127.0.0.1', r))
+    const port = (srv.address() as import('node:net').AddressInfo).port
+    const status = await christieDriver.status({ host: '127.0.0.1', port, timeoutMs: 800 }).catch(e => e)
+    srv.close()
+    // PWR on → driver also asks SHU; the fake server answers PWR again → SHU reply ignored, power still read.
+    assert.equal(status.power, 'on')
+  })
 })
 
 describe('PJLink driver', () => {
@@ -135,7 +147,7 @@ describe('Christie serial driver', () => {
     const t = target(sim.port)
     await christieDriver.command(t, { kind: 'power', value: 'on' })
     await christieDriver.command(t, { kind: 'shutter', closed: true })
-    assert.deepEqual(sim.received.slice(-2), ['(PWR1)', '(SHU1)'])
+    assert.deepEqual(sim.received.slice(-2), ['(PWR 1)', '(SHU 1)'])
     const s = await christieDriver.status(t)
     assert.deepEqual([s.power, s.shutter], ['on', true])
     await christieDriver.command(t, { kind: 'power', value: 'off' })
@@ -174,5 +186,46 @@ describe('network failures', () => {
     const sim = new PjlinkSimulator()
     await sim.start()
     try { await rejectsWith(panasonicDriver.status(target(sim.port)), 'protocol') } finally { await sim.stop() }
+  })
+})
+
+describe('Barco Pulse driver (JSON-RPC)', async () => {
+  const { BarcoPulseSimulator } = await import('../src/sim/barcoPulseSim.ts')
+  const { barcoPulseDriver } = await import('../src/drivers/barcoPulse.ts')
+  const { splitJson } = await import('../src/net/tcp.ts')
+  const sim = new BarcoPulseSimulator()
+  before(() => sim.start())
+  after(() => sim.stop())
+  const t = () => ({ host: '127.0.0.1', port: sim.port, timeoutMs: 1500 })
+
+  test('splitJson handles nested objects, strings with braces and partial frames', () => {
+    const { frames, rest } = splitJson('{"a":{"b":"}{"}}\n[1,2]{"c":')
+    assert.deepEqual(frames, ['{"a":{"b":"}{"}}', '[1,2]'])
+    assert.equal(rest, '{"c":')
+  })
+
+  test('power on/off and shutter, skipping pushed notifications', async () => {
+    await barcoPulseDriver.command(t(), { kind: 'power', value: 'on' })
+    await barcoPulseDriver.command(t(), { kind: 'shutter', closed: true })
+    assert.deepEqual(await barcoPulseDriver.status(t()), { power: 'on', shutter: true, errors: [] })
+    assert.deepEqual(sim.received.slice(0, 2).map(r => r.method), ['system.poweron', 'property.set'])
+    assert.deepEqual(sim.received[1]!.params, { property: 'optics.shutter.target', value: 'Closed' })
+    await barcoPulseDriver.command(t(), { kind: 'power', value: 'standby' })
+    assert.equal((await barcoPulseDriver.status(t())).power, 'standby')
+  })
+
+  test('JSON-RPC errors become device errors; input is not supported', async () => {
+    await rejectsWith(barcoPulseDriver.raw(t(), 'no.such.method'), 'device')
+    await rejectsWith(barcoPulseDriver.command(t(), { kind: 'input', input: 'HDMI 1' }), 'unsupported')
+  })
+
+  test('raw accepts "method {params}" and full JSON-RPC objects', async () => {
+    assert.equal(await barcoPulseDriver.raw(t(), 'property.get {"property":"optics.shutter.target"}'), '"Closed"')
+    assert.equal(await barcoPulseDriver.raw(t(), '{"jsonrpc":"2.0","method":"property.get","params":{"property":"system.state"},"id":5}'), '"standby"')
+  })
+
+  test('probe recognises a Pulse projector', async () => {
+    assert.deepEqual(await barcoPulseDriver.probe('127.0.0.1', sim.port, 800), { authRequired: false, manufacturer: 'Barco' })
+    assert.equal(await barcoPulseDriver.probe('127.0.0.1', 1, 300), null)
   })
 })

@@ -40,7 +40,7 @@ export function useNewProjectDraft() {
         prev = prev.filter(x => x !== existing)
       }
       const boothId = d.suggestedBoothId && booths.some(b => b.id === d.suggestedBoothId) ? d.suggestedBoothId : (booths[0]?.id ?? '')
-      const base = createProjector({ id: d.ip, boothId, name: d.name ?? d.model ?? `${d.manufacturer ?? 'Projector'} ${d.ip}`, ip: d.ip, location: d.location, model: d.model ?? d.manufacturer, protocol: d.protocol })
+      const base = createProjector({ id: d.ip, boothId, name: d.name ?? d.model ?? `${d.manufacturer ?? 'Projector'} ${d.ip}`, ip: d.ip, model: d.model ?? d.manufacturer, protocol: d.protocol })
       const projector = { ...base, network: { ...base.network, protocol: { ...base.network.protocol, port: d.port } } }
       return [...prev, { projector, source: 'scan', selected: true, authRequired: d.authRequired }]
     })
@@ -53,7 +53,7 @@ export function useNewProjectDraft() {
     const ip = input.ip.trim()
     if (!isValidIPv4(ip)) return 'Invalid IP address format'
     if (devices.some(d => d.projector.network.ip === ip)) return 'This IP is already in the list'
-    const base = createProjector({ id: ip, boothId: booths[0]?.id ?? '', name: input.name.trim() || `Projector ${ip}`, ip, location: 'Manual', model: input.model, protocol: input.protocol })
+    const base = createProjector({ id: ip, boothId: booths[0]?.id ?? '', name: input.name.trim() || `Projector ${ip}`, ip, model: input.model, protocol: input.protocol })
     setDevices(prev => [...prev, { projector: base, source: 'manual', selected: true, authRequired: needsAuth(input.protocol) }])
     return null
   }, [devices, booths])

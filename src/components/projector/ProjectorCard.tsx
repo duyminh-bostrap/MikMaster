@@ -5,7 +5,6 @@ import { Badge } from '@/components/ui/Badge'
 import { PowerDot } from '@/components/ui/StatusDot'
 import { cn } from '@/utils/cn'
 import { formatHours } from '@/utils/format'
-import { getProtocolOption } from '@/constants/protocols'
 import type { Projector } from '@/types'
 import { PreviewScreen } from './PreviewScreen'
 import { TempBar } from './TempBar'
@@ -18,6 +17,21 @@ interface ProjectorCardProps {
   onToggleShutter: () => void
   onContextMenu?: (e: React.MouseEvent) => void
   dragProps?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean }
+}
+
+type BarState = 'on' | 'off' | 'offline' | 'login'
+
+function barState(p: Projector): BarState {
+  if (p.connection === 'auth-failed') return 'login'
+  if (p.connection !== 'connected') return 'offline'
+  return p.power === 'on' ? 'on' : 'off'
+}
+
+const STATUS_BAR: Record<BarState, string> = {
+  on: 'border-b-ok/30 border-l-ok bg-ok/15',
+  off: 'border-b-border border-l-off bg-muted',
+  offline: 'border-b-danger/30 border-l-danger bg-danger/10',
+  login: 'border-b-warn/30 border-l-warn bg-warn/10',
 }
 
 export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onToggleShutter, onContextMenu, dragProps }: ProjectorCardProps) {
@@ -45,7 +59,8 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
         hasError ? 'border-danger/25 shadow-[0_0_0_1px_rgb(239_68_68/0.13)]' : 'border-border hover:border-primary/30',
       )}
     >
-      <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      {/* Thanh trạng thái: màu theo bật / tắt / mất kết nối để nhìn lướt cả lưới là biết. */}
+      <div className={cn('flex items-center justify-between border-b border-l-4 px-3 py-2', STATUS_BAR[barState(p)])}>
         <div className="flex min-w-0 items-center gap-2">
           <PowerDot power={p.power} />
           <span className="shrink-0 whitespace-nowrap font-mono text-xs font-medium text-muted-foreground">{p.id}</span>
@@ -68,8 +83,8 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
           <span className="font-mono text-xs text-muted-foreground">{formatHours(p.telemetry.lampHours)}</span>
         </div>
         <div className="flex items-center justify-between text-xs text-muted-foreground">
-          <span className="truncate">{p.location}</span>
-          <span className="shrink-0 font-mono text-[10px]">{getProtocolOption(p.network.protocol.type).label} · {p.input}</span>
+          <span className="truncate">{p.model}</span>
+          <span className="shrink-0 font-mono text-[10px]">{p.input}</span>
         </div>
         <TempBar tempC={p.telemetry.temperatureC} />
       </div>

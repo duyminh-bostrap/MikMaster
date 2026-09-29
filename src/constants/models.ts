@@ -10,4 +10,5 @@ export interface ModelPreset {
 export const MODEL_PRESETS: readonly ModelPreset[] = [
   { id: 'pt-rq35k', label: 'Panasonic PT-RQ35K', protocol: 'panasonic-nt-control' },
   { id: 'griffyn-4k32', label: 'Christie Griffyn 4K32-RGB', protocol: 'christie-serial-ip' },
+  { id: 'barco-udx', label: 'Barco UDX (Pulse)', protocol: 'barco-pulse' },
 ]
