@@ -1,0 +1,5 @@
+{
+  "vitest.enable": true,
+  "vitest.configSearchPatternInclude": "vitest.config.ts",
+  "typescript.tsdk": "node_modules/typescript/lib"
+}

@@ -40,7 +40,7 @@ Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử m
 | C6 | Xác thực token cho gateway; `HOST` ngoài loopback tự sinh token nếu chưa đặt `MIKMASTER_TOKEN` | ✅ | Bearer hoặc `?token=` (web lưu vào localStorage). Sai/thiếu token → web rơi về SIMULATED, chưa có màn hình nhập token |
 | C7 | Lưu project phía server (thay `localStorage`); mã hoá/không lưu mật khẩu máy chiếu dạng thường | Trung bình | |
 | C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Trình duyệt không mở được socket TCP nên gateway là bắt buộc |
-| C9 | Đưa test frontend vào repo (Vitest cho reducer/`applyRemote`, Playwright cho luồng chính) và CI | Thấp | |
+| C9 | Vitest cho `applyRemote`, reducer, tiện ích (44 test) + CI GitHub Actions + cấu hình VS Code | ✅ | Còn thiếu: Playwright cho luồng UI chính (script cũ 24 ca chưa nằm trong repo) |
 | C10 | Thử nhiều màn hình / độ phân giải nhỏ hơn 1440×900 | Thấp | Mới chụp ở 1440×900 |
 
 ## Cách chạy
@@ -50,6 +50,8 @@ pnpm install
 pnpm dev            # web, chế độ SIMULATED
 pnpm server         # gateway :8787 → web chuyển sang LIVE
 pnpm sim            # 3 máy giả lập trên 127.0.0.21/22/23 để thử quét subnet 127.0.0
+pnpm test           # Vitest (frontend)
+pnpm test:watch
 pnpm test:server    # test driver + API
 pnpm typecheck
 ```

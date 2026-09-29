@@ -8,6 +8,7 @@ Stack: React 19 · TypeScript · Vite · Tailwind CSS v4 · React Router (hash) 
 pnpm install
 pnpm dev        # http://localhost:5173
 pnpm build      # typecheck + build
+pnpm test       # Vitest; trong VS Code cài extension Vitest (đã gợi ý sẵn) để chạy/debug từng test
 ```
 
 Tài liệu: [`docs/features.md`](docs/features.md) (tính năng và mức độ đã kiểm) · [`docs/tasks.md`](docs/tasks.md) (công việc còn lại).

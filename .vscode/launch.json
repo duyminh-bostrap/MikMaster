@@ -1,0 +1,7 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    { "name": "Gateway", "type": "node", "request": "launch", "runtimeExecutable": "pnpm", "runtimeArgs": ["server"], "console": "integratedTerminal" },
+    { "name": "Vitest: file hiện tại", "type": "node", "request": "launch", "runtimeExecutable": "pnpm", "runtimeArgs": ["exec", "vitest", "run", "${relativeFile}"], "console": "integratedTerminal" }
+  ]
+}
