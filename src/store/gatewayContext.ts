@@ -13,8 +13,12 @@ export interface GatewayState {
   unlock: (token: string) => Promise<boolean>
   /** Phát hiện lại gateway (ví dụ vừa chạy `pnpm server`). */
   retry: () => void
+  /** Tắt MikMaster (gateway). `true` nếu gateway đã nhận lệnh. */
+  quit: () => Promise<boolean>
+  /** Người dùng vừa tắt MikMaster từ giao diện. */
+  stopped: boolean
 }
 
 export const GatewayContext = createContext<GatewayState>({
-  mode: 'checking', gateway: null, tokenRejected: false, unlock: async () => false, retry: () => undefined,
+  mode: 'checking', gateway: null, tokenRejected: false, unlock: async () => false, retry: () => undefined, quit: async () => false, stopped: false,
 })

@@ -5,6 +5,7 @@ import { GatewayContext, type GatewayState } from './gatewayContext'
 export function GatewayProvider({ children }: { children: ReactNode }) {
   const [detected, setDetected] = useState<Detection | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [stopped, setStopped] = useState(false)
 
   useEffect(() => {
     let cancelled = false
@@ -19,13 +20,21 @@ export function GatewayProvider({ children }: { children: ReactNode }) {
     setDetected(d)
     return true
   }, [])
-  const retry = useCallback(() => { setDetected(null); setAttempt(a => a + 1) }, [])
+  const retry = useCallback(() => { setStopped(false); setDetected(null); setAttempt(a => a + 1) }, [])
+  const quit = useCallback(async () => {
+    if (detected?.kind !== 'live') return false
+    const r = await detected.gateway.quit()
+    if (!r.ok) return false
+    setStopped(true)
+    setDetected({ kind: 'none' })
+    return true
+  }, [detected])
 
   const value = useMemo<GatewayState>(() => {
-    const base = { unlock, retry, tokenRejected: detected?.kind === 'locked' && detected.hadToken }
+    const base = { unlock, retry, quit, stopped, tokenRejected: detected?.kind === 'locked' && detected.hadToken }
     if (detected === null) return { ...base, mode: 'checking', gateway: null }
     if (detected.kind === 'live') return { ...base, mode: 'live', gateway: detected.gateway }
     return { ...base, mode: detected.kind === 'locked' ? 'locked' : 'simulated', gateway: null }
-  }, [detected, unlock, retry])
+  }, [detected, unlock, retry, quit, stopped])
   return <GatewayContext value={value}>{children}</GatewayContext>
 }

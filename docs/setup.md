@@ -9,14 +9,23 @@ Máy chạy MikMaster phải cắm cùng mạng với máy chiếu (cùng dải 
 
 ## Cách nhanh nhất: file chạy sẵn (không cần cài gì)
 
-1. Tải **MikMaster.exe** (Windows) hoặc **MikMaster** (Mac) — tab *Actions → Build executables* (hoặc mục *Releases*) trên GitHub.
-2. Chép vào máy cần dùng, **bấm đúp**. Một cửa sổ đen hiện địa chỉ và trình duyệt tự mở MikMaster. Giữ cửa sổ đó mở trong lúc dùng; đóng nó là tắt MikMaster.
-3. Lần đầu mở:
-   - **Windows**: SmartScreen báo "Windows protected your PC" (file chưa ký số) → *More info* → *Run anyway*. Windows Firewall có thể hỏi quyền mạng → cho phép **Private networks** để quét và điều khiển máy chiếu.
-   - **Mac**: chuột phải vào file → *Open* → *Open* (file chưa được Apple công chứng).
-4. Dữ liệu project nằm ở `%APPDATA%\MikMaster` (Windows) hoặc `~/Library/Application Support/MikMaster` (Mac) — thay bản .exe mới không mất dữ liệu.
+Tải ở mục **Releases** trên GitHub: **MikMaster.exe** (Windows) hoặc **MikMaster.dmg** (Mac Apple Silicon).
 
-Bấm đúp lần nữa khi đang chạy: không mở bản thứ hai, chỉ mở lại trình duyệt tới bản đang chạy.
+### Windows
+
+1. Chép `MikMaster.exe` vào máy, **bấm đúp**. Một cửa sổ đen hiện địa chỉ và trình duyệt tự mở MikMaster. Giữ cửa sổ đó mở trong lúc dùng; đóng nó (hoặc menu logo → **Quit MikMaster**) là tắt.
+2. Lần đầu: SmartScreen báo "Windows protected your PC" (file chưa ký số) → *More info* → *Run anyway*. Windows Firewall hỏi quyền mạng → cho phép **Private networks** để quét và điều khiển máy chiếu.
+3. Dữ liệu: `%APPDATA%\MikMaster`.
+
+### Mac
+
+1. Mở `MikMaster.dmg`, kéo **MikMaster** vào **Applications**.
+2. Mở MikMaster từ Applications / Launchpad. App chạy nền (không có cửa sổ riêng) và tự mở trình duyệt.
+3. Lần đầu (app chưa được Apple công chứng): macOS báo không mở được → **System Settings → Privacy & Security** → *Open Anyway* (macOS 14 trở về trước: chuột phải vào app → *Open*).
+   macOS hỏi quyền **Local Network** → **Allow**, nếu không MikMaster không thấy máy chiếu.
+4. Tắt: menu logo (góc trên trái trong trình duyệt) → **Quit MikMaster**. Log: `~/Library/Logs/MikMaster.log`. Dữ liệu: `~/Library/Application Support/MikMaster`.
+
+Cả hai: mở lại app khi đang chạy thì không chạy bản thứ hai, chỉ mở lại trình duyệt. Thay bản mới không mất dữ liệu.
 
 Tự build file chạy: `pnpm build:exe` → `release/` (build cho hệ điều hành đang dùng; cần Node **chính thức** từ nodejs.org — bản Homebrew không đóng gói được, hoặc chỉ định `node scripts/build-exe.mjs --node /đường/dẫn/node`).
 

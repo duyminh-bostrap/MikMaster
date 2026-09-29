@@ -300,3 +300,20 @@ describe('DNS rebinding guard (no token)', () => {
     for (const h of ['evil.example:8787', 'localhost.evil.example', '192.168.1.5:8787']) assert.equal(await withHost(h), 403, h)
   })
 })
+
+describe('quit', () => {
+  test('without an onQuit handler the route is 501', async () => {
+    assert.equal((await post('/api/app/quit', {})).status, 501)
+  })
+
+  test('calls onQuit after answering', async () => {
+    let quit = false
+    const s = createServer({ onQuit: () => { quit = true } })
+    await new Promise<void>(r => s.listen(0, '127.0.0.1', r))
+    const res = await fetch(`http://127.0.0.1:${(s.address() as AddressInfo).port}/api/app/quit`, { method: 'POST' })
+    assert.equal(res.status, 200)
+    await new Promise(r => setTimeout(r, 200))
+    assert.equal(quit, true)
+    await new Promise(r => s.close(r))
+  })
+})

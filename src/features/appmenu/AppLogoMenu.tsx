@@ -1,4 +1,4 @@
-import { Check, FileDown, FolderOpen, History, Loader2, Plus, Save } from 'lucide-react'
+import { Check, FileDown, FolderOpen, History, Loader2, Plus, Power, Save } from 'lucide-react'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppLogo } from '@/components/layout/AppLogo'
 import { MenuHeading, MenuItem, MenuSeparator, PopupMenu, type MenuPoint } from '@/components/ui/PopupMenu'
@@ -7,6 +7,7 @@ import { formatShortDate } from '@/utils/format'
 import type { SavedProjectSummary } from '@/types'
 import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import { useProjectCommands } from './useProjectCommands'
+import { useGateway } from '@/store/useGateway'
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 const MOD = IS_MAC ? '⌘' : 'Ctrl+'
@@ -20,6 +21,7 @@ type Busy = null | 'open' | 'save' | 'export' | 'recent'
  */
 export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const cmd = useProjectCommands()
+  const { mode: gatewayMode, quit } = useGateway()
   const [at, setAt] = useState<MenuPoint | null>(null)
   const [recent, setRecent] = useState<SavedProjectSummary[] | null>(null)
   const [busy, setBusy] = useState<Busy>(null)
@@ -129,6 +131,14 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
             onSelect={() => void run('save', cmd.save, 'Saved')} />
           <MenuItem icon={spin('export', <FileDown size={11} />)} label="Export to file…" hint={IS_MAC ? '⇧⌘S' : 'Ctrl+Shift+S'} disabled={!cmd.hasProject || busy !== null}
             onSelect={() => void run('export', cmd.exportFile, 'File saved')} />
+
+          {gatewayMode === 'live' && (
+            <>
+              <MenuSeparator />
+              <MenuItem icon={<Power size={11} />} label="Quit MikMaster" disabled={busy !== null}
+                onSelect={() => { close(); guard('quitting MikMaster', () => { void quit() }) }} />
+            </>
+          )}
 
           {message && (
             <p role="status" className={message.tone === 'ok' ? 'flex items-center gap-1.5 px-3 pt-1.5 pb-1 font-mono text-[10px] text-ok' : 'px-3 pt-1.5 pb-1 font-mono text-[10px] text-danger'}>

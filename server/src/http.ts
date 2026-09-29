@@ -74,7 +74,7 @@ function requireCapability(protocol: DriverProtocol, cap: 'raw' | CommandDto['ki
   if (!effectiveCapabilities(protocol, target.commands).includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"${TEMPLATE_PROTOCOLS.includes(protocol) ? ' (no command template configured)' : ''}`)
 }
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore): Promise<void> {
+async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore, onQuit?: () => void): Promise<void> {
   const route = `${req.method} ${url.pathname}`
   const authorized = token === undefined || tokenMatches(token, extractToken(req.headers.authorization, url))
 
@@ -107,6 +107,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         return sendJson(res, 200, { ok: true })
       }
     }
+  }
+
+  // Tắt MikMaster từ giao diện (bản đóng gói chạy nền, không có cửa sổ để đóng).
+  if (route === 'POST /api/app/quit') {
+    if (!onQuit) throw new DeviceError('unsupported', 'This gateway cannot be stopped from the web app')
+    sendJson(res, 200, { ok: true })
+    setTimeout(onQuit, 100) // trả lời xong rồi mới tắt
+    return
   }
 
   if (route === 'POST /api/devices/ping') {
@@ -173,7 +181,7 @@ function serveStatic(source: StaticSource, url: URL, res: http.ServerResponse): 
   res.end(file.body)
 }
 
-export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore } = {}): http.Server {
+export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore; onQuit?: () => void } = {}): http.Server {
   const staticSource = options.staticSource ?? (options.staticDir ? fsStatic(options.staticDir) : undefined)
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
@@ -182,7 +190,7 @@ export function createServer(options: { staticDir?: string; staticSource?: Stati
       if (options.token === undefined && !isLocalHostHeader(req.headers.host)) {
         return sendJson(res, 403, { error: { code: 'forbidden-host', message: 'Requests must be addressed to localhost' } })
       }
-      handleApi(req, res, url, options.token, options.store).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
+      handleApi(req, res, url, options.token, options.store, options.onQuit).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
     } else if (staticSource) {
       serveStatic(staticSource, url, res)
     } else {

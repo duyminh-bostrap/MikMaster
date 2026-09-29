@@ -1,5 +1,5 @@
 name: Build executables
-# MikMaster.exe (Windows) và MikMaster (macOS) — một file, không cần cài Node.
+# MikMaster.exe (Windows) và MikMaster.dmg (macOS) — không cần cài Node.
 # Chạy tay (tab Actions → Build executables → Run workflow) hoặc khi đẩy tag v* (tạo luôn Release).
 on:
   workflow_dispatch:
@@ -19,7 +19,7 @@ jobs:
             file: MikMaster.exe
             artifact: MikMaster-windows-x64
           - os: macos-latest
-            file: MikMaster
+            file: MikMaster.dmg
             artifact: MikMaster-macos-arm64
     runs-on: ${{ matrix.os }}
     steps:

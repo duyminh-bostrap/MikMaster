@@ -20,7 +20,15 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
   const appUrl = loopback ? `http://mikmaster.localhost${port === 80 ? '' : `:${port}`}` : `http://${host}:${port}`
 
   const store = createProjectStore(opts.dataDir)
-  const server = createServer({ staticSource: opts.staticSource, token, store })
+  const server = createServer({
+    staticSource: opts.staticSource, token, store,
+    onQuit: () => {
+      console.log('Stopped from the web app.')
+      server.close()
+      server.closeAllConnections()
+      process.exit(0)
+    },
+  })
 
   server.on('error', (err: NodeJS.ErrnoException) => {
     if (err.code === 'EADDRINUSE') {
@@ -40,7 +48,8 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
       console.log(generated ? `Token (generated): ${token}` : 'Token authentication enabled (MIKMASTER_TOKEN).')
       console.log(`Open: ${appUrl}/?token=<token>   (the browser remembers it)`)
     }
-    console.log('Keep this window open while you use MikMaster. Press Ctrl+C to stop.')
+    // Chỉ khi có cửa sổ console (Windows .exe, terminal); app macOS chạy nền → tắt bằng menu Quit.
+    if (process.stdout.isTTY) console.log('Keep this window open while you use MikMaster. Press Ctrl+C (or Quit in the app menu) to stop.')
     if (opts.openBrowser) openUrl(appUrl)
   })
 }
