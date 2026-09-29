@@ -66,7 +66,6 @@ export function parseProjectFile(text: string): ProjectSnapshot {
     project: {
       id: typeof project.id === 'string' && project.id ? project.id : `proj-${Date.now()}`,
       name: project.name,
-      venue: typeof project.venue === 'string' ? project.venue : '',
       createdAt: typeof project.createdAt === 'string' ? project.createdAt : new Date().toISOString(),
     },
     booths: boothList,

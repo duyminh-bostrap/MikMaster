@@ -3,6 +3,8 @@ import { useState } from 'react'
 import { AppLogo } from '@/components/layout/AppLogo'
 import { PowerDot, StatusDot } from '@/components/ui/StatusDot'
 import { Button } from '@/components/ui/Button'
+import { InlineEdit } from '@/components/ui/InlineEdit'
+import { useProjectActions } from '@/store/hooks'
 import { ALL_BOOTHS } from '@/hooks/useBoothFilter'
 import { cn } from '@/utils/cn'
 import type { Booth, Project, Projector } from '@/types'
@@ -32,6 +34,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
   const expanded = { has: (id: string) => !collapsed.has(id) }
   const [saveState, setSaveState] = useState<'idle' | 'saved' | 'failed'>('idle')
   const [fileState, setFileState] = useState<'idle' | 'saved' | 'failed'>('idle')
+  const { updateProject, updateBooth } = useProjectActions()
 
   async function handleSaveFile() {
     try {
@@ -64,15 +67,10 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
         <AppLogo />
       </div>
 
-      <div className="group border-b border-border px-4 py-3">
-        <div className="mb-1 flex items-center justify-between">
-          <p className="font-mono text-xs tracking-[0.08em] text-muted-foreground">PROJECT</p>
-          <button type="button" aria-label="Edit project" title="Edit project" className={EDIT_BUTTON} onClick={() => onEdit({ kind: 'project' })}><Pencil size={10} /></button>
-        </div>
-        <button type="button" onDoubleClick={() => onEdit({ kind: 'project' })} className="block w-full cursor-default text-left" title="Double-click to edit">
-          <p className="mb-0.5 text-sm font-semibold leading-tight text-foreground">{project.name}</p>
-          <p className="text-xs leading-tight text-muted-foreground">{project.venue}</p>
-        </button>
+      <div className="border-b border-border px-4 py-3">
+        <p className="mb-1 font-mono text-xs tracking-[0.08em] text-muted-foreground">PROJECT</p>
+        <InlineEdit label="Project name" value={project.name} onSave={name => updateProject({ name })}
+          className="mb-0.5 block text-sm font-semibold leading-tight text-foreground" />
       </div>
 
       <nav aria-label="Booths" className="flex-1 overflow-y-auto py-2">
@@ -104,7 +102,6 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                 className={cn('group flex cursor-pointer items-center border-l-2 px-3 py-2 transition-colors',
                   over ? 'border-accent bg-accent/15 ring-1 ring-accent/50 ring-inset' : isActive ? 'border-primary bg-primary/[0.06]' : 'border-transparent hover:bg-muted')}
                 onClick={() => { onSelectBooth(booth.id); toggle(booth.id) }}
-                onDoubleClick={() => onEdit({ kind: 'booth', id: booth.id })}
                 onContextMenu={e => { e.preventDefault(); onEdit({ kind: 'booth', id: booth.id }) }}
               >
                 <button
@@ -118,7 +115,8 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                 </button>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <span className={cn('truncate text-xs font-semibold', isActive ? 'text-primary' : 'text-foreground')}>{booth.name}</span>
+                    <InlineEdit label="Booth name" value={booth.name} onSave={name => updateBooth(booth.id, { name })}
+                      className={cn('truncate text-xs font-semibold', isActive ? 'text-primary' : 'text-foreground')} />
                     {hasAlert && <StatusDot tone="danger" className="size-1.5" />}
                   </div>
                   <span className="text-xs text-muted-foreground">{booth.location}</span>

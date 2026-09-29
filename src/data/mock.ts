@@ -91,7 +91,7 @@ export const MOCK_DISCOVERABLE: DiscoverableDevice[] = [
 ]
 
 export const MOCK_SAVED_PROJECTS: SavedProjectSummary[] = [
-  { id: 'sp-1', name: 'Grand Tech Summit 2026', venue: 'Hanoi National Convention Centre', savedAt: '2026-09-26T10:00:00', deviceCount: 6 },
-  { id: 'sp-2', name: 'CES Asia Booth Setup', venue: 'SECC Ho Chi Minh City', savedAt: '2026-09-12T10:00:00', deviceCount: 4 },
-  { id: 'sp-3', name: 'Brand Launch — Vinfast', venue: 'Opera House, Hanoi', savedAt: '2026-08-30T10:00:00', deviceCount: 3 },
+  { id: 'sp-1', name: 'Grand Tech Summit 2026', savedAt: '2026-09-26T10:00:00', deviceCount: 6 },
+  { id: 'sp-2', name: 'CES Asia Booth Setup', savedAt: '2026-09-12T10:00:00', deviceCount: 4 },
+  { id: 'sp-3', name: 'Brand Launch — Vinfast', savedAt: '2026-08-30T10:00:00', deviceCount: 3 },
 ]

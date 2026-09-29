@@ -24,7 +24,7 @@ export const initialProjectState: ProjectState = { project: null, booths: [], pr
 export type ProjectAction =
   | { type: 'project/launch'; payload: { project: Project; booths: Booth[]; projectors: Projector[] } }
   | { type: 'project/close' }
-  | { type: 'project/update'; patch: Partial<Pick<Project, 'name' | 'venue'>> }
+  | { type: 'project/update'; patch: Partial<Pick<Project, 'name'>> }
   | { type: 'booth/add'; booth: Booth }
   | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name' | 'location'>> }
   | { type: 'booth/remove'; id: string; moveTo: string }

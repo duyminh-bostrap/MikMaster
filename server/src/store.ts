@@ -110,7 +110,7 @@ export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectSt
     },
     save(snapshot) {
       const summary: ProjectSummaryDto = {
-        id: snapshot.project.id, name: snapshot.project.name, venue: snapshot.project.venue ?? '',
+        id: snapshot.project.id, name: snapshot.project.name,
         savedAt: new Date().toISOString(), deviceCount: snapshot.projectors.length,
       }
       const body = JSON.stringify({ summary, snapshot: mapPasswords(snapshot, pw => encryptSecret(key, pw)) })

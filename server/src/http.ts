@@ -141,6 +141,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
 
 const MIME: Record<string, string> = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript', '.css': 'text/css', '.woff2': 'font/woff2', '.svg': 'image/svg+xml', '.json': 'application/json',
+  '.png': 'image/png', '.webmanifest': 'application/manifest+json', '.ico': 'image/x-icon',
 }
 
 function serveStatic(dir: string, url: URL, res: http.ServerResponse): void {

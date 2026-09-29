@@ -7,7 +7,7 @@ function launched(): ProjectState {
   const projectors = createMockProjectors()
   return projectReducer(initialProjectState, {
     type: 'project/launch',
-    payload: { project: { id: 'p', name: 'P', venue: 'V', createdAt: '2026-01-01' }, booths: MOCK_BOOTHS, projectors },
+    payload: { project: { id: 'p', name: 'P', createdAt: '2026-01-01' }, booths: MOCK_BOOTHS, projectors },
   })
 }
 const find = (s: ProjectState, id: string) => s.projectors.find(p => p.id === id)!
@@ -56,8 +56,8 @@ describe('projectReducer', () => {
 
   describe('sửa project / booth / máy', () => {
     test('project/update', () => {
-      const s = projectReducer(launched(), { type: 'project/update', patch: { name: 'New', venue: 'Hall B' } })
-      expect(s.project).toMatchObject({ name: 'New', venue: 'Hall B', id: 'p' })
+      const s = projectReducer(launched(), { type: 'project/update', patch: { name: 'New' } })
+      expect(s.project).toMatchObject({ name: 'New', id: 'p' })
     })
 
     test('booth add / update', () => {

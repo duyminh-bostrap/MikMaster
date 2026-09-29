@@ -6,13 +6,11 @@ import { Modal } from '@/components/ui/Modal'
 import { useOpenProject, useProjectActions } from '@/store/hooks'
 
 export type EditTarget =
-  | { kind: 'project' }
   | { kind: 'booth'; id: string | null }
   | { kind: 'projector'; id: string }
 
 /** Một điểm vào cho mọi hộp thoại chỉnh sửa trên Dashboard. */
 export function EditDialog({ target, onClose }: { target: EditTarget; onClose: () => void }) {
-  if (target.kind === 'project') return <ProjectDialog onClose={onClose} />
   if (target.kind === 'booth') return <BoothDialog id={target.id} onClose={onClose} />
   return <ProjectorDialog id={target.id} onClose={onClose} />
 }
@@ -26,22 +24,6 @@ function Actions({ canSave, onClose, left }: { canSave: boolean; onClose: () => 
         <Button type="submit" variant="primary" disabled={!canSave}>SAVE</Button>
       </div>
     </>
-  )
-}
-
-function ProjectDialog({ onClose }: { onClose: () => void }) {
-  const { project } = useOpenProject()
-  const { updateProject } = useProjectActions()
-  const [name, setName] = useState(project.name)
-  const [venue, setVenue] = useState(project.venue)
-  const valid = name.trim() !== ''
-  const save = () => { if (!valid) return; updateProject({ name: name.trim(), venue: venue.trim() }); onClose() }
-
-  return (
-    <Modal title="EDIT PROJECT" onClose={onClose} onSubmit={save} footer={<Actions canSave={valid} onClose={onClose} />}>
-      <Field label="PROJECT NAME">{id => <TextInput id={id} value={name} invalid={!valid} onChange={e => setName(e.target.value)} />}</Field>
-      <Field label="VENUE">{id => <TextInput id={id} value={venue} onChange={e => setVenue(e.target.value)} />}</Field>
-    </Modal>
   )
 }
 

@@ -39,6 +39,18 @@ utils/        cn, format, tones, network, lens, projector, fleet
 data/         mock data
 ```
 
+## Chạy như app (cài từ trình duyệt)
+
+```bash
+pnpm start       # build + chạy gateway, mở http://127.0.0.1:8787
+```
+
+Mở địa chỉ trên bằng **Chrome hoặc Edge** → biểu tượng **Cài đặt** (⊕) ở thanh địa chỉ, hoặc menu ⋮ → *Cast, save and share* →
+*Install page as app*. MikMaster có cửa sổ riêng, icon ở Dock/Taskbar và mở được từ Launchpad/Start menu.
+Gateway (`pnpm start`) vẫn phải chạy thì mới điều khiển được máy thật; tắt gateway thì app vẫn mở nhưng ở chế độ SIMULATED.
+
+Chỉ cài được khi mở bằng `localhost`/`127.0.0.1` hoặc HTTPS (quy định của trình duyệt), không cài được qua `http://<IP LAN>`.
+
 ## Backend (`server/`)
 
 Trình duyệt không mở được socket TCP, nên `server/` là gateway Node (không thêm dependency) nói chuyện với máy chiếu:

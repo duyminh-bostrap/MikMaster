@@ -6,7 +6,7 @@ import { countMissingLogins } from '@/utils/credentials'
 const snapshot = () => {
   const projectors = createMockProjectors()
   projectors[2] = { ...projectors[2]!, network: { ...projectors[2]!.network, protocol: { ...projectors[2]!.network.protocol, username: 'admin1', password: 'secret' } } }
-  return { project: { id: 'p1', name: 'Show', venue: 'Hall', createdAt: '2026-01-01' }, booths: MOCK_BOOTHS, projectors }
+  return { project: { id: 'p1', name: 'Show', createdAt: '2026-01-01' }, booths: MOCK_BOOTHS, projectors }
 }
 
 describe('project file', () => {

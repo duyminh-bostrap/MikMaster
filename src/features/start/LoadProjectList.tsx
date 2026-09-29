@@ -19,7 +19,6 @@ export function LoadProjectList({ projects, onLoad, onOpenFile, onBack }: {
             className="flex items-center justify-between rounded-sm border border-border bg-card p-4 text-left transition-colors hover:border-primary/40">
             <div className="flex flex-col gap-1">
               <span className="text-sm font-semibold text-foreground">{sp.name}</span>
-              <span className="text-xs text-muted-foreground">{sp.venue}</span>
               <div className="mt-1 flex items-center gap-3 font-mono text-xs">
                 <span className="text-accent">{sp.deviceCount} devices</span>
                 <span className="text-muted-foreground">Saved {formatShortDate(sp.savedAt)}</span>

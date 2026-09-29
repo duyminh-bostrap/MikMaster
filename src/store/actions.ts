@@ -18,7 +18,7 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     setCredentials: (ids: string[], creds: { username?: string; password?: string }) =>
       dispatch({ type: 'projectors/setCredentials', ids, ...creds }),
     closeProject: () => dispatch({ type: 'project/close' }),
-    updateProject: (patch: { name?: string; venue?: string }) => dispatch({ type: 'project/update', patch }),
+    updateProject: (patch: { name?: string }) => dispatch({ type: 'project/update', patch }),
     addBooth: (name: string, location = '') => {
       const booth = { id: `booth-${Date.now().toString(36)}`, name, location }
       dispatch({ type: 'booth/add', booth })

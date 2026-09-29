@@ -91,7 +91,6 @@ export interface HealthDto {
 export interface ProjectSummaryDto {
   id: string
   name: string
-  venue: string
   /** ISO 8601 */
   savedAt: string
   deviceCount: number
@@ -99,7 +98,7 @@ export interface ProjectSummaryDto {
 
 /** Hình dạng tối thiểu server cần biết; phần còn lại của project/booth/projector được lưu nguyên. */
 export interface ProjectSnapshotDto {
-  project: { id: string; name: string; venue?: string; createdAt?: string; [k: string]: unknown }
+  project: { id: string; name: string; createdAt?: string; [k: string]: unknown }
   booths: unknown[]
   projectors: Array<{ network?: { protocol?: { password?: string; [k: string]: unknown }; [k: string]: unknown }; [k: string]: unknown }>
 }

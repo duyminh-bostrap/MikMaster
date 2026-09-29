@@ -43,7 +43,7 @@ function loadLocal(id: string): ProjectSnapshot | null {
   const sample = MOCK_SAVED_PROJECTS.find(p => p.id === id)
   if (!sample) return null
   return {
-    project: { id: sample.id, name: sample.name, venue: sample.venue, createdAt: sample.savedAt },
+    project: { id: sample.id, name: sample.name, createdAt: sample.savedAt },
     booths: MOCK_BOOTHS,
     projectors: createMockProjectors().slice(0, sample.deviceCount),
   }
@@ -84,7 +84,6 @@ function saveLocal(snapshot: ProjectSnapshot): boolean {
       summary: {
         id: snapshot.project.id,
         name: snapshot.project.name,
-        venue: snapshot.project.venue,
         savedAt: new Date().toISOString(),
         deviceCount: snapshot.projectors.length,
       },

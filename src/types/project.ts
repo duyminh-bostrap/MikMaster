@@ -1,7 +1,6 @@
 export interface Project {
   id: string
   name: string
-  venue: string
   /** ISO 8601 */
   createdAt: string
 }
@@ -16,7 +15,6 @@ export interface Booth {
 export interface SavedProjectSummary {
   id: string
   name: string
-  venue: string
   /** ISO 8601 */
   savedAt: string
   deviceCount: number

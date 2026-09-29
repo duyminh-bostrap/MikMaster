@@ -20,12 +20,11 @@ export interface ManualDeviceInput {
   model?: string
 }
 
-export const DEFAULT_BOOTH: Booth = { id: 'booth-1', name: 'Booth 1', location: 'Unspecified' }
+export const DEFAULT_BOOTH: Booth = { id: 'booth-1', name: 'Booth 1', location: '' }
 
 /** Trạng thái của quy trình "New Project": thông tin, Booth, thiết bị (quét + thêm tay) và việc phân bổ. */
 export function useNewProjectDraft() {
   const [name, setName] = useState('')
-  const [venue, setVenue] = useState('')
   const [booths, setBooths] = useState<Booth[]>(() => [DEFAULT_BOOTH])
   const [devices, setDevices] = useState<DraftDevice[]>([])
 
@@ -71,7 +70,7 @@ export function useNewProjectDraft() {
   const addBooth = useCallback((boothName: string) => {
     const trimmed = boothName.trim()
     if (!trimmed) return
-    setBooths(prev => [...prev, { id: `booth-${Date.now().toString(36)}`, name: trimmed, location: 'Unspecified' }])
+    setBooths(prev => [...prev, { id: `booth-${Date.now().toString(36)}`, name: trimmed, location: '' }])
   }, [])
 
   const removeBooth = useCallback((id: string) => {
@@ -83,17 +82,11 @@ export function useNewProjectDraft() {
 
   const selectedCount = devices.filter(d => d.selected).length
 
-  const resetBooths = useCallback(() => {
-    setBooths([DEFAULT_BOOTH])
-    setDevices(prev => prev.map(d => ({ ...d, projector: { ...d.projector, boothId: DEFAULT_BOOTH.id } })))
-  }, [])
-
   /** `login`: áp cho mọi máy cần đăng nhập mà chưa có tài khoản (LOGIN & LAUNCH). */
   const buildLaunchPayload = useMemo(() => (login?: Credentials) => {
     const project: Project = {
       id: `proj-${Date.now()}`,
       name: name.trim() || 'New Project',
-      venue: venue.trim() || 'Unspecified Venue',
       createdAt: new Date().toISOString(),
     }
     const projectors = devices
@@ -103,7 +96,7 @@ export function useNewProjectDraft() {
         return login && needsAuth(p.network.protocol.type) && !hasCredentials(p) ? withCredentials(p, login) : p
       })
     return { project, booths, projectors }
-  }, [name, venue, booths, devices])
+  }, [name, booths, devices])
 
-  return { name, setName, venue, setVenue, booths, addBooth, removeBooth, devices, addDiscovered, clearScanned, addManual, setSelected, setBoothOf, setProtocolOf, resetBooths, selectedCount, buildLaunchPayload }
+  return { name, setName, booths, addBooth, removeBooth, devices, addDiscovered, clearScanned, addManual, setSelected, setBoothOf, setProtocolOf, selectedCount, buildLaunchPayload }
 }

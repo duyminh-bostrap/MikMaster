@@ -27,7 +27,6 @@ export function OpenFileStep({ snapshot, onLaunch, onBack }: {
             <FileJson size={18} className="mt-0.5 shrink-0 text-accent" aria-hidden />
             <div className="min-w-0">
               <p className="text-sm font-semibold text-foreground">{project.name}</p>
-              <p className="text-xs text-muted-foreground">{project.venue}</p>
             </div>
           </div>
           <div>

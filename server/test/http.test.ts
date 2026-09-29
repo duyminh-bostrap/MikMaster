@@ -159,7 +159,7 @@ describe('token auth', () => {
 describe('project storage', () => {
   let s: http.Server, u: string, dir: string
   const snap = (id: string, password?: string) => ({
-    project: { id, name: 'Show', venue: 'Hall', createdAt: '2026-01-01' },
+    project: { id, name: 'Show', createdAt: '2026-01-01' },
     booths: [{ id: 'b1', name: 'B' }],
     projectors: [{ id: 'PJ-1', network: { ip: '10.0.0.1', protocol: { type: 'pjlink-class2', port: 4352, ...(password ? { password } : {}) } } }],
   })

@@ -22,7 +22,7 @@ export function BoothEditor({ booths, onAdd, onRemove }: { booths: Booth[]; onAd
         ))}
       </ul>
       <div className="flex gap-1.5">
-        <TextInput aria-label="New booth name" value={name} placeholder="New booth…" className="px-2 py-1.5 text-xs" onChange={e => setName(e.target.value)} onKeyDown={e => e.key === 'Enter' && submit()} />
+        <TextInput aria-label="New booth name" value={name} placeholder="New booth…" className="px-2 py-1.5 text-xs" onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }} />
         <Button aria-label="Add booth" disabled={!name.trim()} onClick={submit}><Plus size={12} /></Button>
       </div>
     </Panel>
