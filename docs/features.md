@@ -73,7 +73,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 |---|---|---|
 | Cài như app từ Chrome / Edge (PWA) | ✅ | `pnpm start`, mở `http://127.0.0.1:8787` → Install. Chưa thử nút cài trên máy người dùng |
 | Chạy từ VS Code (F5) | ✅ | Dev: Gateway + Web, Build, Test |
-| Cài đặt một cú bấm: `MikMaster.exe` (Windows) / `MikMaster.dmg` (Mac) · Quit từ menu logo | ✅ | Không cần cài Node; tự mở trình duyệt. Chưa ký số; .exe chưa thử trên Windows thật |
+| Bộ cài `MikMaster-Setup.exe` (Windows, không cần admin) · `MikMaster.dmg` (Mac) · Quit từ menu logo | ✅ | Không cần cài Node; tự mở trình duyệt. Chưa ký số; .exe chưa thử trên Windows thật |
 
 ## Bảo mật
 

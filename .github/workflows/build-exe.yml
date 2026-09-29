@@ -1,5 +1,6 @@
 name: Build executables
-# MikMaster.exe (Windows) và MikMaster.dmg (macOS) — không cần cài Node.
+# Windows: MikMaster-Setup.exe (bộ cài) + MikMaster.exe (bản chạy ngay, không cài).
+# macOS: MikMaster.dmg. Không máy nào cần cài Node.
 # Chạy tay (tab Actions → Build executables → Run workflow) hoặc khi đẩy tag v* (tạo luôn Release).
 on:
   workflow_dispatch:
@@ -16,11 +17,13 @@ jobs:
       matrix:
         include:
           - os: windows-latest
-            file: MikMaster.exe
             artifact: MikMaster-windows-x64
+            files: |
+              release/MikMaster-Setup.exe
+              release/MikMaster.exe
           - os: macos-latest
-            file: MikMaster.dmg
             artifact: MikMaster-macos-arm64
+            files: release/MikMaster.dmg
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
@@ -30,12 +33,23 @@ jobs:
         with: { node-version: 22, cache: pnpm }
       - run: pnpm install --frozen-lockfile
       - run: pnpm build:exe
+
+      - name: Build the Windows installer (Inno Setup)
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $iscc = "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe"
+          if (-not (Test-Path $iscc)) { choco install innosetup -y --no-progress | Out-Null }
+          $version = (Get-Content package.json | ConvertFrom-Json).version
+          & $iscc "/DAppVersion=$version" build-assets\installer.iss
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.artifact }}
-          path: release/${{ matrix.file }}
+          path: ${{ matrix.files }}
           if-no-files-found: error
       - if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
-          files: release/${{ matrix.file }}
+          files: ${{ matrix.files }}

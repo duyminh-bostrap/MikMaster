@@ -9,13 +9,24 @@ Máy chạy MikMaster phải cắm cùng mạng với máy chiếu (cùng dải 
 
 ## Cách nhanh nhất: file chạy sẵn (không cần cài gì)
 
-Tải ở mục **Releases** trên GitHub: **MikMaster.exe** (Windows) hoặc **MikMaster.dmg** (Mac Apple Silicon).
+Tải ở mục **Releases** trên GitHub:
+
+| Máy | File |
+|---|---|
+| Windows | **MikMaster-Setup.exe** (bộ cài, nên dùng) — hoặc **MikMaster.exe** (chạy ngay, không cài) |
+| Mac (Apple Silicon) | **MikMaster.dmg** |
+
+Không máy nào cần cài Node hay tải thêm gì: app đã chứa sẵn mọi thứ, cài được khi không có mạng.
 
 ### Windows
 
-1. Chép `MikMaster.exe` vào máy, **bấm đúp**. Một cửa sổ đen hiện địa chỉ và trình duyệt tự mở MikMaster. Giữ cửa sổ đó mở trong lúc dùng; đóng nó (hoặc menu logo → **Quit MikMaster**) là tắt.
-2. Lần đầu: SmartScreen báo "Windows protected your PC" (file chưa ký số) → *More info* → *Run anyway*. Windows Firewall hỏi quyền mạng → cho phép **Private networks** để quét và điều khiển máy chiếu.
-3. Dữ liệu: `%APPDATA%\MikMaster`.
+1. Chạy **MikMaster-Setup.exe** → *Next* → *Install*. Không cần quyền admin; cài vào `%LOCALAPPDATA%\Programs\MikMaster`, tạo shortcut ở Start menu (Desktop: tuỳ chọn) và mở MikMaster khi cài xong.
+2. Lần đầu: SmartScreen báo "Windows protected your PC" (bộ cài chưa ký số) → *More info* → *Run anyway*.
+3. MikMaster mở một cửa sổ đen hiện địa chỉ và mở trình duyệt. Giữ cửa sổ đó trong lúc dùng; đóng nó hoặc menu logo → **Quit MikMaster** là tắt.
+4. Cập nhật: chạy bộ cài bản mới (tự tắt MikMaster đang chạy). Gỡ: *Settings → Apps → MikMaster → Uninstall*.
+5. Dữ liệu: `%APPDATA%\MikMaster` — giữ nguyên khi cập nhật hoặc gỡ (xoá tay thư mục này nếu muốn xoá hết).
+
+Không muốn cài: dùng **MikMaster.exe**, chép đi đâu cũng chạy được (bấm đúp).
 
 ### Mac
 
