@@ -1,6 +1,6 @@
 import { ChevronRight, FileDown, LayoutGrid, Pencil, Plus, Save, Check } from 'lucide-react'
 import { useState } from 'react'
-import { AppLogo } from '@/components/layout/AppLogo'
+import { AppLogoMenu } from '@/features/appmenu/AppLogoMenu'
 import { PowerDot, StatusDot } from '@/components/ui/StatusDot'
 import { Button } from '@/components/ui/Button'
 import { InlineEdit } from '@/components/ui/InlineEdit'
@@ -64,7 +64,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
   return (
     <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-card">
       <div className="border-b border-border px-4 py-3">
-        <AppLogo />
+        <AppLogoMenu />
       </div>
 
       <div className="border-b border-border px-4 py-3">

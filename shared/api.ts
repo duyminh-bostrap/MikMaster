@@ -102,3 +102,22 @@ export interface ProjectSnapshotDto {
   booths: unknown[]
   projectors: Array<{ network?: { protocol?: { password?: string; [k: string]: unknown }; [k: string]: unknown }; [k: string]: unknown }>
 }
+
+export interface PingResultDto {
+  ok: boolean
+  /** Độ trễ (ms) khi thành công. */
+  ms?: number
+  error?: string
+}
+
+export interface PingDto {
+  /** `null` = gateway không có lệnh ping. */
+  icmp: PingResultDto | null
+  /** `null` = giao thức UDP (không có cổng TCP để thử). */
+  tcp: PingResultDto | null
+  port: number
+  at: string
+}
+
+/** Giao thức dùng UDP: không kiểm tra được cổng bằng kết nối TCP. */
+export const UDP_PROTOCOLS: readonly string[] = ['generic-udp', 'art-net']

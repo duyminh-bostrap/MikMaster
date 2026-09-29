@@ -6,6 +6,7 @@ import { formatClock, formatHours } from '@/utils/format'
 import { appendLog } from '@/utils/projector'
 import { TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import { useProjectActions } from '@/store/hooks'
+import { PingCheck } from '@/features/ping/PingCheck'
 import type { ConnectionStatus, Projector } from '@/types'
 
 const CONNECTION: Record<ConnectionStatus, { label: string; tone: Tone }> = {
@@ -44,6 +45,7 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
           <Badge tone={conn.tone}>{conn.label}</Badge>
           {p.connection !== 'connected' && <Button size="xs" variant="accent" onClick={reconnect}>RECONNECT</Button>}
         </div>
+        <PingCheck key={`${p.id}:${p.network.ip}:${p.network.protocol.port}`} projector={p} />
         <Row label="MODEL" value={p.model} />
         <Row label="LAMP HOURS" value={lampHours > 0 ? formatHours(lampHours) : '—'} />
         <Row label="BRIGHTNESS" value={`${brightness}%`} />

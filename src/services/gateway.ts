@@ -1,4 +1,4 @@
-import type { ApiErrorCode, CommandDto, HealthDto, ProjectSnapshotDto, ProjectSummaryDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
+import type { ApiErrorCode, CommandDto, HealthDto, PingDto, ProjectSnapshotDto, ProjectSummaryDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
@@ -15,6 +15,8 @@ export interface Gateway {
   status(p: Projector): Promise<GatewayResult<StatusDto>>
   command(p: Projector, command: CommandDto): Promise<GatewayResult<null>>
   raw(p: Projector, text: string): Promise<GatewayResult<string>>
+  /** ICMP ping + thử mở cổng điều khiển TCP. */
+  ping(p: Projector): Promise<GatewayResult<PingDto>>
   listProjects(): Promise<GatewayResult<ProjectSummaryDto[]>>
   loadProject(id: string): Promise<GatewayResult<ProjectSnapshotDto>>
   saveProject(snapshot: ProjectSnapshotDto): Promise<GatewayResult<ProjectSummaryDto>>
@@ -71,6 +73,7 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
       const r = await call<{ reply: string }>(base, token, '/api/devices/raw', { target: toTarget(p), text })
       return r.ok ? { ok: true, value: r.value.reply } : r
     },
+    ping: p => call<PingDto>(base, token, '/api/devices/ping', { target: toTarget(p) }),
     listProjects: () => call<ProjectSummaryDto[]>(base, token, '/api/projects', undefined, 'GET'),
     loadProject: id => call<ProjectSnapshotDto>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'GET'),
     saveProject: snapshot => call<ProjectSummaryDto>(base, token, `/api/projects/${encodeURIComponent(snapshot.project.id)}`, snapshot, 'PUT'),

@@ -2,12 +2,13 @@ import fs from 'node:fs'
 import http from 'node:http'
 import path from 'node:path'
 import {
-  DEFAULT_PORTS, LIVE_CAPABILITIES, isDriverProtocol,
+  DEFAULT_PORTS, LIVE_CAPABILITIES, UDP_PROTOCOLS, isDriverProtocol,
   type ApiErrorCode, type CommandDto, type DriverProtocol, type HealthDto, type TargetDto,
 } from '../../shared/api.ts'
 import { DRIVERS } from './drivers/index.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
+import { pingDevice } from './ping.ts'
 import { scanSubnet, SCAN_PROTOCOLS } from './scan.ts'
 import { isValidProjectId, validateSnapshot, type ProjectStore } from './store.ts'
 import { extractToken, isAllowedHost, isValidSubnetPrefix, tokenMatches } from './security.ts'
@@ -96,6 +97,17 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         return sendJson(res, 200, { ok: true })
       }
     }
+  }
+
+  if (route === 'POST /api/devices/ping') {
+    // Không cần driver: ping được mọi giao thức, kể cả loại chưa có lệnh điều khiển.
+    const body = await readJson(req)
+    const t = isObject(body) && isObject(body.target) ? body.target : null
+    if (!t || typeof t.ip !== 'string' || !isObject(t.protocol)) throw new DeviceError('bad-request', 'Missing target.ip / target.protocol')
+    if (!isAllowedHost(t.ip)) throw new DeviceError('forbidden-host', `${t.ip} is not a private/loopback IPv4 address`)
+    const port = Number(t.protocol.port)
+    if (!Number.isInteger(port) || port < 1 || port > 65535) throw new DeviceError('bad-request', 'Invalid port')
+    return sendJson(res, 200, await pingDevice(t.ip, port, UDP_PROTOCOLS.includes(String(t.protocol.type))))
   }
 
   if (route === 'GET /api/scan') {

@@ -212,3 +212,32 @@ describe('project storage', () => {
     assert.equal((await fetch(`${base}/api/projects`)).status, 501)
   })
 })
+
+describe('ping', () => {
+  const ping = (target: unknown) => post('/api/devices/ping', { target })
+
+  test('open port on loopback: ICMP + TCP ok, works for protocols without a driver', async () => {
+    const { status, body } = await ping({ ip: '127.0.0.1', protocol: { type: 'barco-xlm', port: pana.port } })
+    assert.equal(status, 200)
+    assert.equal(body.tcp.ok, true)
+    assert.equal(typeof body.tcp.ms, 'number')
+    if (body.icmp !== null) assert.equal(body.icmp.ok, true)
+  })
+
+  test('closed port is reported as closed, not as an HTTP error', async () => {
+    const { status, body } = await ping({ ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: 1 } })
+    assert.equal(status, 200)
+    assert.equal(body.tcp.ok, false)
+    assert.match(body.tcp.error, /closed|refused/i)
+  })
+
+  test('UDP protocols skip the TCP check', async () => {
+    const { body } = await ping({ ip: '127.0.0.1', protocol: { type: 'art-net', port: 6454 } })
+    assert.equal(body.tcp, null)
+  })
+
+  test('refuses public IPs and bad ports', async () => {
+    assert.equal((await ping({ ip: '8.8.8.8', protocol: { type: 'pjlink-class2', port: 4352 } })).status, 403)
+    assert.equal((await ping({ ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: 0 } })).status, 400)
+  })
+})
