@@ -17,7 +17,7 @@ export function BasicControls({ projector: p, inputEnabled }: { projector: Proje
           <Power size={12} strokeWidth={2.5} />ON
         </Button>
         <Button size="md" variant="warn" selected={p.power === 'standby' || p.power === 'off'} className="flex-1" onClick={() => setPower([p.id], 'standby')}>
-          STBY
+          OFF
         </Button>
       </div>
 

@@ -9,7 +9,7 @@ import type { Projector } from '@/types'
 import { PreviewScreen } from './PreviewScreen'
 import { TempBar } from './TempBar'
 
-const POWER_LABEL = { on: 'ON', standby: 'STBY', off: 'OFF' } as const
+const POWER_LABEL = { on: 'ON', standby: 'OFF', off: 'OFF' } as const
 
 interface ProjectorCardProps {
   projector: Projector

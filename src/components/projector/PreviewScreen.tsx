@@ -43,7 +43,7 @@ export function PreviewScreen({ projector, size }: { projector: Projector; size:
       {state === 'standby' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           {lg && <span className="size-3 rounded-full bg-warn/60" />}
-          <span className={cn(label, 'text-warn/60', lg ? 'text-sm' : 'text-xs')}>STANDBY</span>
+          <span className={cn(label, 'text-warn/60', lg ? 'text-sm' : 'text-xs')}>OFF</span>
         </div>
       )}
 
