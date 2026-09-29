@@ -103,8 +103,8 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
       // Đổi tài khoản = cho phép thử lại: máy đang bị từ chối xác thực được gỡ cờ lỗi để vòng poll kiểm tra lại.
       return mapProjectors(state, action.ids, p => {
         const next = withCredentials(p, { username: action.username, password: action.password })
-        return p.connection === 'protocol-error'
-          ? { ...next, connection: 'connected', errors: p.errors.filter(e => e !== 'Protocol error') }
+        return p.connection === 'protocol-error' || p.connection === 'auth-failed'
+          ? { ...next, connection: 'connected', errors: p.errors.filter(e => e !== 'Protocol error' && e !== 'Login required') }
           : next
       })
 

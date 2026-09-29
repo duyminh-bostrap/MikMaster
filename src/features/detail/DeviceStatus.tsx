@@ -8,6 +8,7 @@ import { appendLog } from '@/utils/projector'
 import { TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import { useProjectActions } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
+import { needsAuth } from '@/utils/credentials'
 import { PingCheck } from '@/features/ping/PingCheck'
 import type { ConnectionStatus, Projector } from '@/types'
 
@@ -15,6 +16,7 @@ const CONNECTION: Record<ConnectionStatus, { label: string; tone: Tone }> = {
   connected: { label: 'CONNECTED', tone: 'ok' },
   disconnected: { label: 'DISCONNECTED', tone: 'danger' },
   'protocol-error': { label: 'PROTOCOL ERROR', tone: 'danger' },
+  'auth-failed': { label: 'LOGIN REQUIRED', tone: 'warn' },
 }
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
@@ -29,7 +31,7 @@ function Row({ label, value, valueClassName }: { label: string; value: string; v
 }
 
 /** Số liệu thiết bị, trạng thái kết nối và log lỗi. */
-export function DeviceStatus({ projector: p }: { projector: Projector }) {
+export function DeviceStatus({ projector: p, onChangeLogin }: { projector: Projector; onChangeLogin?: () => void }) {
   const { updateProjector, syncProjector } = useProjectActions()
   const { gateway } = useGateway()
   const [reconnecting, setReconnecting] = useState(false)
@@ -58,6 +60,15 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
           {p.connection !== 'connected' && <Button size="xs" variant="accent" disabled={reconnecting} onClick={() => void reconnect()}>{reconnecting ? 'CONNECTING…' : 'RECONNECT'}</Button>}
         </div>
         <PingCheck key={`${p.id}:${p.network.ip}:${p.network.protocol.port}`} projector={p} />
+        {needsAuth(p.network.protocol.type) && onChangeLogin && (
+          <div className="flex items-baseline justify-between font-mono">
+            <span className="text-[10px] tracking-[0.08em] text-muted-foreground">LOGIN</span>
+            <span className="flex items-baseline gap-2 text-xs text-foreground">
+              {p.network.protocol.password ? (p.network.protocol.username || '••••') : 'none'}
+              <button type="button" onClick={onChangeLogin} className="text-[10px] text-accent hover:underline">Change</button>
+            </span>
+          </div>
+        )}
         <Row label="MODEL" value={p.model} />
         <Row label="LAMP HOURS" value={lampHours > 0 ? formatHours(lampHours) : '—'} />
         <Row label="BRIGHTNESS" value={`${brightness}%`} />

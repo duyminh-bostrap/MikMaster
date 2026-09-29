@@ -64,7 +64,13 @@ describe('applyRemote — thất bại', () => {
     expect(p.errors).toContain('Offline')
   })
 
-  test.each(['auth', 'protocol', 'unsupported'])('%s → protocol-error', code => {
+  test('auth → auth-failed + nhãn Login required (không lẫn với lỗi mạng / giao thức)', () => {
+    const p = applyRemote(base(), fail('auth'))
+    expect(p.connection).toBe('auth-failed')
+    expect(p.errors).toContain('Login required')
+  })
+
+  test.each(['protocol', 'unsupported'])('%s → protocol-error', code => {
     const p = applyRemote(base(), fail(code))
     expect(p.connection).toBe('protocol-error')
     expect(p.errors).toContain('Protocol error')
@@ -76,10 +82,10 @@ describe('applyRemote — thất bại', () => {
     expect(p.errors).toEqual([])
   })
 
-  test('đổi từ Offline sang Protocol error thay nhãn cũ, giữ lỗi thiết bị', () => {
+  test('đổi từ Offline sang Login required thay nhãn cũ, giữ lỗi thiết bị', () => {
     const a = applyRemote({ ...base(), errors: ['High Temp'] }, fail('timeout'))
     const b = applyRemote(a, fail('auth', 'bad password'))
-    expect(b.errors).toEqual(['Protocol error', 'High Temp'])
+    expect(b.errors).toEqual(['Login required', 'High Temp'])
   })
 
   test('cùng lỗi lặp lại không spam log', () => {

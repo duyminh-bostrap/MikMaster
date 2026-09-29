@@ -94,3 +94,16 @@ describe('effectiveCapabilities', () => {
     expect(effectiveCapabilities('barco-xlm', { powerOn: 'a', powerOff: 'b' })).toEqual([])
   })
 })
+
+describe('loginRequired', () => {
+  test('chỉ khi giao thức có xác thực và (bị từ chối, hoặc mô phỏng mà chưa có mật khẩu)', async () => {
+    const { loginRequired } = await import('@/utils/credentials')
+    const pana = proj('a', '10.0.0.1', 'panasonic-nt-control')
+    expect(loginRequired(pana, false)).toBe(true)
+    expect(loginRequired(pana, true)).toBe(false) // LIVE: chưa biết máy có đòi mật khẩu không → chờ máy trả lời
+    expect(loginRequired({ ...pana, connection: 'auth-failed' }, true)).toBe(true)
+    expect(loginRequired({ ...pana, connection: 'disconnected' }, true)).toBe(false) // mất mạng ≠ cần đăng nhập
+    expect(loginRequired(proj('b', '10.0.0.2', 'panasonic-nt-control', { password: 'x' }), false)).toBe(false)
+    expect(loginRequired(proj('c', '10.0.0.3', 'christie-serial-ip'), false)).toBe(false)
+  })
+})

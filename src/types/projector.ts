@@ -27,7 +27,8 @@ export interface Telemetry {
 }
 
 /** Trạng thái liên lạc với thiết bị (tách khỏi Power: máy có thể bật nhưng mất kết nối). */
-export type ConnectionStatus = 'connected' | 'disconnected' | 'protocol-error'
+/** `auth-failed`: máy từ chối đăng nhập (sai / thiếu mật khẩu) — khác lỗi mạng và lỗi giao thức. */
+export type ConnectionStatus = 'connected' | 'disconnected' | 'protocol-error' | 'auth-failed'
 
 export interface LogEntry {
   id: string

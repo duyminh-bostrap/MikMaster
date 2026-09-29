@@ -52,6 +52,7 @@ export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShu
         </div>
         <div className="flex shrink-0 items-center gap-1">
           {p.connection === 'protocol-error' && <Badge tone="danger">PROTOCOL</Badge>}
+          {p.connection === 'auth-failed' && <Badge tone="warn">LOGIN</Badge>}
           {hasError && <Badge tone="danger">{p.errors[0]}</Badge>}
           {p.shutter && <Badge tone="warn">SHUTTER</Badge>}
           {p.testPattern.enabled && <Badge tone="accent">PATTERN</Badge>}

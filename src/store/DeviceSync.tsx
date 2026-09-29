@@ -8,7 +8,7 @@ const POLL_MS = 4000
 
 /**
  * Chỉ khi có gateway: đọc trạng thái thật của mọi máy theo chu kỳ (các máy song song, không chồng vòng).
- * Máy bị từ chối xác thực/giao thức (`protocol-error`) bị bỏ qua cho tới khi người dùng Apply cấu hình
+ * Máy bị từ chối xác thực/giao thức (`auth-failed` / `protocol-error`) bị bỏ qua cho tới khi người dùng Apply cấu hình
  * hoặc bấm Reconnect — tránh gửi lại mật khẩu sai liên tục làm máy chiếu khoá cổng điều khiển.
  */
 export function DeviceSync() {
@@ -25,7 +25,7 @@ export function DeviceSync() {
     let timer: ReturnType<typeof setTimeout> | undefined
 
     async function tick() {
-      const targets = latest.current.filter(p => liveCapabilities(p.network.protocol.type).includes('power') && p.connection !== 'protocol-error' && !isBusy(p.id))
+      const targets = latest.current.filter(p => liveCapabilities(p.network.protocol.type).includes('power') && p.connection !== 'protocol-error' && p.connection !== 'auth-failed' && !isBusy(p.id))
       await Promise.all(targets.map(async p => {
         const r = await gateway!.status(p)
         if (cancelled || isBusy(p.id)) return

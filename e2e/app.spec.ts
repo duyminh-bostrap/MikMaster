@@ -3,7 +3,7 @@ import fs from 'node:fs'
 
 // Luồng chính ở chế độ SIMULATED (không gateway). Mỗi test bắt đầu với bộ nhớ trình duyệt sạch.
 
-async function createProject(page: Page, name = 'E2E Show') {
+async function createProject(page: Page, name = 'E2E Show', login = true) {
   await page.goto('/')
   await page.getByRole('button', { name: /Create & Scan/ }).click()
   await page.getByLabel('PROJECT NAME').fill(name)
@@ -14,7 +14,7 @@ async function createProject(page: Page, name = 'E2E Show') {
   // Quét giả lập ~5 giây; đợi quét xong để có đủ 6 máy.
   await expect(page.getByText('Scan complete')).toBeVisible({ timeout: 15_000 })
   await expect(page.getByLabel('USERNAME')).toHaveValue('admin')
-  await page.getByRole('button', { name: /LOGIN & LAUNCH/ }).click()
+  await page.getByRole('button', { name: login ? /LOGIN & LAUNCH/ : /LAUNCH WITHOUT LOGIN/ }).click()
   await expect(page).toHaveURL(/#\/project$/)
 }
 
@@ -131,4 +131,32 @@ test('double-click a booth to rename it; add and delete booths from the sidebar'
   await sidebar(page).getByRole('button', { name: 'Delete Upper Balcony' }).click()
   await page.getByRole('dialog', { name: 'DELETE BOOTH' }).getByRole('button', { name: /DELETE/ }).click()
   await expect(page.getByRole('tab', { name: /^Upper Balcony/ })).toHaveCount(0)
+})
+
+test('login screen only while a projector needs a login; controls hidden until then', async ({ page }) => {
+  await createProject(page, 'Login Show', false)
+  // PJ-03 là Panasonic (có xác thực) và chưa có mật khẩu.
+  await card(page, 'PJ-03').click()
+  const left = page.locator('aside').first()
+  await expect(left.getByText('LOGIN REQUIRED')).toBeVisible()
+  await expect(left.getByText('POWER', { exact: true })).toHaveCount(0)
+  await expect(page.getByText('LENS SHIFT')).toHaveCount(0)
+  await expect(page.getByText(/Sign in to this projector/)).toBeVisible()
+
+  await left.getByLabel('USERNAME', { exact: true }).fill('admin')
+  await left.getByLabel('PASSWORD', { exact: true }).fill('admin')
+  await left.getByRole('button', { name: 'SIGN IN' }).click()
+  await expect(left.getByText('LOGIN REQUIRED')).toHaveCount(0)
+  await expect(left.getByText('POWER', { exact: true })).toBeVisible()
+  await expect(page.getByText('LENS SHIFT')).toBeVisible()
+
+  // Đổi tài khoản khi cần: "Change" trong STATUS mở lại ô đăng nhập, Cancel đóng.
+  await left.getByRole('button', { name: 'Change' }).click()
+  await expect(left.getByText('CHANGE LOGIN')).toBeVisible()
+  await left.getByRole('button', { name: 'CANCEL' }).click()
+  await expect(left.getByText('CHANGE LOGIN')).toHaveCount(0)
+
+  // Máy không cần đăng nhập (Christie) không bao giờ hiện ô đăng nhập.
+  await page.goto('/#/project/projectors/PJ-01')
+  await expect(page.getByText(/LOGIN REQUIRED|CHANGE LOGIN/)).toHaveCount(0)
 })

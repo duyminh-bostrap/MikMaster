@@ -6,10 +6,10 @@ import type { ConnectionStatus, InputSource, Projector } from '@/types'
 export type SyncResult = { ok: true; status: StatusDto } | { ok: false; code: string; message: string }
 
 const LINK_DOWN = new Set(['connect', 'timeout', 'network'])
-const LINK_REJECTED = new Set(['auth', 'protocol', 'unsupported'])
+const LINK_REJECTED = new Set(['protocol', 'unsupported'])
 
-const FAILURE_LABEL: Record<ConnectionStatus, string | null> = { connected: null, disconnected: 'Offline', 'protocol-error': 'Protocol error' }
-const OWN_LABELS = new Set(['Offline', 'Protocol error'])
+const FAILURE_LABEL: Record<ConnectionStatus, string | null> = { connected: null, disconnected: 'Offline', 'protocol-error': 'Protocol error', 'auth-failed': 'Login required' }
+const OWN_LABELS = new Set(['Offline', 'Protocol error', 'Login required'])
 
 function isInputSource(label: string | undefined): label is InputSource {
   return !!label && (INPUT_SOURCES as readonly string[]).includes(label)
@@ -18,7 +18,7 @@ function isInputSource(label: string | undefined): label is InputSource {
 /** Áp kết quả đọc/ghi từ thiết bị thật vào model; hàm thuần để reducer gọi. */
 export function applyRemote(p: Projector, r: SyncResult): Projector {
   if (!r.ok) {
-    const connection: ConnectionStatus = LINK_DOWN.has(r.code) ? 'disconnected' : LINK_REJECTED.has(r.code) ? 'protocol-error' : p.connection
+    const connection: ConnectionStatus = LINK_DOWN.has(r.code) ? 'disconnected' : r.code === 'auth' ? 'auth-failed' : LINK_REJECTED.has(r.code) ? 'protocol-error' : p.connection
     const label = FAILURE_LABEL[connection]
     const errors = label ? [label, ...p.errors.filter(e => !OWN_LABELS.has(e))] : p.errors
     const repeated = connection === p.connection && p.log[0]?.message === r.message

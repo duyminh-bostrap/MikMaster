@@ -37,3 +37,13 @@ export function applyLoginToMissing(projectors: Projector[], login: Credentials)
 }
 
 export const countMissingLogins = (projectors: Projector[]): number => projectors.filter(lacksPassword).length
+
+/**
+ * Máy đang cần đăng nhập mới điều khiển được: đã bị từ chối đăng nhập, hoặc — ở chế độ mô phỏng, khi không
+ * hỏi được thiết bị — giao thức có xác thực mà chưa có mật khẩu. Máy không trả lời (mất mạng) KHÔNG tính là cần đăng nhập.
+ */
+export function loginRequired(p: Projector, live: boolean): boolean {
+  if (!needsAuth(p.network.protocol.type)) return false
+  if (p.connection === 'auth-failed') return true
+  return !live && lacksPassword(p)
+}
