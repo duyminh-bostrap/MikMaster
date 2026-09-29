@@ -17,20 +17,29 @@ const TONE: Record<Tone, string> = {
   accent: 'text-accent hover:bg-accent/15',
 }
 
+/** Nút nổi bật (bật / tắt toàn bộ): nền đặc, to hơn. */
+const SOLID: Record<'ok' | 'danger', string> = {
+  ok: 'bg-ok text-background shadow-[0_0_14px_-4px_var(--color-ok)] hover:brightness-110',
+  danger: 'bg-danger text-background shadow-[0_0_14px_-4px_var(--color-danger)] hover:brightness-110',
+}
+
 /** Nút chỉ có icon; ý nghĩa nằm ở tooltip + aria-label. `badge` = chữ nhỏ ở góc (ví dụ "5s"). */
-function IconButton({ icon: Icon, label, tone, onClick, disabled, badge }: {
+function IconButton({ icon: Icon, label, tone, onClick, disabled, badge, solid }: {
   icon: LucideIcon
   label: string
   tone: Tone
   onClick: () => void
   disabled?: boolean
   badge?: string
+  /** Nút chính: to, nền đặc (tone 'ok' hoặc 'danger'). */
+  solid?: 'ok' | 'danger'
 }) {
   return (
     <button type="button" aria-label={label} title={label} disabled={disabled} onClick={onClick}
-      className={cn('relative flex size-8 items-center justify-center transition-colors disabled:cursor-not-allowed disabled:opacity-40', TONE[tone])}>
-      <Icon size={15} strokeWidth={2} />
-      {badge && <span className="absolute -top-1 -right-1 rounded-full bg-ok px-1 font-mono text-[8px] leading-3 text-background">{badge}</span>}
+      className={cn('relative flex items-center justify-center transition disabled:cursor-not-allowed disabled:opacity-40 disabled:shadow-none',
+        solid ? cn('size-10 rounded-sm', SOLID[solid]) : cn('size-8', TONE[tone]))}>
+      <Icon size={solid ? 20 : 15} strokeWidth={solid ? 2.5 : 2} />
+      {badge && <span className="absolute -top-1.5 -right-1.5 rounded-full border border-background bg-foreground px-1 font-mono text-[8px] leading-3 text-background">{badge}</span>}
     </button>
   )
 }
@@ -79,11 +88,14 @@ export function QuickControls({ projectorIds, scopeLabel }: { projectorIds: stri
 
   return (
     <div className="flex flex-wrap items-end gap-3">
-      <Group label={t('POWER')}>
-        <IconButton icon={Power} tone="ok" disabled={disabled} onClick={() => setPower(projectorIds, 'on')}
-          label={stagger ? t('All on — one by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : t('All on')} badge={stagger ? `${powerOnDelaySec}s` : undefined} />
-        <IconButton icon={PowerOff} tone="neutral" disabled={disabled} onClick={() => void allOff()} label={t('All off')} />
-      </Group>
+      <div className="flex flex-col gap-1">
+        <span className="font-mono text-[9px] tracking-[0.1em] text-muted-foreground">{t('POWER')}</span>
+        <div className="flex items-center gap-1.5">
+          <IconButton icon={Power} tone="ok" solid="ok" disabled={disabled} onClick={() => setPower(projectorIds, 'on')}
+            label={stagger ? t('All on — one by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : t('All on')} badge={stagger ? `${powerOnDelaySec}s` : undefined} />
+          <IconButton icon={PowerOff} tone="neutral" solid="danger" disabled={disabled} onClick={() => void allOff()} label={t('All off')} />
+        </div>
+      </div>
       <Group label={t('SHUTTER')}>
         <IconButton icon={Eye} tone="neutral" disabled={disabled} onClick={() => setShutter(projectorIds, false)} label={t('Open all shutters (show image)')} />
         <IconButton icon={EyeOff} tone="warn" disabled={disabled} onClick={() => void closeShutters()} label={t('Close all shutters (blank image)')} />

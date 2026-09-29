@@ -148,7 +148,8 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
   fs.rmSync(dmg, { force: true })
   // hdiutil tự ước lượng dung lượng từ -srcfolder đôi khi thiếu ("No space left on device") → đặt -size dư ra.
   let bytes = 0
-  for (const e of fs.readdirSync(staging, { recursive: true, withFileTypes: true })) {
+  // Chỉ đếm .app — không đi theo symlink /Applications.
+  for (const e of fs.readdirSync(path.join(staging, 'MikMaster.app'), { recursive: true, withFileTypes: true })) {
     if (e.isFile()) bytes += fs.statSync(path.join(e.parentPath, e.name)).size
   }
   const sizeMb = Math.ceil(bytes / 1024 / 1024 * 1.25) + 32
