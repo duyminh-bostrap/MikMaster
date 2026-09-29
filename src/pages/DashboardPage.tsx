@@ -6,7 +6,7 @@ import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
-import { QuickControls } from '@/features/dashboard/QuickControls'
+import { PowerControls, QuickControls } from '@/features/dashboard/QuickControls'
 import { Sidebar } from '@/features/dashboard/Sidebar'
 import { TopBar } from '@/features/dashboard/TopBar'
 import { ALL_BOOTHS, useBoothFilter } from '@/hooks/useBoothFilter'
@@ -41,6 +41,7 @@ export default function DashboardPage() {
   const stats = useMemo(() => computeFleetStats(projectors), [projectors])
   const inBooth = activeBooth !== ALL_BOOTHS
   const scopeLabel = inBooth ? boothName(activeBooth) : t('All Projectors')
+  const scopeIds = scope.map(p => p.id)
   const openProjector = (id: string) => navigate(`/project/projectors/${id}`)
   const { moveToBooth, removeProjector } = useProjectActions()
   const [confirmDialog, confirm] = useConfirm()
@@ -78,7 +79,9 @@ export default function DashboardPage() {
       }
     >
       <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} />
-      <FleetMetrics stats={stats} projectors={projectors} actions={<QuickControls projectorIds={scope.map(p => p.id)} scopeLabel={scopeLabel} />} />
+      <FleetMetrics stats={stats} projectors={projectors}
+        power={<PowerControls projectorIds={scopeIds} scopeLabel={scopeLabel} />}
+        actions={<QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts} />
       <main className="flex-1 overflow-y-auto p-5">

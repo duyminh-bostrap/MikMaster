@@ -62,11 +62,12 @@ function Stat({ value, label, valueClassName }: { value: string | number; label:
 // Khi hàng bị xuống dòng (vùng nội dung hẹp) các vạch chia sẽ lẻ loi → ẩn theo bề rộng container.
 const Divider = () => <div className="h-10 w-px bg-border @max-[1120px]:hidden" />
 
-export function FleetMetrics({ stats, projectors, actions }: { stats: FleetStats; projectors: Projector[]; actions: React.ReactNode }) {
+export function FleetMetrics({ stats, projectors, power, actions }: { stats: FleetStats; projectors: Projector[]; power?: React.ReactNode; actions: React.ReactNode }) {
   const avgTone = stats.avgTemp > 65 ? 'danger' : stats.avgTemp > 50 ? 'warn' : null
   return (
     <div className="@container shrink-0 border-b border-border bg-muted">
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3">
+      {power && <>{power}<Divider /></>}
       <div className="flex items-center gap-3">
         <FleetHealthGauge online={stats.online} total={stats.total} />
         <div className="font-mono text-xs">

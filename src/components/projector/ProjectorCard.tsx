@@ -1,4 +1,4 @@
-import { Eye, EyeOff, Power, PowerOff } from 'lucide-react'
+import { Eye, EyeOff, Moon, Power } from 'lucide-react'
 import { useT } from '@/i18n'
 import type { KeyboardEvent } from 'react'
 import { Badge } from '@/components/ui/Badge'
@@ -109,7 +109,7 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
       {/* Nút icon: bật (trái), tắt (phải), shutter. Nút đúng trạng thái hiện tại được tô; ý nghĩa ở tooltip. */}
       <div className="flex border-t border-border">
         <CardButton label={t('Turn on')} active={p.power === 'on'} activeClass="bg-ok/15 text-ok" hoverClass="hover:text-ok" onClick={onPowerOn}><Power size={14} /></CardButton>
-        <CardButton label={t('Turn off')} active={p.power !== 'on'} activeClass="bg-muted text-foreground" hoverClass="hover:text-foreground" onClick={onPowerOff}><PowerOff size={14} /></CardButton>
+        <CardButton label={t('Turn off')} active={p.power !== 'on'} activeClass="bg-muted text-foreground" hoverClass="hover:text-foreground" onClick={onPowerOff}><Moon size={14} /></CardButton>
         <CardButton label={p.shutter ? t('Open the shutter') : t('Close the shutter')} active={p.shutter} activeClass="bg-warn/15 text-warn" hoverClass="hover:text-warn" onClick={onToggleShutter} last>
           {p.shutter ? <EyeOff size={14} /> : <Eye size={14} />}
         </CardButton>
