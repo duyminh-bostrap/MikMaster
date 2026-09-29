@@ -146,10 +146,16 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
   fs.symlinkSync('/Applications', path.join(staging, 'Applications'))
   const dmg = path.join(out, 'MikMaster.dmg')
   fs.rmSync(dmg, { force: true })
+  // hdiutil tự ước lượng dung lượng từ -srcfolder đôi khi thiếu ("No space left on device") → đặt -size dư ra.
+  let bytes = 0
+  for (const e of fs.readdirSync(staging, { recursive: true, withFileTypes: true })) {
+    if (e.isFile()) bytes += fs.statSync(path.join(e.parentPath, e.name)).size
+  }
+  const sizeMb = Math.ceil(bytes / 1024 / 1024 * 1.25) + 32
   // hdiutil trên máy macOS của CI thỉnh thoảng lỗi "Resource busy" → thử lại vài lần.
   for (let attempt = 1; ; attempt++) {
     try {
-      run('hdiutil', ['create', '-volname', 'MikMaster', '-srcfolder', staging, '-ov', '-format', 'UDZO', dmg])
+      run('hdiutil', ['create', '-volname', 'MikMaster', '-srcfolder', staging, '-size', `${sizeMb}m`, '-fs', 'HFS+', '-ov', '-format', 'UDZO', dmg])
       break
     } catch (err) {
       if (attempt >= 3) throw err
