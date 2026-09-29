@@ -1,0 +1,10 @@
+{
+  "description": "Efficiently manage and control multiple projectors with a user-friendly interface, ideal for AV professionals and smart home setups.",
+  "robots": {
+    "index": false
+  },
+  "accessibility": {
+    "addBypassLinks": false,
+    "ignoreReducedMotion": false
+  }
+}
