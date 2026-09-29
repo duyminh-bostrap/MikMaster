@@ -1,4 +1,5 @@
 import { use } from 'react'
+import { documentFingerprint } from '@/utils/document'
 import type { ProjectActions } from './actions'
 import { ProjectActionsContext, ProjectStateContext } from './projectContext'
 import type { ProjectState } from './projectReducer'
@@ -25,4 +26,10 @@ export function useOpenProject() {
 export function useProjector(id: string | undefined) {
   const { projectors } = useProjectState()
   return projectors.find(p => p.id === id) ?? null
+}
+
+/** Project đang mở có thay đổi chưa lưu (tên, booth, cấu hình máy, lens preset). */
+export function useIsDirty(): boolean {
+  const state = useProjectState()
+  return state.project !== null && documentFingerprint(state) !== state.baseline
 }

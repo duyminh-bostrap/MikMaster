@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router'
 import { getDeviceCredentials, getSharedCredentials } from '@/services/credentialCache'
 import { openProjectFile, saveProjectToFile } from '@/services/projectFile'
 import { listSavedProjects, loadProject, saveProject, type ProjectSnapshot } from '@/services/projectRepository'
-import { useProjectActions, useProjectState } from '@/store/hooks'
+import { useIsDirty, useProjectActions, useProjectState } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
 import { countMissingLogins, fillMissingCredentials } from '@/utils/credentials'
 
@@ -15,7 +15,8 @@ export function useProjectCommands() {
   const navigate = useNavigate()
   const { gateway } = useGateway()
   const { project, booths, projectors } = useProjectState()
-  const { launchProject } = useProjectActions()
+  const { launchProject, markSaved } = useProjectActions()
+  const dirty = useIsDirty()
   const snapshot: ProjectSnapshot | null = project ? { project, booths, projectors } : null
 
   const launch = useCallback((s: ProjectSnapshot) => {
@@ -52,7 +53,18 @@ export function useProjectCommands() {
     openFile,
     openRecent,
     listRecent,
-    save: () => (snapshot ? saveProject(snapshot, gateway) : Promise.resolve(false)),
-    exportFile: () => (snapshot ? saveProjectToFile(snapshot) : Promise.resolve(false)),
+    dirty,
+    projectName: project?.name ?? '',
+    // Lưu (server/trình duyệt) hoặc xuất file thành công đều tính là đã lưu, như "Save As" của app desktop.
+    save: async () => {
+      const ok = snapshot ? await saveProject(snapshot, gateway) : false
+      if (ok) markSaved()
+      return ok
+    },
+    exportFile: async () => {
+      const ok = snapshot ? await saveProjectToFile(snapshot) : false
+      if (ok) markSaved()
+      return ok
+    },
   }
 }

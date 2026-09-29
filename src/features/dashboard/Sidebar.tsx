@@ -4,7 +4,7 @@ import { AppLogoMenu } from '@/features/appmenu/AppLogoMenu'
 import { PowerDot, StatusDot } from '@/components/ui/StatusDot'
 import { Button } from '@/components/ui/Button'
 import { InlineEdit } from '@/components/ui/InlineEdit'
-import { useProjectActions } from '@/store/hooks'
+import { useIsDirty, useProjectActions } from '@/store/hooks'
 import { ALL_BOOTHS } from '@/hooks/useBoothFilter'
 import { cn } from '@/utils/cn'
 import type { Booth, Project, Projector } from '@/types'
@@ -35,6 +35,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
   const [saveState, setSaveState] = useState<'idle' | 'saved' | 'failed'>('idle')
   const [fileState, setFileState] = useState<'idle' | 'saved' | 'failed'>('idle')
   const { updateProject, updateBooth } = useProjectActions()
+  const dirty = useIsDirty()
 
   async function handleSaveFile() {
     try {
@@ -68,7 +69,10 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
       </div>
 
       <div className="border-b border-border px-4 py-3">
-        <p className="mb-1 font-mono text-xs tracking-[0.08em] text-muted-foreground">PROJECT</p>
+        <p className="mb-1 flex items-center justify-between font-mono text-xs tracking-[0.08em] text-muted-foreground">
+          PROJECT
+          {dirty && <span className="flex items-center gap-1 text-[10px] text-warn" title="There are changes that have not been saved"><span className="size-1.5 rounded-full bg-warn" />UNSAVED</span>}
+        </p>
         <InlineEdit label="Project name" value={project.name} onSave={name => updateProject({ name })}
           className="mb-0.5 block text-sm font-semibold leading-tight text-foreground" />
       </div>
@@ -161,7 +165,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
       </nav>
 
       <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
-        <Button onClick={handleSave} variant={saveState === 'failed' ? 'danger' : 'secondary'}>
+        <Button onClick={handleSave} variant={saveState === 'failed' ? 'danger' : dirty ? 'warn' : 'secondary'}>
           {saveState === 'saved' ? <Check size={11} /> : <Save size={11} />}
           {saveState === 'saved' ? 'SAVED' : saveState === 'failed' ? 'SAVE FAILED' : 'SAVE PROJECT'}
         </Button>

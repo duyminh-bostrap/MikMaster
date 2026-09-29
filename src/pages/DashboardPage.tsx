@@ -12,18 +12,16 @@ import { TopBar } from '@/features/dashboard/TopBar'
 import { ALL_BOOTHS, useBoothFilter } from '@/hooks/useBoothFilter'
 import { computeFleetStats } from '@/utils/fleet'
 import { formatLongDate } from '@/utils/format'
-import { saveProject } from '@/services/projectRepository'
-import { saveProjectToFile } from '@/services/projectFile'
+import { useProjectCommands } from '@/features/appmenu/useProjectCommands'
 import { EditDialog, type EditTarget } from '@/features/dashboard/EditDialogs'
 import { useOpenProject, useProjectActions } from '@/store/hooks'
 import { ProjectorContextMenu, type MenuAnchor } from '@/features/dashboard/ProjectorContextMenu'
-import { useGateway } from '@/store/useGateway'
 
 export default function DashboardPage() {
   const { project, booths, projectors } = useOpenProject()
   const [activeBooth, setActiveBooth] = useBoothFilter(booths)
   const navigate = useNavigate()
-  const { gateway } = useGateway()
+  const cmd = useProjectCommands()
 
   const scope = useMemo(
     () => (activeBooth === ALL_BOOTHS ? projectors : projectors.filter(p => p.boothId === activeBooth)),
@@ -55,8 +53,8 @@ export default function DashboardPage() {
         <Sidebar
           project={project} booths={booths} projectors={projectors}
           activeBooth={activeBooth} onSelectBooth={setActiveBooth} onOpenProjector={openProjector}
-          onSave={() => saveProject({ project, booths, projectors }, gateway)}
-          onSaveFile={() => saveProjectToFile({ project, booths, projectors })}
+          onSave={cmd.save}
+          onSaveFile={cmd.exportFile}
           onEdit={setEditing}
           onMoveProjector={moveProjector} onProjectorContextMenu={openMenu}
         />

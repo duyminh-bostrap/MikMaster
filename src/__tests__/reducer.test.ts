@@ -2,6 +2,7 @@ import { describe, expect, test } from 'vitest'
 import { initialProjectState, projectReducer, type ProjectState } from '@/store/projectReducer'
 import { createMockProjectors, MOCK_BOOTHS } from '@/data/mock'
 import { LENS_LIMITS } from '@/constants/lens'
+import { documentFingerprint } from '@/utils/document'
 
 function launched(): ProjectState {
   const projectors = createMockProjectors()
@@ -118,5 +119,34 @@ describe('projectReducer', () => {
       s = projectReducer(s, { type: 'lens/resetShift', id: 'PJ-01' })
       expect(find(s, 'PJ-01').lens.position).toEqual({ shiftX: 0, shiftY: 0, zoom, focus })
     })
+  })
+})
+
+describe('thay đổi chưa lưu', () => {
+  const launchedState = () => projectReducer(initialProjectState, {
+    type: 'project/launch',
+    payload: { project: { id: 'p', name: 'P', createdAt: '2026-01-01' }, booths: MOCK_BOOTHS, projectors: createMockProjectors() },
+  })
+  const dirty = (s: ProjectState) => documentFingerprint(s) !== s.baseline
+
+  test('vừa mở thì sạch; sửa tên / booth / máy thì bẩn; lưu thì sạch lại', () => {
+    let s = launchedState()
+    expect(dirty(s)).toBe(false)
+    s = projectReducer(s, { type: 'project/update', patch: { name: 'Q' } })
+    expect(dirty(s)).toBe(true)
+    s = projectReducer(s, { type: 'project/markSaved' })
+    expect(dirty(s)).toBe(false)
+    s = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: 'booth-c', boothName: 'Rear' })
+    expect(dirty(s)).toBe(true)
+  })
+
+  test('trạng thái sống (power, shutter, đồng bộ, log, đăng nhập) không tính là sửa', () => {
+    let s = launchedState()
+    s = projectReducer(s, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'standby' })
+    s = projectReducer(s, { type: 'projectors/setShutter', ids: ['PJ-02'], shutter: true })
+    s = projectReducer(s, { type: 'projector/sync', id: 'PJ-03', result: { ok: false, code: 'timeout', message: 'x' } })
+    s = projectReducer(s, { type: 'projector/log', id: 'PJ-01', level: 'info', message: 'hi' })
+    s = projectReducer(s, { type: 'projectors/setCredentials', ids: ['PJ-01'], username: 'a', password: 'b' })
+    expect(dirty(s)).toBe(false)
   })
 })

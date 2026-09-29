@@ -1,10 +1,11 @@
 import { Check, FileDown, FolderOpen, History, Loader2, Plus, Save } from 'lucide-react'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { AppLogo } from '@/components/layout/AppLogo'
 import { MenuHeading, MenuItem, MenuSeparator, PopupMenu, type MenuPoint } from '@/components/ui/PopupMenu'
 import { ProjectFileError } from '@/services/projectFile'
 import { formatShortDate } from '@/utils/format'
 import type { SavedProjectSummary } from '@/types'
+import { UnsavedChangesDialog } from './UnsavedChangesDialog'
 import { useProjectCommands } from './useProjectCommands'
 
 const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
@@ -24,12 +25,32 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const [busy, setBusy] = useState<Busy>(null)
   const [message, setMessage] = useState<{ tone: 'ok' | 'error'; text: string } | null>(null)
   const close = useCallback(() => { setAt(null); setMessage(null) }, [])
+  const lastAt = useRef<MenuPoint>({ x: 16, y: 48 })
+  // Việc đang chờ người dùng trả lời "lưu thay đổi không?".
+  const [pending, setPending] = useState<{ label: string; go: () => void } | null>(null)
+
+  /** Rời project đang mở: nếu còn thay đổi chưa lưu thì hỏi trước. */
+  function guard(label: string, go: () => void) {
+    if (!cmd.dirty) return go()
+    setAt(null)
+    setPending({ label, go })
+  }
+
+  /** Chạy lại trong menu (mở lại tại chỗ cũ) để hiện tiến trình / lỗi sau khi hỏi lưu. */
+  function inMenu(kind: Exclude<Busy, null>, action: () => Promise<boolean>) {
+    return () => {
+      setAt(lastAt.current)
+      void run(kind, action)
+    }
+  }
 
   function openMenu(e: React.MouseEvent) {
     e.preventDefault()
     const r = e.currentTarget.getBoundingClientRect()
     // Chuột phải: mở tại con trỏ. Bấm trái / bàn phím: mở ngay dưới logo.
-    setAt(e.type === 'contextmenu' ? { x: e.clientX, y: e.clientY } : { x: r.left, y: r.bottom + 4 })
+    const point = e.type === 'contextmenu' ? { x: e.clientX, y: e.clientY } : { x: r.left, y: r.bottom + 4 }
+    lastAt.current = point
+    setAt(point)
     setMessage(null)
     setRecent(null)
     void cmd.listRecent().then(list => setRecent(list.slice(0, RECENT_LIMIT)))
@@ -66,12 +87,14 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
         void (e.shiftKey ? exportFile() : save())
       } else if (key === 'o' && !e.shiftKey) {
         e.preventDefault()
-        void openFile().catch(() => undefined)
+        guardRef.current('opening another project', () => { void openFile().catch(() => undefined) })
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [hasProject, save, exportFile, openFile])
+  const guardRef = useRef(guard)
+  guardRef.current = guard
 
   const spin = (kind: Busy, icon: React.ReactNode) => (busy === kind ? <Loader2 size={11} className="animate-spin" /> : icon)
 
@@ -84,9 +107,9 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
       {at && (
         <PopupMenu at={at} label="File" onClose={close} className="w-64">
-          <MenuItem icon={<Plus size={11} />} label="New project" onSelect={() => { cmd.newProject(); close() }} />
+          <MenuItem icon={<Plus size={11} />} label="New project" onSelect={() => { close(); guard('starting a new project', cmd.newProject) }} />
           <MenuItem icon={spin('open', <FolderOpen size={11} />)} label="Open file…" hint={`${MOD}O`} disabled={busy !== null}
-            onSelect={() => void run('open', cmd.openFile)} />
+            onSelect={() => guard('opening another project', inMenu('open', cmd.openFile))} />
 
           <MenuSeparator />
           <MenuHeading><History size={10} />OPEN RECENT</MenuHeading>
@@ -97,7 +120,7 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
             return (
               <MenuItem key={r.id} disabled={current || busy !== null} icon={current && <Check size={11} className="text-primary" />}
                 label={<>{r.name} <span className="font-mono text-[10px] text-muted-foreground">· {r.deviceCount} dev</span></>}
-                hint={formatShortDate(r.savedAt)} onSelect={() => void run('recent', () => cmd.openRecent(r.id))} />
+                hint={formatShortDate(r.savedAt)} onSelect={() => guard(`opening “${r.name}”`, inMenu('recent', () => cmd.openRecent(r.id)))} />
             )
           })}
 
@@ -113,6 +136,12 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
             </p>
           )}
         </PopupMenu>
+      )}
+
+      {pending && (
+        <UnsavedChangesDialog projectName={cmd.projectName} actionLabel={pending.label} onSave={cmd.save}
+          onDiscard={() => { const { go } = pending; setPending(null); go() }}
+          onCancel={() => setPending(null)} />
       )}
     </>
   )

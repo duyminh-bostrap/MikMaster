@@ -1,6 +1,7 @@
 import { applyLensDelta, buildLensPreset } from '@/utils/lens'
 import { applyPower, appendLog } from '@/utils/projector'
 import { withCredentials } from '@/utils/credentials'
+import { documentFingerprint } from '@/utils/document'
 import { applyRemote, type SyncResult } from '@/utils/sync'
 import type {
   Booth,
@@ -17,13 +18,16 @@ export interface ProjectState {
   project: Project | null
   booths: Booth[]
   projectors: Projector[]
+  /** Dấu vân tay lúc mở / lưu gần nhất; khác hiện tại = có thay đổi chưa lưu. */
+  baseline: string
 }
 
-export const initialProjectState: ProjectState = { project: null, booths: [], projectors: [] }
+export const initialProjectState: ProjectState = { project: null, booths: [], projectors: [], baseline: '' }
 
 export type ProjectAction =
   | { type: 'project/launch'; payload: { project: Project; booths: Booth[]; projectors: Projector[] } }
   | { type: 'project/close' }
+  | { type: 'project/markSaved' }
   | { type: 'project/update'; patch: Partial<Pick<Project, 'name'>> }
   | { type: 'booth/add'; booth: Booth }
   | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name' | 'location'>> }
@@ -55,7 +59,10 @@ function mapProjectors(
 export function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
   switch (action.type) {
     case 'project/launch':
-      return { ...action.payload }
+      return { ...action.payload, baseline: documentFingerprint(action.payload) }
+
+    case 'project/markSaved':
+      return { ...state, baseline: documentFingerprint(state) }
 
     case 'project/close':
       return initialProjectState
