@@ -9,7 +9,6 @@ export interface Project {
 export interface Booth {
   id: string
   name: string
-  location: string
 }
 
 export interface SavedProjectSummary {

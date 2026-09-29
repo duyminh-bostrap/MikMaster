@@ -54,7 +54,6 @@ export default function DashboardPage() {
           project={project} booths={booths} projectors={projectors}
           activeBooth={activeBooth} onSelectBooth={setActiveBooth} onOpenProjector={openProjector}
           onSave={cmd.save}
-          onSaveFile={cmd.exportFile}
           onEdit={setEditing}
           onMoveProjector={moveProjector} onProjectorContextMenu={openMenu}
         />

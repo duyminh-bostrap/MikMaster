@@ -10,7 +10,7 @@ export function documentFingerprint(s: { project: Project | null; booths: Booth[
   if (!s.project) return ''
   return JSON.stringify({
     name: s.project.name,
-    booths: s.booths.map(b => [b.id, b.name, b.location]),
+    booths: s.booths.map(b => [b.id, b.name]),
     projectors: s.projectors.map(p => [
       p.id, p.boothId, p.name, p.location, p.model,
       p.network.ip, p.network.protocol.type, p.network.protocol.port, p.network.protocol.commands ?? null,

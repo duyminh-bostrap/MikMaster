@@ -1,8 +1,7 @@
-import { ChevronRight, FileDown, LayoutGrid, Pencil, Plus, Save, Check } from 'lucide-react'
+import { ChevronRight, LayoutGrid, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { AppLogoMenu } from '@/features/appmenu/AppLogoMenu'
 import { PowerDot, StatusDot } from '@/components/ui/StatusDot'
-import { Button } from '@/components/ui/Button'
 import { InlineEdit } from '@/components/ui/InlineEdit'
 import { useIsDirty, useProjectActions } from '@/store/hooks'
 import { ALL_BOOTHS } from '@/hooks/useBoothFilter'
@@ -20,31 +19,29 @@ interface SidebarProps {
   onSelectBooth: (boothId: string) => void
   onOpenProjector: (id: string) => void
   onSave: () => Promise<boolean>
-  onSaveFile: () => Promise<boolean>
   onEdit: (target: EditTarget) => void
   onMoveProjector: (projectorId: string, boothId: string) => void
   onProjectorContextMenu: (e: React.MouseEvent, projectorId: string) => void
 }
 
-const EDIT_BUTTON = 'flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-muted hover:text-foreground focus-visible:opacity-100 group-hover:opacity-100'
+const IS_MAC = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
 
-export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave, onSaveFile, onEdit, onMoveProjector, onProjectorContextMenu }: SidebarProps) {
+const DELETE_BUTTON = 'flex size-5 shrink-0 items-center justify-center rounded-sm text-muted-foreground opacity-0 transition-opacity hover:bg-danger/10 hover:text-danger focus-visible:opacity-100 group-hover:opacity-100'
+
+export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave, onEdit, onMoveProjector, onProjectorContextMenu }: SidebarProps) {
   // Booth mới thêm (không có trong lần render đầu) vẫn mở sẵn: lưu những booth đã thu gọn thay vì đã mở.
   const [collapsed, setCollapsed] = useState<Set<string>>(() => new Set())
   const expanded = { has: (id: string) => !collapsed.has(id) }
-  const [saveState, setSaveState] = useState<'idle' | 'saved' | 'failed'>('idle')
-  const [fileState, setFileState] = useState<'idle' | 'saved' | 'failed'>('idle')
-  const { updateProject, updateBooth } = useProjectActions()
+  const { updateProject, updateBooth, addBooth } = useProjectActions()
   const dirty = useIsDirty()
+  // Booth vừa thêm mở sẵn ô đổi tên.
+  const [renaming, setRenaming] = useState<string | null>(null)
 
-  async function handleSaveFile() {
-    try {
-      if (!(await onSaveFile())) return
-      setFileState('saved')
-    } catch {
-      setFileState('failed')
-    }
-    setTimeout(() => setFileState('idle'), 1800)
+  function newBooth() {
+    const taken = new Set(booths.map(b => b.name))
+    let n = booths.length + 1
+    while (taken.has(`Booth ${n}`)) n++
+    setRenaming(addBooth(`Booth ${n}`).id)
   }
 
   function toggle(id: string) {
@@ -55,10 +52,6 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
     })
   }
 
-  async function handleSave() {
-    setSaveState((await onSave()) ? 'saved' : 'failed')
-    setTimeout(() => setSaveState('idle'), 1800)
-  }
 
   const allActive = activeBooth === ALL_BOOTHS
 
@@ -71,7 +64,12 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
       <div className="border-b border-border px-4 py-3">
         <p className="mb-1 flex items-center justify-between font-mono text-xs tracking-[0.08em] text-muted-foreground">
           PROJECT
-          {dirty && <span className="flex items-center gap-1 text-[10px] text-warn" title="There are changes that have not been saved"><span className="size-1.5 rounded-full bg-warn" />UNSAVED</span>}
+          {dirty && (
+            <button type="button" onClick={() => void onSave()} title={`Unsaved changes — click to save (${IS_MAC ? '⌘S' : 'Ctrl+S'})`}
+              className="flex items-center gap-1 rounded-sm px-1 text-[10px] text-warn transition-colors hover:bg-warn/10">
+              <span className="size-1.5 rounded-full bg-warn" />UNSAVED
+            </button>
+          )}
         </p>
         <InlineEdit label="Project name" value={project.name} onSave={name => updateProject({ name })}
           className="mb-0.5 block text-sm font-semibold leading-tight text-foreground" />
@@ -106,7 +104,6 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                 className={cn('group flex cursor-pointer items-center border-l-2 px-3 py-2 transition-colors',
                   over ? 'border-accent bg-accent/15 ring-1 ring-accent/50 ring-inset' : isActive ? 'border-primary bg-primary/[0.06]' : 'border-transparent hover:bg-muted')}
                 onClick={() => { onSelectBooth(booth.id); toggle(booth.id) }}
-                onContextMenu={e => { e.preventDefault(); onEdit({ kind: 'booth', id: booth.id }) }}
               >
                 <button
                   type="button"
@@ -120,13 +117,15 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
                     <InlineEdit label="Booth name" value={booth.name} onSave={name => updateBooth(booth.id, { name })}
+                      editRequest={renaming === booth.id ? 1 : 0}
                       className={cn('truncate text-xs font-semibold', isActive ? 'text-primary' : 'text-foreground')} />
                     {hasAlert && <StatusDot tone="danger" className="size-1.5" />}
                   </div>
-                  <span className="text-xs text-muted-foreground">{booth.location}</span>
                 </div>
-                <button type="button" aria-label={`Edit ${booth.name}`} title="Edit booth" className={cn(EDIT_BUTTON, 'mr-1')}
-                  onClick={e => { e.stopPropagation(); onEdit({ kind: 'booth', id: booth.id }) }}><Pencil size={10} /></button>
+                {booths.length > 1 && (
+                  <button type="button" aria-label={`Delete ${booth.name}`} title="Delete booth" className={cn(DELETE_BUTTON, 'mr-1')}
+                    onClick={e => { e.stopPropagation(); onEdit({ kind: 'deleteBooth', id: booth.id }) }}><Trash2 size={10} /></button>
+                )}
                 <div className="flex flex-col items-end gap-0.5 font-mono">
                   <span className="text-xs text-muted-foreground">{inBooth.length}</span>
                   <span className="text-[9px] text-ok">{online}↑</span>
@@ -158,22 +157,12 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
           )
         })}
 
-        <button type="button" onClick={() => onEdit({ kind: 'booth', id: null })}
+        <button type="button" onClick={newBooth}
           className="mx-4 mt-2 flex w-[calc(100%-2rem)] items-center justify-center gap-1.5 rounded-sm border border-dashed border-border py-1.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
           <Plus size={10} />ADD BOOTH
         </button>
       </nav>
 
-      <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
-        <Button onClick={handleSave} variant={saveState === 'failed' ? 'danger' : dirty ? 'warn' : 'secondary'}>
-          {saveState === 'saved' ? <Check size={11} /> : <Save size={11} />}
-          {saveState === 'saved' ? 'SAVED' : saveState === 'failed' ? 'SAVE FAILED' : 'SAVE PROJECT'}
-        </Button>
-        <Button onClick={() => void handleSaveFile()} variant={fileState === 'failed' ? 'danger' : 'secondary'} title="Save the project as a file on this computer (device passwords are not included)">
-          {fileState === 'saved' ? <Check size={11} /> : <FileDown size={11} />}
-          {fileState === 'saved' ? 'FILE SAVED' : fileState === 'failed' ? 'SAVE FAILED' : 'SAVE TO FILE…'}
-        </Button>
-      </div>
     </aside>
   )
 }

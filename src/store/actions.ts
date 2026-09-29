@@ -20,12 +20,12 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     closeProject: () => dispatch({ type: 'project/close' }),
     markSaved: () => dispatch({ type: 'project/markSaved' }),
     updateProject: (patch: { name?: string }) => dispatch({ type: 'project/update', patch }),
-    addBooth: (name: string, location = '') => {
-      const booth = { id: `booth-${Date.now().toString(36)}`, name, location }
+    addBooth: (name: string) => {
+      const booth = { id: `booth-${Date.now().toString(36)}`, name }
       dispatch({ type: 'booth/add', booth })
       return booth
     },
-    updateBooth: (id: string, patch: { name?: string; location?: string }) => dispatch({ type: 'booth/update', id, patch }),
+    updateBooth: (id: string, patch: { name?: string }) => dispatch({ type: 'booth/update', id, patch }),
     removeBooth: (id: string, moveTo: string) => dispatch({ type: 'booth/remove', id, moveTo }),
     removeProjector: (id: string) => dispatch({ type: 'projector/remove', id }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>

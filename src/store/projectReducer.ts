@@ -30,7 +30,7 @@ export type ProjectAction =
   | { type: 'project/markSaved' }
   | { type: 'project/update'; patch: Partial<Pick<Project, 'name'>> }
   | { type: 'booth/add'; booth: Booth }
-  | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name' | 'location'>> }
+  | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name'>> }
   | { type: 'booth/remove'; id: string; moveTo: string }
   | { type: 'projector/remove'; id: string }
   | { type: 'projector/patch'; id: string; patch: Partial<Omit<Projector, 'id'>> }

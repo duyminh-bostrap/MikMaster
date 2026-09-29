@@ -54,7 +54,7 @@ test('rename inline, unsaved marker, and the save prompt before leaving', async 
   await dialog.getByRole('button', { name: 'CANCEL' }).click()
   await expect(page).toHaveURL(/#\/project/)
 
-  await sidebar(page).getByRole('button', { name: /SAVE PROJECT/ }).click()
+  await sidebar(page).getByRole('button', { name: /UNSAVED/ }).click()
   await expect(sidebar(page).getByText('UNSAVED')).toBeHidden()
 })
 
@@ -79,7 +79,8 @@ test('export to file (no passwords) and open it again', async ({ page }) => {
   await createProject(page, 'File Show')
 
   const downloadPromise = page.waitForEvent('download')
-  await sidebar(page).getByRole('button', { name: /SAVE TO FILE/ }).click()
+  await sidebar(page).getByRole('button', { name: 'File menu' }).click()
+  await page.getByRole('menuitem', { name: /Export to file/ }).click()
   const download = await downloadPromise
   expect(download.suggestedFilename()).toBe('File Show.mikmaster.json')
   const path = await download.path()
@@ -99,8 +100,9 @@ test('export to file (no passwords) and open it again', async ({ page }) => {
 
 test('saved projects can be deleted, samples cannot', async ({ page }) => {
   await createProject(page, 'Delete Me')
-  await sidebar(page).getByRole('button', { name: /SAVE PROJECT/ }).click()
-  await expect(sidebar(page).getByText('SAVED')).toBeVisible()
+  await sidebar(page).getByRole('button', { name: 'File menu' }).click()
+  await page.getByRole('menuitem', { name: /^Save/ }).click()
+  await expect(page.getByRole('status')).toContainText('Saved')
 
   await page.goto('/')
   await page.getByRole('button', { name: /Resume Session/ }).click()
@@ -110,4 +112,23 @@ test('saved projects can be deleted, samples cannot', async ({ page }) => {
   await row.getByRole('button', { name: 'Delete Delete Me' }).click()
   await row.getByRole('button', { name: 'YES' }).click()
   await expect(page.getByText('Delete Me')).toHaveCount(0)
+})
+
+test('double-click a booth to rename it; add and delete booths from the sidebar', async ({ page }) => {
+  await createProject(page)
+  await sidebar(page).getByText('Balcony', { exact: true }).dblclick()
+  await page.getByLabel('Booth name').fill('Upper Balcony')
+  await page.getByLabel('Booth name').press('Enter')
+  await expect(page.getByRole('tab', { name: /^Upper Balcony/ })).toBeVisible()
+
+  // ADD BOOTH tạo "Booth N" và mở sẵn ô đổi tên.
+  await sidebar(page).getByRole('button', { name: /ADD BOOTH/ }).click()
+  await page.getByLabel('Booth name').fill('Truss')
+  await page.getByLabel('Booth name').press('Enter')
+  await expect(page.getByRole('tab', { name: /^Truss/ })).toBeVisible()
+
+  await sidebar(page).getByText('Upper Balcony', { exact: true }).hover()
+  await sidebar(page).getByRole('button', { name: 'Delete Upper Balcony' }).click()
+  await page.getByRole('dialog', { name: 'DELETE BOOTH' }).getByRole('button', { name: /DELETE/ }).click()
+  await expect(page.getByRole('tab', { name: /^Upper Balcony/ })).toHaveCount(0)
 })

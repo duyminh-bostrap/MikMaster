@@ -2,9 +2,9 @@ import type { Booth, DiscoveredDevice, LensPreset, Projector, SavedProjectSummar
 import { createProjector } from '@/utils/projector'
 
 export const MOCK_BOOTHS: Booth[] = [
-  { id: 'booth-a', name: 'Main Stage', location: 'FOH Zone' },
-  { id: 'booth-b', name: 'LED Wall Zone', location: 'Downstage Floor' },
-  { id: 'booth-c', name: 'Rear Screen', location: 'Upstage Truss' },
+  { id: 'booth-a', name: 'Main Stage' },
+  { id: 'booth-b', name: 'LED Wall Zone' },
+  { id: 'booth-c', name: 'Rear Screen' },
 ]
 
 function preset(slot: LensPreset['slot'], name: string, shiftX: number, shiftY: number, zoom: number, focus: number, savedAt: string): LensPreset {

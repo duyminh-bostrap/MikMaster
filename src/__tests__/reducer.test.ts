@@ -62,9 +62,9 @@ describe('projectReducer', () => {
     })
 
     test('booth add / update', () => {
-      let s = projectReducer(launched(), { type: 'booth/add', booth: { id: 'b-x', name: 'Balcony', location: '' } })
-      s = projectReducer(s, { type: 'booth/update', id: 'b-x', patch: { name: 'Balcony L', location: 'Level 2' } })
-      expect(s.booths.at(-1)).toEqual({ id: 'b-x', name: 'Balcony L', location: 'Level 2' })
+      let s = projectReducer(launched(), { type: 'booth/add', booth: { id: 'b-x', name: 'Balcony' } })
+      s = projectReducer(s, { type: 'booth/update', id: 'b-x', patch: { name: 'Balcony L' } })
+      expect(s.booths.at(-1)).toEqual({ id: 'b-x', name: 'Balcony L' })
     })
 
     test('xoá booth chuyển máy sang booth khác', () => {

@@ -20,7 +20,7 @@ export interface ManualDeviceInput {
   model?: string
 }
 
-export const DEFAULT_BOOTH: Booth = { id: 'booth-1', name: 'Booth 1', location: '' }
+export const DEFAULT_BOOTH: Booth = { id: 'booth-1', name: 'Booth 1' }
 
 /** Trạng thái của quy trình "New Project": thông tin, Booth, thiết bị (quét + thêm tay) và việc phân bổ. */
 export function useNewProjectDraft() {
@@ -76,7 +76,7 @@ export function useNewProjectDraft() {
   const addBooth = useCallback((boothName: string) => {
     const trimmed = boothName.trim()
     if (!trimmed) return
-    setBooths(prev => [...prev, { id: `booth-${Date.now().toString(36)}`, name: trimmed, location: '' }])
+    setBooths(prev => [...prev, { id: `booth-${Date.now().toString(36)}`, name: trimmed }])
   }, [])
 
   const removeBooth = useCallback((id: string) => {

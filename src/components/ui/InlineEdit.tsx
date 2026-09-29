@@ -1,17 +1,24 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { cn } from '@/utils/cn'
 
 /** Double-click để sửa tại chỗ: Enter / bấm ra ngoài = lưu, Esc = huỷ. Rỗng thì giữ tên cũ. */
-export function InlineEdit({ value, onSave, className, inputClassName, label }: {
+export function InlineEdit({ value, onSave, className, inputClassName, label, editRequest = 0 }: {
   value: string
   onSave: (next: string) => void
   className?: string
   inputClassName?: string
   label: string
+  /** Tăng số này để mở ô sửa từ bên ngoài (ví dụ menu chuột phải → Rename). */
+  editRequest?: number
 }) {
   const [draft, setDraft] = useState<string | null>(null)
   // Esc rồi ô nhập bị gỡ có thể vẫn phát blur → không được lưu lại bản nháp đã huỷ.
   const cancelled = useRef(false)
+  useEffect(() => {
+    if (editRequest > 0) { cancelled.current = false; setDraft(value) }
+    // Chỉ phản ứng khi có yêu cầu mới, không phải khi tên đổi.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [editRequest])
 
   function commit() {
     if (draft === null || cancelled.current) return
