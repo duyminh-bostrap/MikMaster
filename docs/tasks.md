@@ -39,7 +39,7 @@ Cập nhật: 2026-09-29 (tối). Ký hiệu: ✅ xong · 🧪 xong nhưng chưa
 | C5 | Driver TCP chung, UDP, Art-Net, HTTP API | ✅ | RAW COMMAND + mẫu lệnh Power / Shutter khai báo ở trang Detail (mục COMMANDS). Không poll, không quét mạng |
 | C6 | Xác thực token cho gateway; `HOST` ngoài loopback tự sinh token nếu chưa đặt `MIKMASTER_TOKEN` | ✅ | Bearer hoặc `?token=` (web lưu vào localStorage). Thiếu/sai token → huy hiệu GATEWAY LOCKED + ô nhập token |
 | C7 | Lưu project phía server (`data/projects/*.json`); mật khẩu máy chiếu mã hoá AES-256-GCM (khoá `MIKMASTER_KEY` hoặc `data/secret.key`) | ✅ | API `GET/PUT/DELETE /api/projects[/id]`, ghi nguyên tử, file quyền 0600. Không có gateway thì dùng localStorage nhưng bỏ mật khẩu. Có xoá project, lưu/mở file. Mất khoá thì phải nhập lại mật khẩu |
-| C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Tạm thay bằng PWA (`pnpm start` → Install trong Chrome/Edge) |
+| C8 | Đóng gói 1 file chạy: `MikMaster.exe` (Windows) / `MikMaster` (macOS) — Node SEA, gateway + giao diện nhúng sẵn | ✅ | `pnpm build:exe` hoặc GitHub Actions *Build executables*. Chưa ký số (SmartScreen / Gatekeeper cảnh báo lần đầu); bản .exe chưa chạy thử trên máy Windows thật |
 | C9 | Vitest (73) + test gateway (77) + Playwright e2e (6 luồng chính) + CI GitHub Actions | ✅ | `pnpm test`, `pnpm test:server`, `pnpm test:e2e` |
 | C10 | Thử độ phân giải nhỏ hơn 1440×900 | ✅ | Đã kiểm 1024×700 và 800×600 (Start, Wizard, Dashboard, Detail): không tràn ngang; Detail xếp dọc dưới 1024. Đã sửa vạch chia lẻ loi ở FleetMetrics khi hàng xuống dòng. Chưa kiểm màn hình > 1440 và chưa đo bằng thiết bị thật |
 
