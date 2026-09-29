@@ -12,7 +12,7 @@ import { pingDevice } from './ping.ts'
 import { checkScanRange } from '../../shared/ipRange.ts'
 import { scanRange, SCAN_PROTOCOLS } from './scan.ts'
 import { isValidProjectId, validateSnapshot, type ProjectStore } from './store.ts'
-import { extractToken, isAllowedHost, isValidSubnetPrefix, tokenMatches } from './security.ts'
+import { extractToken, isAllowedHost, isLocalHostHeader, isValidSubnetPrefix, tokenMatches } from './security.ts'
 
 const MAX_BODY = 64 * 1024
 const MAX_PROJECT_BODY = 2 * 1024 * 1024
@@ -184,6 +184,10 @@ export function createServer(options: { staticDir?: string; token?: string; stor
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
     if (url.pathname.startsWith('/api/')) {
+      // Có token thì token đã bảo vệ (truy cập từ máy khác trong LAN); không token thì chỉ nhận tên máy cục bộ.
+      if (options.token === undefined && !isLocalHostHeader(req.headers.host)) {
+        return sendJson(res, 403, { error: { code: 'forbidden-host', message: 'Requests must be addressed to localhost' } })
+      }
       handleApi(req, res, url, options.token, options.store).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
     } else if (staticDir) {
       serveStatic(staticDir, url, res)

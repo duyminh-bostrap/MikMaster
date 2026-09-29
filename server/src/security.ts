@@ -29,3 +29,14 @@ export function extractToken(authorization: string | undefined, url: URL): strin
   const m = /^Bearer\s+(.+)$/i.exec(authorization ?? '')
   return m?.[1] ?? url.searchParams.get('token')
 }
+
+/**
+ * Chống DNS rebinding khi gateway chạy không token (chỉ nghe loopback): một trang web lạ có thể trỏ tên miền
+ * của nó về 127.0.0.1 để trình duyệt gọi API điều khiển máy chiếu. Header Host lúc đó là tên miền lạ → từ chối.
+ */
+export function isLocalHostHeader(host: string | undefined): boolean {
+  if (!host) return false
+  const name = host.startsWith('[') ? host.slice(1, host.indexOf(']')) : host.replace(/:\d+$/, '')
+  const lower = name.toLowerCase()
+  return lower === 'localhost' || lower.endsWith('.localhost') || lower === '::1' || /^127\.\d{1,3}\.\d{1,3}\.\d{1,3}$/.test(lower)
+}

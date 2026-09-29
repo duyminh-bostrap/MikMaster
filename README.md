@@ -14,7 +14,7 @@ pnpm test       # Vitest; trong VS Code cài extension Vitest (đã gợi ý s�
 pnpm test:e2e   # Playwright: 6 luồng chính trên Chrome có sẵn
 ```
 
-Tài liệu: [`docs/features.md`](docs/features.md) (tính năng và mức độ đã kiểm) · [`docs/tasks.md`](docs/tasks.md) (công việc còn lại).
+Tài liệu: [`docs/setup.md`](docs/setup.md) (cài đặt, chạy thật) · [`docs/features.md`](docs/features.md) (tính năng và mức độ đã kiểm) · [`docs/tasks.md`](docs/tasks.md) (công việc còn lại).
 
 > `AV Projector Control App/` là bản thiết kế gốc (Figma Make), giữ lại để đối chiếu; app thật nằm ở `src/`.
 
@@ -36,17 +36,14 @@ store/        reducer + actions + DeviceSync (poll) + UnloadGuard
 utils/        credentials, document (theo dõi thay đổi), sync, lens, fleet…
 ```
 
-## Chạy như app (cài từ trình duyệt)
+## Chạy trên máy (dùng thật)
 
 ```bash
-pnpm start       # build + chạy gateway, mở http://127.0.0.1:8787
+pnpm start       # build + chạy gateway + mở http://mikmaster.localhost:8787
+pnpm serve       # lần sau, không build lại
 ```
 
-Mở địa chỉ trên bằng **Chrome hoặc Edge** → biểu tượng **Cài đặt** (⊕) ở thanh địa chỉ, hoặc menu ⋮ → *Cast, save and share* →
-*Install page as app*. MikMaster có cửa sổ riêng, icon ở Dock/Taskbar và mở được từ Launchpad/Start menu.
-Gateway (`pnpm start`) vẫn phải chạy thì mới điều khiển được máy thật; tắt gateway thì app vẫn mở nhưng ở chế độ SIMULATED.
-
-Chỉ cài được khi mở bằng `localhost`/`127.0.0.1` hoặc HTTPS (quy định của trình duyệt), không cài được qua `http://<IP LAN>`.
+Hướng dẫn đầy đủ (cài Node, cài như app, dữ liệu, dùng từ máy khác, tự chạy khi bật máy): [`docs/setup.md`](docs/setup.md).
 
 ## Backend (`server/`)
 

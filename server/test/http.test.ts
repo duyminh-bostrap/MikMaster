@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import type http from 'node:http'
+import { request as httpRequest } from 'node:http'
 import os from 'node:os'
 import path from 'node:path'
 import type { AddressInfo } from 'node:net'
@@ -280,5 +281,22 @@ describe('range scan', () => {
     for (const q of ['from=127.0.0.9&to=127.0.0.1', 'from=10.0.0.1&to=10.0.8.1', 'from=8.8.8.1&to=8.8.8.9', 'from=127.0.0.1&to=hello', 'from=127.0.0.1']) {
       assert.equal((await fetch(`${base}/api/scan?${q}`)).status, 400, q)
     }
+  })
+})
+
+describe('DNS rebinding guard (no token)', () => {
+  const withHost = (host: string) => new Promise<number>((resolve, reject) => {
+    const u = new URL(base)
+    const req = httpRequest({ hostname: u.hostname, port: u.port, path: '/api/health', headers: { Host: host } }, res => { res.resume(); resolve(res.statusCode ?? 0) })
+    req.on('error', reject)
+    req.end()
+  })
+
+  test('local names are accepted', async () => {
+    for (const h of ['localhost:8787', '127.0.0.1:8787', 'mikmaster.localhost:8787', '[::1]:8787', 'MikMaster.LocalHost']) assert.equal(await withHost(h), 200, h)
+  })
+
+  test('foreign names are refused', async () => {
+    for (const h of ['evil.example:8787', 'localhost.evil.example', '192.168.1.5:8787']) assert.equal(await withHost(h), 403, h)
   })
 })
