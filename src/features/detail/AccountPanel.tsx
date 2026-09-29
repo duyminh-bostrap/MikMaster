@@ -9,6 +9,7 @@ import { forgetDeviceCredentials, saveDeviceCredentials, saveSharedCredentials }
 import { useProjectActions, useProjectState } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
 import { hasCredentials, hasWebLogin, lacksPassword, needsAuth, withCredentials } from '@/utils/credentials'
+import { refreshQuickLogins } from '@/services/quickLogins'
 import { BRAND_LABEL, brandOf } from '@/utils/quickLogin'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
@@ -75,7 +76,7 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
     // Lưu làm đăng nhập nhanh cho hãng này (chỉ khi đã kiểm thật qua gateway, và không phải chính tài khoản nhanh).
     if (gateway && brand && !override && saveQuick) {
       const next = { ...quick, [brand]: { username: u, password: pw } }
-      if ((await gateway.saveQuickLogins(next)).ok) setQuick(next)
+      if ((await gateway.saveQuickLogins(next)).ok) { setQuick(next); void refreshQuickLogins(gateway) }
     }
     logEvent(p.id, 'info', `Signed in${u ? ` as ${u}` : ''}${override ? ' (quick login)' : ''}${gateway ? '' : ' (simulated, not verified)'}${applyAll && others.length ? `; same login applied to ${others.length} other device(s)` : ''}`)
     setBusy(false)

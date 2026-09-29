@@ -1,61 +1,18 @@
-import { useEffect, useRef, useState } from 'react'
-import type { PreviewDto } from '../../../shared/api.ts'
 import { PreviewScreen } from '@/components/projector/PreviewScreen'
-import { useCapabilities } from '@/hooks/useCapabilities'
-import { useGateway } from '@/store/useGateway'
+import { useLivePreview } from '@/hooks/useLivePreview'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
 
-/** Ảnh thật đọc lại mỗi giây (máy chỉ cho ảnh thu nhỏ; web của máy cũng tải lại liên tục như vậy). */
+/** Trang máy: đọc lại mỗi giây (web của máy cũng tải lại liên tục như vậy). */
 const PREVIEW_MS = 1000
 
-type Live =
-  | { kind: 'idle' }
-  | { kind: 'ok'; preview: PreviewDto }
-  | { kind: 'error'; code: string; message: string }
-
-/**
- * Hình trực tiếp khi máy hỗ trợ (Christie: qua web, cần tài khoản web); còn lại là ô mô phỏng.
- * Sai / thiếu tài khoản → dừng hỏi cho tới khi đổi tài khoản (không gửi lại mật khẩu sai liên tục).
- */
-function useLivePreview(p: Projector, enabled: boolean): Live {
-  const { gateway } = useGateway()
-  const [live, setLive] = useState<Live>({ kind: 'idle' })
-  const { username, password } = p.network.protocol
-  const on = p.power === 'on' && p.connection === 'connected'
-  const latest = useRef(p)
-  latest.current = p
-
-  useEffect(() => {
-    setLive({ kind: 'idle' })
-    if (!gateway || !enabled || !on || (!username && !password)) return
-    let cancelled = false
-    let timer: ReturnType<typeof setTimeout> | undefined
-    async function tick() {
-      const r = await gateway!.preview(latest.current)
-      if (cancelled) return
-      if (r.ok) setLive({ kind: 'ok', preview: r.value })
-      else setLive({ kind: 'error', code: r.code, message: r.message })
-      if (!r.ok && r.code === 'auth') return
-      timer = setTimeout(tick, PREVIEW_MS)
-    }
-    void tick()
-    return () => { cancelled = true; clearTimeout(timer) }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- chỉ khởi động lại khi đổi máy / tài khoản / trạng thái
-  }, [gateway, enabled, on, p.id, p.network.ip, username, password])
-
-  return live
-}
-
 export function PreviewPanel({ projector }: { projector: Projector }) {
-  const caps = useCapabilities(projector)
-  const live = useLivePreview(projector, caps.preview)
-  const { username, password } = projector.network.protocol
+  const { live, supported, hasAccount } = useLivePreview(projector, PREVIEW_MS)
   const image = live.kind === 'ok' && live.preview.state === 'image' ? live.preview.image : undefined
 
   let note: string | null = null
-  if (caps.preview && projector.power === 'on') {
-    if (!username && !password) note = t('Sign in with the projector web account (top right) to see the live preview.')
+  if (supported && projector.power === 'on') {
+    if (!hasAccount) note = t('Sign in with the projector web account (top right) to see the live preview.')
     else if (live.kind === 'error') note = t('Live preview unavailable: {message}', { message: live.message })
     else if (live.kind === 'ok' && live.preview.state === 'no-signal') note = t('No signal on {input}', { input: live.preview.input ?? projector.input })
     else if (live.kind === 'ok' && live.preview.state === 'no-thumbnail') note = t('The projector has no preview image for this input')

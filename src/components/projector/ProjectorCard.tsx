@@ -6,6 +6,7 @@ import { PowerDot } from '@/components/ui/StatusDot'
 import { cn } from '@/utils/cn'
 import { formatHours } from '@/utils/format'
 import type { Projector } from '@/types'
+import { useLivePreview } from '@/hooks/useLivePreview'
 import { PreviewScreen } from './PreviewScreen'
 import { TempBar } from './TempBar'
 
@@ -36,6 +37,8 @@ function CardButton({ label, active, activeClass, hoverClass, onClick, last, chi
   )
 }
 
+const CARD_PREVIEW_MS = 3000
+
 type BarState = 'on' | 'off' | 'offline' | 'login'
 
 function barState(p: Projector): BarState {
@@ -54,6 +57,9 @@ const STATUS_BAR: Record<BarState, string> = {
 export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onToggleShutter, onContextMenu, dragProps }: ProjectorCardProps) {
   const t = useT()
   const hasError = p.errors.length > 0
+  // Thumbnail thật (Christie qua web của máy); chậm hơn trang máy để nhiều thẻ không hỏi dồn dập.
+  const { live } = useLivePreview(p, CARD_PREVIEW_MS)
+  const image = live.kind === 'ok' && live.preview.state === 'image' ? live.preview.image : undefined
 
   function handleKey(e: KeyboardEvent) {
     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
@@ -92,7 +98,9 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
         </div>
       </div>
 
-      <PreviewScreen projector={p} size="sm" />
+      {image
+        ? <div className="relative h-[90px] overflow-hidden bg-black"><img src={image} alt="" className="size-full object-cover" /><span className="absolute top-1 left-1.5 size-1.5 animate-pulse rounded-full bg-ok" /></div>
+        : <PreviewScreen projector={p} size="sm" />}
 
       <div className="flex flex-col gap-1 border-t border-border px-3 py-2">
         <div className="flex items-baseline justify-between">

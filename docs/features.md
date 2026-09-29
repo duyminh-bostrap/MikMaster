@@ -111,7 +111,7 @@ Hai máy thử: **Panasonic PT-RQ35K** `192.168.1.176` (firmware 1.21) và **Chr
 | Đổi input (ghi) | 🧪 PJLink `INPT 31/32` — chưa gửi thử | ⬜ Chưa có bảng số `SIN` của cấu hình cổng |
 | Vị trí lens (đọc) | ⬜ PJLink không có | ✅ `LHO?` `LVO?` `ZOM?` `FCS?` (đơn vị của máy) — ô "Vị trí lens (máy báo)" ở cột lens |
 | Test pattern | ⬜ PJLink không có | ⬜ Có mã `ITP` (đang "Off"), chưa có danh sách giá trị |
-| Live preview | ⬜ | 🧪 Ảnh tín hiệu vào qua web của máy (JSON-RPC `/cgi-bin/c4jweb`: `session:connect` → `video:getInputInfo` → `/cgi-bin/thumbnail`), làm mới mỗi giây. **Cần tài khoản web** — nhập ở góc trên bên phải trang máy ("Tài khoản web"). Đã kiểm với bộ giả lập; chưa kiểm với máy thật vì cần đăng nhập |
+| Live preview | ⬜ | 🧪 Ảnh tín hiệu vào qua web của máy (JSON-RPC `/cgi-bin/c4jweb`: `session:connect` → `video:getInputInfo` → `/cgi-bin/thumbnail`), làm mới mỗi giây ở trang máy, mỗi 3 giây ở thẻ Dashboard (thẻ có thumbnail thật). **Cần tài khoản web** (hoặc đăng nhập nhanh của hãng) — nhập ở góc trên bên phải trang máy ("Tài khoản web"). Đã kiểm với bộ giả lập; chưa kiểm với máy thật vì cần đăng nhập |
 
 Nhập IP một máy Panasonic trả lời cả PJLink lẫn NTCONTROL → app chọn **PJLink**. Preset PT-RQ35K cũng dùng PJLink.
 
