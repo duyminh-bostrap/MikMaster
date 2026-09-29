@@ -1,0 +1,50 @@
+import type { Dispatch } from 'react'
+import type { OsdKeyDto } from '../../shared/api.ts'
+import type { Gateway } from '@/services/gateway'
+import { liveCapabilities } from '@/services/capabilities'
+import type { InputSource, PowerState, Projector } from '@/types'
+import type { ProjectAction } from './projectReducer'
+
+/*
+ * Lệnh gửi tới máy thật. UI cập nhật lạc quan (reducer đã đổi state); nếu lệnh thất bại, kết quả
+ * được đẩy lại vào model (mất kết nối / lỗi giao thức / log) chứ không im lặng.
+ */
+
+const HOLD_MS = 2500
+const busyUntil = new Map<string, number>()
+
+/** Vòng poll bỏ qua máy vừa nhận lệnh để trạng thái cũ không ghi đè thay đổi người dùng vừa làm. */
+export function isBusy(id: string): boolean {
+  return (busyUntil.get(id) ?? 0) > Date.now()
+}
+
+export interface DeviceEffects {
+  power(ids: string[], power: PowerState): void
+  shutter(ids: string[], closed: boolean): void
+  input(id: string, input: InputSource): void
+  osd(id: string, key: OsdKeyDto): void
+}
+
+export function createDeviceEffects(gateway: Gateway, find: (id: string) => Projector | undefined, dispatch: Dispatch<ProjectAction>): DeviceEffects {
+  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd', send: (p: Projector) => ReturnType<Gateway['command']>) {
+    const p = find(id)
+    if (!p) return
+    if (!liveCapabilities(p.network.protocol.type).includes(capability)) {
+      dispatch({ type: 'projector/log', id, level: 'warn', message: `"${capability}" is not sent to the device: ${p.network.protocol.type} has no verified live command (local change only)` })
+      return
+    }
+    busyUntil.set(id, Date.now() + HOLD_MS)
+    const result = await send(p)
+    if (!result.ok) {
+      busyUntil.delete(id)
+      dispatch({ type: 'projector/sync', id, result: { ok: false, code: result.code, message: `${capability}: ${result.message}` } })
+    }
+  }
+
+  return {
+    power: (ids, power) => ids.forEach(id => void run(id, 'power', p => gateway.command(p, { kind: 'power', value: power }))),
+    shutter: (ids, closed) => ids.forEach(id => void run(id, 'shutter', p => gateway.command(p, { kind: 'shutter', closed }))),
+    input: (id, input) => void run(id, 'input', p => gateway.command(p, { kind: 'input', input })),
+    osd: (id, key) => void run(id, 'osd', p => gateway.command(p, { kind: 'osd', key })),
+  }
+}

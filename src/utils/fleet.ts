@@ -11,17 +11,18 @@ export interface FleetStats {
 }
 
 export function computeFleetStats(projectors: Projector[]): FleetStats {
-  const active = projectors.filter(p => p.power !== 'off')
+  // Nhiệt độ 0 = thiết bị không báo (ví dụ PJLink không có trường này) → không đưa vào thống kê.
+  const active = projectors.filter(p => p.power !== 'off' && p.telemetry.temperatureC > 0)
   const avgTemp = active.length
     ? Math.round(active.reduce((sum, p) => sum + p.telemetry.temperatureC, 0) / active.length)
     : 0
   const hottest = projectors.reduce<Projector | null>(
-    (best, p) => (!best || p.telemetry.temperatureC > best.telemetry.temperatureC ? p : best),
+    (best, p) => (p.telemetry.temperatureC > (best?.telemetry.temperatureC ?? 0) ? p : best),
     null,
   )
   return {
     total: projectors.length,
-    online: projectors.filter(p => p.power === 'on').length,
+    online: projectors.filter(p => p.power === 'on' && p.connection === 'connected').length,
     alerts: projectors.filter(p => p.errors.length > 0).length,
     avgTemp,
     hottest,

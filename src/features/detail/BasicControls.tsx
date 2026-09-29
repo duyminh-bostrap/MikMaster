@@ -6,8 +6,8 @@ import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
 
 /** Power · Shutter · Input source. */
-export function BasicControls({ projector: p }: { projector: Projector }) {
-  const { setPower, setShutter, updateProjector } = useProjectActions()
+export function BasicControls({ projector: p, inputEnabled }: { projector: Projector; inputEnabled: boolean }) {
+  const { setPower, setShutter, setInput } = useProjectActions()
 
   return (
     <>
@@ -33,7 +33,7 @@ export function BasicControls({ projector: p }: { projector: Projector }) {
       <SectionHeader label="INPUT SOURCE" />
       <div className="mb-5 flex flex-wrap gap-1.5">
         {INPUT_SOURCES.map(source => (
-          <Button key={source} variant="accent" selected={p.input === source} className="px-2.5" onClick={() => updateProjector(p.id, { input: source })}>
+          <Button key={source} variant="accent" selected={p.input === source} disabled={!inputEnabled} className="px-2.5" onClick={() => setInput(p.id, source)}>
             {source}
           </Button>
         ))}

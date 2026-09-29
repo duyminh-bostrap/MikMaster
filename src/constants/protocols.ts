@@ -19,7 +19,7 @@ export const PROTOCOL_OPTIONS: readonly ProtocolOption[] = [
   { type: 'generic-udp', label: 'Generic UDP', defaultPort: 5000, auth: 'None', transport: 'UDP' },
   { type: 'art-net', label: 'Art-Net', defaultPort: 6454, auth: 'None', transport: 'UDP' },
   { type: 'http-api', label: 'HTTP API', defaultPort: 80, auth: 'Basic', transport: 'HTTP' },
-  { type: 'panasonic-nt-control', label: 'Panasonic NT Control', defaultPort: 1024, auth: 'MD5 Challenge', transport: 'TCP' },
+  { type: 'panasonic-nt-control', label: 'Panasonic NTCONTROL', defaultPort: 1024, auth: 'MD5 Challenge', transport: 'TCP' },
 ]
 
 export function getProtocolOption(type: ProtocolType): ProtocolOption {

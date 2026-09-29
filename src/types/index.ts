@@ -1,3 +1,4 @@
+export type * from './discovery'
 export type * from './lens'
 export type * from './osd'
 export type * from './project'

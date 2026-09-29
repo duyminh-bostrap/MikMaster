@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { AppLogo } from '@/components/layout/AppLogo'
+import { GatewayBadge } from '@/components/layout/GatewayBadge'
 import { Badge } from '@/components/ui/Badge'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { ChooseMode } from '@/features/start/ChooseMode'
@@ -47,7 +48,7 @@ export default function StartPage() {
         {mode === 'new' && <NewProjectWizard onBack={() => setMode('choose')} onLaunch={launch} />}
       </main>
 
-      <AppFooter left="MikMaster — Professional AV Control" right={<><StatusDot tone="ok" className="size-1.5" />Network ready</>} />
+      <AppFooter left="MikMaster — Professional AV Control" right={<><GatewayBadge /><StatusDot tone="ok" className="size-1.5" />Network ready</>} />
     </div>
   )
 }

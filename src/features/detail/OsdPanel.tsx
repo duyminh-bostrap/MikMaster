@@ -2,17 +2,15 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
 import { DirectionPad, type Direction } from '@/components/ui/DirectionPad'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+import { useProjectActions } from '@/store/hooks'
 import type { OsdKey, Projector } from '@/types'
 
-/**
- * OSD chỉ khả dụng khi máy đang bật (menu chỉ hiện khi có hình).
- * Chưa có backend nên phím bấm chỉ được ghi vào `lastSent` để người vận hành thấy phản hồi;
- * thay `send` bằng lời gọi driver giao thức khi có.
- */
+/** OSD chỉ khả dụng khi máy đang bật (menu chỉ hiện khi có hình). Phím được gửi qua gateway nếu có. */
 export function OsdPanel({ projector }: { projector: Projector }) {
   const [lastSent, setLastSent] = useState<OsdKey | null>(null)
   const disabled = projector.power !== 'on'
-  const send = (key: OsdKey) => setLastSent(key)
+  const { sendOsd } = useProjectActions()
+  const send = (key: OsdKey) => { setLastSent(key); sendOsd(projector.id, key) }
 
   const sideButton = (key: OsdKey, label: string, main = false) => (
     <Button variant="secondary" disabled={disabled} className={main ? 'w-20 py-2 tracking-[0.06em]' : 'w-20 py-1.5 text-muted-foreground'} onClick={() => send(key)}>

@@ -54,6 +54,12 @@ export function PreviewScreen({ projector, size }: { projector: Projector; size:
         </div>
       )}
 
+      {state === 'nolink' && (
+        <div className="absolute inset-0 flex items-center justify-center">
+          <span className={cn(label, 'text-danger/60', lg ? 'text-sm' : 'text-xs')}>NO LINK</span>
+        </div>
+      )}
+
       {state === 'off' && (
         <div className="absolute inset-0 flex items-center justify-center">
           <span className={cn(label, 'text-muted-foreground/40', lg ? 'text-sm' : 'text-xs')}>{lg ? 'NO OUTPUT' : 'OFF'}</span>

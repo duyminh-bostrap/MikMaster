@@ -10,6 +10,8 @@ pnpm dev        # http://localhost:5173
 pnpm build      # typecheck + build
 ```
 
+Tài liệu: [`docs/features.md`](docs/features.md) (tính năng và mức độ đã kiểm) · [`docs/tasks.md`](docs/tasks.md) (công việc còn lại).
+
 > `AV Projector Control App/` là bản thiết kế gốc (Figma Make), giữ lại để đối chiếu; app thật nằm ở `src/`.
 
 ## Cấu trúc `src/`
@@ -34,7 +36,22 @@ utils/        cn, format, tones, network, lens, projector, fleet
 data/         mock data
 ```
 
-## Còn là giả lập
+## Backend (`server/`)
 
-Chưa có backend điều khiển thật: quét mạng (`useNetworkScan`), phím OSD (`OsdPanel`),
-Reconnect (`DeviceStatus`) và telemetry đều là mô phỏng — đó là các điểm để nối driver giao thức.
+Trình duyệt không mở được socket TCP, nên `server/` là gateway Node (không thêm dependency) nói chuyện với máy chiếu:
+PJLink, **Panasonic NTCONTROL (PT-RQ35K)**, **Christie serial-over-IP (Griffyn)**. Web tự phát hiện gateway:
+có thì chạy `LIVE`, không thì `SIMULATED`.
+
+```bash
+pnpm server      # http://127.0.0.1:8787 (vite proxy /api)
+pnpm sim         # máy giả lập để thử khi chưa có phần cứng
+pnpm test:server
+```
+
+> **Driver chưa được thử trên máy thật.** Tài liệu gốc của Panasonic/Christie không truy cập được lúc viết;
+> lệnh dựa trên nguồn thứ cấp (ghi rõ trong đầu file `server/src/drivers/*.ts`). Chỉ bật những lệnh có nguồn dẫn chứng:
+> Lens, Test Pattern chưa bật ở chế độ LIVE. Dùng **RAW COMMAND** ở trang Detail để đối chiếu với máy thật.
+
+## Còn là giả lập ở chế độ SIMULATED
+
+Quét mạng, phím OSD, Reconnect, Lens, Test Pattern và telemetry đều là dữ liệu giả.

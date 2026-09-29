@@ -1,5 +1,6 @@
 import { applyLensDelta, buildLensPreset } from '@/utils/lens'
-import { applyPower } from '@/utils/projector'
+import { applyPower, appendLog } from '@/utils/projector'
+import { applyRemote, type SyncResult } from '@/utils/sync'
 import type {
   Booth,
   LensPosition,
@@ -23,6 +24,8 @@ export type ProjectAction =
   | { type: 'project/launch'; payload: { project: Project; booths: Booth[]; projectors: Projector[] } }
   | { type: 'project/close' }
   | { type: 'projector/patch'; id: string; patch: Partial<Omit<Projector, 'id'>> }
+  | { type: 'projector/sync'; id: string; result: SyncResult }
+  | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
   | { type: 'projectors/setPower'; ids: string[]; power: PowerState }
   | { type: 'projectors/setShutter'; ids: string[]; shutter: boolean }
   | { type: 'projector/setTestPattern'; id: string; patch: Partial<TestPatternState> }
@@ -51,6 +54,12 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'projector/patch':
       return mapProjectors(state, [action.id], p => ({ ...p, ...action.patch }))
+
+    case 'projector/sync':
+      return mapProjectors(state, [action.id], p => applyRemote(p, action.result))
+
+    case 'projector/log':
+      return mapProjectors(state, [action.id], p => ({ ...p, log: appendLog(p, action.level, action.message) }))
 
     case 'projectors/setPower':
       return mapProjectors(state, action.ids, p => applyPower(p, action.power))

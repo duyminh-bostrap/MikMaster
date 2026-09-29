@@ -5,6 +5,7 @@ import { cn } from '@/utils/cn'
 const MAX_TEMP = 90
 
 export function TempBar({ tempC }: { tempC: number }) {
+  if (tempC <= 0) return <span className="font-mono text-xs text-muted-foreground">Temp —</span>
   const tone = temperatureTone(tempC)
   return (
     <div className="flex items-center gap-2">

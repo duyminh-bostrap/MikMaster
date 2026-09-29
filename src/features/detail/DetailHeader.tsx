@@ -28,7 +28,7 @@ export function DetailHeader({ project, booth, projector, onBack }: { project: P
           <PowerDot power={projector.power} />
           {projector.power}
         </span>
-        <span className={TONE_TEXT[tempTone]}>{projector.telemetry.temperatureC}°C</span>
+        {projector.telemetry.temperatureC > 0 && <span className={TONE_TEXT[tempTone]}>{projector.telemetry.temperatureC}°C</span>}
         <span className="text-accent">{projector.network.ip}</span>
         {projector.errors.length > 0 && <Badge tone="danger">⚠ {projector.errors[0]}</Badge>}
       </div>

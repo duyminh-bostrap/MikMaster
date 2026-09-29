@@ -4,9 +4,11 @@ import type { LogEntry, PowerState, Projector, ProtocolType } from '@/types'
 export const DEFAULT_BRIGHTNESS = 85
 
 /** Trạng thái hiển thị của ô preview; thứ tự ưu tiên phản ánh hành vi thật của máy chiếu. */
-export type PreviewState = 'off' | 'standby' | 'shutter' | 'pattern' | 'live'
+export type PreviewState = 'nolink' | 'off' | 'standby' | 'shutter' | 'pattern' | 'live'
 
 export function getPreviewState(p: Projector): PreviewState {
+  // Mất liên lạc: không biết máy đang chiếu gì → không vẽ trạng thái cũ như thể còn đúng.
+  if (p.connection !== 'connected') return 'nolink'
   if (p.power === 'off') return 'off'
   if (p.power === 'standby') return 'standby'
   if (p.shutter) return 'shutter'

@@ -1,14 +1,25 @@
 import { useCallback, useMemo, useState } from 'react'
-import { MOCK_BOOTHS, type DiscoverableDevice } from '@/data/mock'
+import { MOCK_BOOTHS } from '@/data/mock'
 import { defaultProtocolConfig } from '@/constants/protocols'
 import { isValidIPv4 } from '@/utils/network'
 import { createProjector } from '@/utils/projector'
-import type { Booth, Project, Projector, ProtocolType } from '@/types'
+import type { Booth, DiscoveredDevice, Project, Projector, ProtocolType } from '@/types'
 
 export interface DraftDevice {
   projector: Projector
   source: 'scan' | 'manual'
   selected: boolean
+  /** Thiết bị đòi mật khẩu → hiện ô nhập thông tin đăng nhập. */
+  authRequired: boolean
+}
+
+export interface ManualDeviceInput {
+  ip: string
+  name: string
+  protocol: ProtocolType
+  model?: string
+  username?: string
+  password?: string
 }
 
 /** Trạng thái của quy trình "New Project": thông tin, Booth, thiết bị (quét + thêm tay) và việc phân bổ. */
@@ -19,24 +30,28 @@ export function useNewProjectDraft() {
   const [devices, setDevices] = useState<DraftDevice[]>([])
 
   // Id nháp = IP (duy nhất trong draft); id hiển thị PJ-xx được cấp lúc launch.
-  const addDiscovered = useCallback((d: DiscoverableDevice) => {
+  const addDiscovered = useCallback((d: DiscoveredDevice) => {
     setDevices(prev => {
-      if (prev.some(x => x.projector.network.ip === d.ip)) return prev
-      const boothId = booths.some(b => b.id === d.suggestedBoothId) ? d.suggestedBoothId : (booths[0]?.id ?? '')
-      const projector = createProjector({ id: d.ip, boothId, name: d.name, ip: d.ip, location: d.location, model: d.model, protocol: d.protocol })
-      return [...prev, { projector, source: 'scan', selected: true }]
+      const key = `${d.ip}:${d.protocol}`
+      if (prev.some(x => `${x.projector.network.ip}:${x.projector.network.protocol.type}` === key)) return prev
+      const boothId = d.suggestedBoothId && booths.some(b => b.id === d.suggestedBoothId) ? d.suggestedBoothId : (booths[0]?.id ?? '')
+      const base = createProjector({ id: d.ip, boothId, name: d.name ?? d.model ?? `${d.manufacturer ?? 'Projector'} ${d.ip}`, ip: d.ip, location: d.location, model: d.model ?? d.manufacturer, protocol: d.protocol })
+      const projector = { ...base, network: { ...base.network, protocol: { ...base.network.protocol, port: d.port } } }
+      return [...prev, { projector, source: 'scan', selected: true, authRequired: d.authRequired }]
     })
   }, [booths])
 
   const clearScanned = useCallback(() => setDevices(prev => prev.filter(d => d.source === 'manual')), [])
 
   /** Trả về thông báo lỗi, hoặc `null` nếu thêm thành công. */
-  const addManual = useCallback((ip: string, displayName: string, protocol: ProtocolType): string | null => {
-    const trimmed = ip.trim()
-    if (!isValidIPv4(trimmed)) return 'Invalid IP address format'
-    if (devices.some(d => d.projector.network.ip === trimmed)) return 'This IP is already in the list'
-    const projector = createProjector({ id: trimmed, boothId: booths[0]?.id ?? '', name: displayName.trim() || `Projector ${trimmed}`, ip: trimmed, location: 'Manual', protocol })
-    setDevices(prev => [...prev, { projector, source: 'manual', selected: true }])
+  const addManual = useCallback((input: ManualDeviceInput): string | null => {
+    const ip = input.ip.trim()
+    if (!isValidIPv4(ip)) return 'Invalid IP address format'
+    if (devices.some(d => d.projector.network.ip === ip)) return 'This IP is already in the list'
+    const base = createProjector({ id: ip, boothId: booths[0]?.id ?? '', name: input.name.trim() || `Projector ${ip}`, ip, location: 'Manual', model: input.model, protocol: input.protocol })
+    const protocol = { ...base.network.protocol, username: input.username || undefined, password: input.password || undefined }
+    const projector = { ...base, network: { ...base.network, protocol } }
+    setDevices(prev => [...prev, { projector, source: 'manual', selected: true, authRequired: !!(input.username || input.password) }])
     return null
   }, [devices, booths])
 
@@ -47,6 +62,12 @@ export function useNewProjectDraft() {
   const setSelected = useCallback((ip: string, selected: boolean) => {
     setDevices(prev => prev.map(d => (d.projector.network.ip === ip ? { ...d, selected } : d)))
   }, [])
+
+  const setCredentialsOf = useCallback(
+    (ip: string, creds: { username?: string; password?: string }) =>
+      patchDevice(ip, p => ({ ...p, network: { ...p.network, protocol: { ...p.network.protocol, ...creds } } })),
+    [patchDevice],
+  )
 
   const setBoothOf = useCallback((ip: string, boothId: string) => patchDevice(ip, p => ({ ...p, boothId })), [patchDevice])
 
@@ -83,5 +104,5 @@ export function useNewProjectDraft() {
     return { project, booths, projectors }
   }, [name, venue, booths, devices])
 
-  return { name, setName, venue, setVenue, booths, addBooth, removeBooth, devices, addDiscovered, clearScanned, addManual, setSelected, setBoothOf, setProtocolOf, selectedCount, buildLaunchPayload }
+  return { name, setName, venue, setVenue, booths, addBooth, removeBooth, devices, addDiscovered, clearScanned, addManual, setSelected, setBoothOf, setProtocolOf, setCredentialsOf, selectedCount, buildLaunchPayload }
 }

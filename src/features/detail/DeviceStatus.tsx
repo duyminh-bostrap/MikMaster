@@ -45,7 +45,7 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
           {p.connection !== 'connected' && <Button size="xs" variant="accent" onClick={reconnect}>RECONNECT</Button>}
         </div>
         <Row label="MODEL" value={p.model} />
-        <Row label="LAMP HOURS" value={formatHours(lampHours)} />
+        <Row label="LAMP HOURS" value={lampHours > 0 ? formatHours(lampHours) : '—'} />
         <Row label="BRIGHTNESS" value={`${brightness}%`} />
         <Row label="TEMPERATURE" value={temperatureC > 0 ? `${temperatureC}°C` : '—'} valueClassName={TONE_TEXT[temperatureTone(temperatureC)]} />
       </div>

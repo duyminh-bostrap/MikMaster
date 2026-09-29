@@ -1,17 +1,33 @@
 import type { Dispatch } from 'react'
-import type { LensPosition, LensSlot, PowerState, Projector, TestPatternState } from '@/types'
+import type { OsdKeyDto } from '../../shared/api.ts'
+import type { SyncResult } from '@/utils/sync'
+import type { InputSource, LensPosition, LensSlot, PowerState, Projector, TestPatternState } from '@/types'
+import type { DeviceEffects } from './deviceEffects'
 import type { ProjectAction, ProjectState } from './projectReducer'
 
 /** Lớp API mà UI gọi; UI không bao giờ tự dựng action object. */
-export function createProjectActions(dispatch: Dispatch<ProjectAction>) {
+export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects: DeviceEffects | null = null) {
   return {
-    launchProject: (payload: NonNullable<Extract<ProjectAction, { type: 'project/launch' }>['payload']>) =>
+    launchProject: (payload: Extract<ProjectAction, { type: 'project/launch' }>['payload']) =>
       dispatch({ type: 'project/launch', payload }),
     closeProject: () => dispatch({ type: 'project/close' }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>
       dispatch({ type: 'projector/patch', id, patch }),
-    setPower: (ids: string[], power: PowerState) => dispatch({ type: 'projectors/setPower', ids, power }),
-    setShutter: (ids: string[], shutter: boolean) => dispatch({ type: 'projectors/setShutter', ids, shutter }),
+    setPower: (ids: string[], power: PowerState) => {
+      dispatch({ type: 'projectors/setPower', ids, power })
+      effects?.power(ids, power)
+    },
+    setShutter: (ids: string[], shutter: boolean) => {
+      dispatch({ type: 'projectors/setShutter', ids, shutter })
+      effects?.shutter(ids, shutter)
+    },
+    setInput: (id: string, input: InputSource) => {
+      dispatch({ type: 'projector/patch', id, patch: { input } })
+      effects?.input(id, input)
+    },
+    sendOsd: (id: string, key: OsdKeyDto) => effects?.osd(id, key),
+    syncProjector: (id: string, result: SyncResult) => dispatch({ type: 'projector/sync', id, result }),
+    logEvent: (id: string, level: 'info' | 'warn' | 'error', message: string) => dispatch({ type: 'projector/log', id, level, message }),
     setTestPattern: (id: string, patch: Partial<TestPatternState>) =>
       dispatch({ type: 'projector/setTestPattern', id, patch }),
     adjustLens: (id: string, delta: Partial<LensPosition>) => dispatch({ type: 'lens/adjust', id, delta }),

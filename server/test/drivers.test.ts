@@ -1,0 +1,178 @@
+import assert from 'node:assert/strict'
+import { after, before, describe, test } from 'node:test'
+import { christieDriver } from '../src/drivers/christie.ts'
+import { panasonicDriver } from '../src/drivers/panasonic.ts'
+import { pjlinkDriver } from '../src/drivers/pjlink.ts'
+import type { DriverTarget } from '../src/drivers/types.ts'
+import { DeviceError, splitParens } from '../src/net/tcp.ts'
+import { ChristieSimulator } from '../src/sim/christieSim.ts'
+import { PanasonicSimulator } from '../src/sim/panasonicSim.ts'
+import { PjlinkSimulator } from '../src/sim/pjlinkSim.ts'
+
+const target = (port: number, extra: Partial<DriverTarget> = {}): DriverTarget => ({ host: '127.0.0.1', port, timeoutMs: 1000, ...extra })
+
+async function rejectsWith(promise: Promise<unknown>, code: string) {
+  await assert.rejects(promise, (err: unknown) => err instanceof DeviceError && err.code === code, `expected DeviceError(${code})`)
+}
+
+describe('splitParens', () => {
+  test('splits frames and keeps ")" inside quotes', () => {
+    const { frames, rest } = splitParens('(PWR!001 "On (ok)")\r\n(SHU!000 "Open")(PW')
+    assert.deepEqual(frames, ['(PWR!001 "On (ok)")', '(SHU!000 "Open")'])
+    assert.equal(rest, '(PW')
+  })
+})
+
+describe('PJLink driver', () => {
+  const sim = new PjlinkSimulator({ name: 'Booth 1', manufacturer: 'Acme', model: 'X1' })
+  const secured = new PjlinkSimulator({ password: 'secret' })
+  before(async () => { await sim.start(); await secured.start() })
+  after(async () => { await sim.stop(); await secured.stop() })
+
+  test('standby status has no input/shutter (ERR3 tolerated)', async () => {
+    sim.power = 0
+    const s = await pjlinkDriver.status(target(sim.port))
+    assert.equal(s.power, 'standby')
+    assert.equal(s.input, undefined)
+    assert.equal(s.lampHours, 1200)
+  })
+
+  test('power on, input, shutter round-trip', async () => {
+    const t = target(sim.port)
+    await pjlinkDriver.command(t, { kind: 'power', value: 'on' })
+    await pjlinkDriver.command(t, { kind: 'input', input: 'HDMI 2' })
+    await pjlinkDriver.command(t, { kind: 'shutter', closed: true })
+    const s = await pjlinkDriver.status(t)
+    assert.deepEqual([s.power, s.input, s.shutter], ['on', 'HDMI 2', true])
+    await pjlinkDriver.command(t, { kind: 'power', value: 'off' })
+    assert.equal(sim.power, 0)
+  })
+
+  test('ERST bits become readable errors', async () => {
+    sim.power = 1
+    sim.erst = '021000'
+    const s = await pjlinkDriver.status(target(sim.port))
+    assert.deepEqual(s.errors, ['Lamp error', 'High Temp warning'])
+    sim.erst = '000000'
+  })
+
+  test('unmapped input is rejected before touching the device', async () => {
+    await rejectsWith(pjlinkDriver.command(target(sim.port), { kind: 'input', input: 'Nope' }), 'unsupported')
+  })
+
+  test('probe reads identity', async () => {
+    const p = await pjlinkDriver.probe('127.0.0.1', sim.port, 500)
+    assert.deepEqual(p, { authRequired: false, name: 'Booth 1', manufacturer: 'Acme', model: 'X1' })
+  })
+
+  test('MD5 auth: correct password works, wrong one is an auth error', async () => {
+    assert.equal((await pjlinkDriver.status(target(secured.port, { password: 'secret' }))).power, 'standby')
+    await rejectsWith(pjlinkDriver.status(target(secured.port, { password: 'wrong' })), 'auth')
+    assert.deepEqual(await pjlinkDriver.probe('127.0.0.1', secured.port, 500), { authRequired: true })
+  })
+
+  test('raw passes text through', async () => {
+    assert.equal(await pjlinkDriver.raw(target(sim.port), '%1CLSS ?'), '%1CLSS=1')
+  })
+})
+
+describe('Panasonic NTCONTROL driver', () => {
+  const open = new PanasonicSimulator()
+  const secured = new PanasonicSimulator({ credentials: { username: 'admin1', password: 'panasonic' } })
+  before(async () => { await open.start(); await secured.start() })
+  after(async () => { await open.stop(); await secured.stop() })
+
+  test('sends the documented command strings', async () => {
+    const t = target(open.port)
+    await panasonicDriver.command(t, { kind: 'power', value: 'on' })
+    await panasonicDriver.command(t, { kind: 'shutter', closed: true })
+    await panasonicDriver.command(t, { kind: 'input', input: 'HDBaseT' })
+    await panasonicDriver.command(t, { kind: 'osd', key: 'menu' })
+    await panasonicDriver.command(t, { kind: 'osd', key: 'enter' })
+    assert.deepEqual(open.received, ['PON', 'OSH:1', 'IIS:DL1', 'OMN', 'OEN'])
+  })
+
+  test('status maps replies back to app labels', async () => {
+    const s = await panasonicDriver.status(target(open.port))
+    assert.deepEqual([s.power, s.shutter, s.input], ['on', true, 'HDBaseT'])
+  })
+
+  test('standby: shutter/input queries (ERR3) are tolerated', async () => {
+    await panasonicDriver.command(target(open.port), { kind: 'power', value: 'standby' })
+    const s = await panasonicDriver.status(target(open.port))
+    assert.deepEqual([s.power, s.shutter, s.input], ['standby', undefined, undefined])
+  })
+
+  test('MD5 challenge auth with default and explicit credentials', async () => {
+    assert.equal((await panasonicDriver.status(target(secured.port))).power, 'standby')
+    assert.equal((await panasonicDriver.status(target(secured.port, { username: 'admin1', password: 'panasonic' }))).power, 'standby')
+  })
+
+  test('wrong password → auth error', async () => {
+    await rejectsWith(panasonicDriver.status(target(secured.port, { username: 'admin1', password: 'bad' })), 'auth')
+  })
+
+  test('OSD keys without a verified command are unsupported', async () => {
+    await rejectsWith(panasonicDriver.command(target(open.port), { kind: 'osd', key: 'back' }), 'unsupported')
+  })
+
+  test('sim rejects unknown command with ERR1 → device error', async () => {
+    await rejectsWith(panasonicDriver.raw(target(open.port), 'ZZZ'), 'device')
+  })
+
+  test('probe: open device exposes model, protected one only auth flag', async () => {
+    assert.deepEqual(await panasonicDriver.probe('127.0.0.1', open.port, 500), { authRequired: false, manufacturer: 'Panasonic', model: 'RQ35K' })
+    assert.deepEqual(await panasonicDriver.probe('127.0.0.1', secured.port, 500), { authRequired: true, manufacturer: 'Panasonic' })
+  })
+})
+
+describe('Christie serial driver', () => {
+  const sim = new ChristieSimulator()
+  before(() => sim.start())
+  after(() => sim.stop())
+
+  test('power and shutter commands / status', async () => {
+    const t = target(sim.port)
+    await christieDriver.command(t, { kind: 'power', value: 'on' })
+    await christieDriver.command(t, { kind: 'shutter', closed: true })
+    assert.deepEqual(sim.received.slice(-2), ['(PWR1)', '(SHU1)'])
+    const s = await christieDriver.status(t)
+    assert.deepEqual([s.power, s.shutter], ['on', true])
+    await christieDriver.command(t, { kind: 'power', value: 'off' })
+    assert.equal((await christieDriver.status(t)).power, 'standby')
+  })
+
+  test('input and OSD are unsupported (unverified)', async () => {
+    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'input', input: 'HDMI 1' }), 'unsupported')
+    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'osd', key: 'menu' }), 'unsupported')
+  })
+
+  test('raw returns the device frame verbatim', async () => {
+    assert.equal(await christieDriver.raw(target(sim.port), '(PWR?)'), '(PWR!000 "Standby Mode")')
+    assert.equal(await christieDriver.raw(target(sim.port), '(XXX?)'), '(ERR "Unrecognized command")')
+  })
+
+  test('error frame from the projector becomes a device error', async () => {
+    sim.power = 0 // shutter is unavailable in standby
+    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'shutter', closed: true }), 'device')
+  })
+})
+
+describe('network failures', () => {
+  test('closed port → connect error', async () => {
+    await rejectsWith(pjlinkDriver.status(target(1)), 'connect')
+  })
+
+  test('device that never answers → timeout', async () => {
+    const sim = new PanasonicSimulator()
+    sim.silent = true
+    await sim.start()
+    try { await rejectsWith(panasonicDriver.status(target(sim.port, { timeoutMs: 250 })), 'timeout') } finally { await sim.stop() }
+  })
+
+  test('wrong protocol on the port → protocol error', async () => {
+    const sim = new PjlinkSimulator()
+    await sim.start()
+    try { await rejectsWith(panasonicDriver.status(target(sim.port)), 'protocol') } finally { await sim.stop() }
+  })
+})

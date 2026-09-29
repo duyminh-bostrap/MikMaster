@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useNavigate } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
+import { GatewayBadge } from '@/components/layout/GatewayBadge'
 import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
@@ -43,7 +44,7 @@ export default function DashboardPage() {
       <main className="flex-1 overflow-y-auto p-5">
         <ProjectorGrid projectors={scope} onOpen={openProjector} />
       </main>
-      <AppFooter left="MikMaster v0.1.0" right={formatLongDate(new Date())} />
+      <AppFooter left="MikMaster v0.1.0" right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
     </AppShell>
   )
 }

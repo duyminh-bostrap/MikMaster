@@ -1,4 +1,4 @@
-import type { Booth, LensPreset, Projector, SavedProjectSummary } from '@/types'
+import type { Booth, DiscoveredDevice, LensPreset, Projector, SavedProjectSummary } from '@/types'
 import { createProjector } from '@/utils/projector'
 
 export const MOCK_BOOTHS: Booth[] = [
@@ -20,7 +20,7 @@ function build(id: string, base: ProjectorSeed, patch: Partial<Projector>): Proj
 /** Danh sách máy chiếu mẫu (đã có trạng thái vận hành). */
 export function createMockProjectors(): Projector[] {
   return [
-    build('PJ-01', { boothId: 'booth-a', name: 'Stage Left', location: 'FOH Truss L', ip: '192.168.10.21', model: 'Christie Crimson WU25', protocol: 'christie-serial-ip' }, {
+    build('PJ-01', { boothId: 'booth-a', name: 'Stage Left', location: 'FOH Truss L', ip: '192.168.10.21', model: 'Christie Griffyn 4K32-RGB', protocol: 'christie-serial-ip' }, {
       power: 'on', input: 'HDMI 1',
       telemetry: { temperatureC: 62, lampHours: 1240, brightness: 85 },
       lens: {
@@ -29,7 +29,7 @@ export function createMockProjectors(): Projector[] {
         activePreset: 1,
       },
     }),
-    build('PJ-02', { boothId: 'booth-a', name: 'Stage Right', location: 'FOH Truss R', ip: '192.168.10.22', model: 'Christie Crimson WU25', protocol: 'christie-serial-ip' }, {
+    build('PJ-02', { boothId: 'booth-a', name: 'Stage Right', location: 'FOH Truss R', ip: '192.168.10.22', model: 'Christie Griffyn 4K32-RGB', protocol: 'christie-serial-ip' }, {
       power: 'on', input: 'HDMI 2',
       telemetry: { temperatureC: 58, lampHours: 1238, brightness: 85 },
       lens: {
@@ -38,15 +38,15 @@ export function createMockProjectors(): Projector[] {
         activePreset: 1,
       },
     }),
-    build('PJ-03', { boothId: 'booth-a', name: 'Center Fill', location: 'Mid Truss C', ip: '192.168.10.23', model: 'Barco UDX-4K32', protocol: 'barco-xlm' }, {
+    build('PJ-03', { boothId: 'booth-a', name: 'Center Fill', location: 'Mid Truss C', ip: '192.168.10.23', model: 'Panasonic PT-RQ35K', protocol: 'panasonic-nt-control' }, {
       power: 'on', shutter: true, input: 'SDI 1',
       telemetry: { temperatureC: 71, lampHours: 3102, brightness: 100 },
       errors: ['High Temp'],
       log: [{ id: 'l0', at: '2026-09-29T10:02:00', level: 'error', message: 'Temperature 71°C exceeds 70°C threshold' }],
       lens: { position: { shiftX: 0, shiftY: 0, zoom: 90, focus: 68 }, presets: [null, null, null, null], activePreset: null },
     }),
-    build('PJ-04', { boothId: 'booth-b', name: 'LED Wall A', location: 'DS Floor Left', ip: '192.168.10.41', model: 'Sony VPL-GTZ380', protocol: 'sony-sdcp' }, {
-      power: 'on', input: 'DisplayPort',
+    build('PJ-04', { boothId: 'booth-b', name: 'LED Wall A', location: 'DS Floor Left', ip: '192.168.10.41', model: 'Panasonic PT-RQ35K', protocol: 'panasonic-nt-control' }, {
+      power: 'on', input: 'SDI 1',
       telemetry: { temperatureC: 45, lampHours: 210, brightness: 70 },
       testPattern: { enabled: true, type: 'color-bars' },
       lens: {
@@ -55,18 +55,18 @@ export function createMockProjectors(): Projector[] {
         activePreset: null,
       },
     }),
-    build('PJ-05', { boothId: 'booth-b', name: 'LED Wall B', location: 'DS Floor Right', ip: '192.168.10.42', model: 'Sony VPL-GTZ380', protocol: 'sony-sdcp' }, {
-      power: 'standby', input: 'DisplayPort',
+    build('PJ-05', { boothId: 'booth-b', name: 'LED Wall B', location: 'DS Floor Right', ip: '192.168.10.42', model: 'Panasonic PT-RQ35K', protocol: 'panasonic-nt-control' }, {
+      power: 'standby', input: 'SDI 1',
       telemetry: { temperatureC: 31, lampHours: 208, brightness: 0 },
       errors: ['No Signal'],
-      log: [{ id: 'l1', at: '2026-09-29T08:12:00', level: 'warn', message: 'No input signal on DisplayPort' }],
+      log: [{ id: 'l1', at: '2026-09-29T08:12:00', level: 'warn', message: 'No input signal on SDI 1' }],
       lens: { position: { shiftX: 0, shiftY: 0, zoom: 60, focus: 75 }, presets: [null, null, null, null], activePreset: null },
     }),
-    build('PJ-06', { boothId: 'booth-c', name: 'Rear Blend', location: 'Upstage Truss', ip: '192.168.10.30', model: 'Epson EB-L1755U', protocol: 'epson-escvp21' }, {
+    build('PJ-06', { boothId: 'booth-c', name: 'Rear Blend', location: 'Upstage Truss', ip: '192.168.10.30', model: 'Christie Griffyn 4K32-RGB', protocol: 'christie-serial-ip' }, {
       power: 'off', input: 'HDBaseT',
       connection: 'disconnected', errors: ['Offline'],
       log: [
-        { id: 'l2', at: '2026-09-29T09:41:00', level: 'error', message: 'Connection timeout after 3 retries (192.168.10.30:3629)' },
+        { id: 'l2', at: '2026-09-29T09:41:00', level: 'error', message: 'Connection timeout after 3 retries (192.168.10.30:3002)' },
         { id: 'l3', at: '2026-09-29T09:40:00', level: 'error', message: 'Socket closed by remote host' },
       ],
       telemetry: { temperatureC: 24, lampHours: 890, brightness: 0 },
@@ -75,25 +75,19 @@ export function createMockProjectors(): Projector[] {
   ]
 }
 
-export interface DiscoverableDevice {
-  ip: string
-  name: string
-  location: string
-  model: string
-  suggestedBoothId: string
-  protocol: Projector['network']['protocol']['type']
-  /** Tick (0–100%) tại đó thiết bị "xuất hiện" trong lúc quét giả lập. */
+export interface DiscoverableDevice extends DiscoveredDevice {
+  /** Mốc (0–100%) tại đó thiết bị "xuất hiện" trong lúc quét giả lập. */
   foundAtPct: number
 }
 
 /** Thiết bị mà bộ quét giả lập sẽ tìm thấy. */
 export const MOCK_DISCOVERABLE: DiscoverableDevice[] = [
-  { ip: '192.168.10.21', name: 'Stage Left', location: 'FOH Truss L', model: 'Christie Crimson WU25', suggestedBoothId: 'booth-a', protocol: 'christie-serial-ip', foundAtPct: 12 },
-  { ip: '192.168.10.22', name: 'Stage Right', location: 'FOH Truss R', model: 'Christie Crimson WU25', suggestedBoothId: 'booth-a', protocol: 'christie-serial-ip', foundAtPct: 25 },
-  { ip: '192.168.10.23', name: 'Center Fill', location: 'Mid Truss C', model: 'Barco UDX-4K32', suggestedBoothId: 'booth-a', protocol: 'barco-xlm', foundAtPct: 44 },
-  { ip: '192.168.10.30', name: 'Rear Blend', location: 'Upstage Truss', model: 'Epson EB-L1755U', suggestedBoothId: 'booth-c', protocol: 'epson-escvp21', foundAtPct: 62 },
-  { ip: '192.168.10.41', name: 'LED Wall A', location: 'DS Floor Left', model: 'Sony VPL-GTZ380', suggestedBoothId: 'booth-b', protocol: 'sony-sdcp', foundAtPct: 78 },
-  { ip: '192.168.10.42', name: 'LED Wall B', location: 'DS Floor Right', model: 'Sony VPL-GTZ380', suggestedBoothId: 'booth-b', protocol: 'sony-sdcp', foundAtPct: 90 },
+  { ip: '192.168.10.21', port: 3002, name: 'Stage Left', location: 'FOH Truss L', model: 'Christie Griffyn 4K32-RGB', suggestedBoothId: 'booth-a', protocol: 'christie-serial-ip', authRequired: false, foundAtPct: 12 },
+  { ip: '192.168.10.22', port: 3002, name: 'Stage Right', location: 'FOH Truss R', model: 'Christie Griffyn 4K32-RGB', suggestedBoothId: 'booth-a', protocol: 'christie-serial-ip', authRequired: false, foundAtPct: 25 },
+  { ip: '192.168.10.23', port: 1024, name: 'Center Fill', location: 'Mid Truss C', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-a', protocol: 'panasonic-nt-control', authRequired: false, foundAtPct: 44 },
+  { ip: '192.168.10.30', port: 3002, name: 'Rear Blend', location: 'Upstage Truss', model: 'Christie Griffyn 4K32-RGB', suggestedBoothId: 'booth-c', protocol: 'christie-serial-ip', authRequired: false, foundAtPct: 62 },
+  { ip: '192.168.10.41', port: 1024, name: 'LED Wall A', location: 'DS Floor Left', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-b', protocol: 'panasonic-nt-control', authRequired: false, foundAtPct: 78 },
+  { ip: '192.168.10.42', port: 1024, name: 'LED Wall B', location: 'DS Floor Right', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-b', protocol: 'panasonic-nt-control', authRequired: false, foundAtPct: 90 },
 ]
 
 export const MOCK_SAVED_PROJECTS: SavedProjectSummary[] = [

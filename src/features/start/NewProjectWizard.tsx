@@ -1,4 +1,5 @@
 import { ArrowRight } from 'lucide-react'
+import { useState } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -13,11 +14,12 @@ import { ScanPanel } from './ScanPanel'
 import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
 
-const SUBNET = '192.168.10'
+const DEFAULT_SUBNET = '192.168.10'
 
 export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onLaunch: (snapshot: ProjectSnapshot) => void }) {
   const draft = useNewProjectDraft()
-  const scan = useNetworkScan(SUBNET, draft.addDiscovered)
+  const [subnet, setSubnet] = useState(DEFAULT_SUBNET)
+  const scan = useNetworkScan(subnet, draft.addDiscovered)
   const { start: startScan } = scan
   const { clearScanned } = draft
 
@@ -37,10 +39,10 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
             <Field label="VENUE">{id => <TextInput id={id} value={draft.venue} placeholder="e.g. Hanoi Convention Centre" onChange={e => draft.setVenue(e.target.value)} />}</Field>
           </Panel>
 
-          <ScanPanel subnet={SUBNET} status={scan.status} progress={scan.progress} currentIp={scan.currentIp} onStart={scan.status === 'done' ? rescan : startScan} />
+          <ScanPanel subnet={subnet} onSubnetChange={setSubnet} status={scan.status} progress={scan.progress} currentIp={scan.currentIp} error={scan.error} foundIps={draft.devices.map(d => d.projector.network.ip)} onStart={scan.status === 'done' ? rescan : startScan} />
 
           {draft.devices.length > 0 && (
-            <DeviceList devices={draft.devices} booths={draft.booths} onSelect={draft.setSelected} onBooth={draft.setBoothOf} onProtocol={draft.setProtocolOf} />
+            <DeviceList devices={draft.devices} booths={draft.booths} onSelect={draft.setSelected} onBooth={draft.setBoothOf} onProtocol={draft.setProtocolOf} onCredentials={draft.setCredentialsOf} />
           )}
         </div>
 
@@ -50,7 +52,7 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
 
           <div className="rounded-sm border border-border bg-muted p-4">
             <p className="mb-2 font-mono text-xs tracking-[0.08em] text-accent">DEFAULT PORTS</p>
-            {(['pjlink-class2', 'christie-serial-ip', 'barco-xlm', 'sony-sdcp'] as const).map(t => {
+            {(['panasonic-nt-control', 'christie-serial-ip', 'pjlink-class2'] as const).map(t => {
               const o = getProtocolOption(t)
               return (
                 <div key={t} className="flex justify-between py-0.5 font-mono text-xs">
