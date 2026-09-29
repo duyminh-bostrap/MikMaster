@@ -41,7 +41,7 @@ Cập nhật: 2026-09-29. Ký hiệu: ✅ xong · 🧪 xong nhưng chưa thử m
 | C7 | Lưu project phía server (`data/projects/*.json`); mật khẩu máy chiếu mã hoá AES-256-GCM (khoá `MIKMASTER_KEY` hoặc `data/secret.key`) | ✅ | API `GET/PUT/DELETE /api/projects[/id]`, ghi nguyên tử, file quyền 0600. Không có gateway thì dùng localStorage nhưng bỏ mật khẩu. Chưa có UI xoá project; chưa tự chuyển project cũ trong localStorage lên server; mất khoá thì phải nhập lại mật khẩu |
 | C8 | Đóng gói desktop (Tauri/Electron) chạy kèm gateway | Thấp | Trình duyệt không mở được socket TCP nên gateway là bắt buộc |
 | C9 | Vitest cho `applyRemote`, reducer, tiện ích (44 test) + CI GitHub Actions + cấu hình VS Code | ✅ | Còn thiếu: Playwright cho luồng UI chính (script cũ 24 ca chưa nằm trong repo) |
-| C10 | Thử nhiều màn hình / độ phân giải nhỏ hơn 1440×900 | Thấp | Mới chụp ở 1440×900 |
+| C10 | Thử độ phân giải nhỏ hơn 1440×900 | ✅ | Đã kiểm 1024×700 và 800×600 (Start, Wizard, Dashboard, Detail): không tràn ngang; Detail xếp dọc dưới 1024. Đã sửa vạch chia lẻ loi ở FleetMetrics khi hàng xuống dòng. Chưa kiểm màn hình > 1440 và chưa đo bằng thiết bị thật |
 
 ## Cách chạy
 

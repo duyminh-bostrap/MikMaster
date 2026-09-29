@@ -1,0 +1,6 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    { "name": "web", "runtimeExecutable": "/private/tmp/claude-501/n22/pnpm", "runtimeArgs": ["dev"], "port": 5173 }
+  ]
+}
