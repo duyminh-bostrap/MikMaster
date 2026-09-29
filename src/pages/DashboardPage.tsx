@@ -71,7 +71,7 @@ export default function DashboardPage() {
           onEdit={() => setEditing({ kind: 'projector', id: menuProjector.id })} onClose={closeMenu} />
       )}
       {editing && <EditDialog target={editing} onClose={closeEdit} />}
-      <AppFooter left="MikMaster v0.1.0" right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
+      <AppFooter left={`MikMaster v${__APP_VERSION__}`} right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
     </AppShell>
   )
 }

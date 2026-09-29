@@ -71,7 +71,7 @@ export default function StartPage() {
       <header className="flex items-center justify-between border-b border-border bg-background px-6 py-3">
         <div className="flex items-center gap-3">
           <AppLogoMenu size="lg" />
-          <Badge>v0.1.0</Badge>
+          <Badge>v{__APP_VERSION__}</Badge>
         </div>
         <span className="font-mono text-xs tabular-nums text-muted-foreground">{formatClock(now)}</span>
       </header>
