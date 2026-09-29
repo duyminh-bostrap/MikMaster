@@ -107,8 +107,10 @@ export interface StatusDto {
   /** Nhãn InputSource của web app nếu ánh xạ được. */
   input?: string
   lampHours?: number
-  /** °C, khi đọc được từ máy. */
+  /** °C, khi đọc được từ máy (nhiệt độ chính, vd. khí vào). */
   temperatureC?: number
+  /** Mọi cảm biến nhiệt máy báo (Christie SST+TEMP). */
+  temperatures?: { name: string; c: number }[]
   errors: string[]
 }
 

@@ -46,6 +46,7 @@ export function applyRemote(p: Projector, r: SyncResult): Projector {
       ...p.telemetry,
       lampHours: s.lampHours ?? p.telemetry.lampHours,
       temperatureC: s.temperatureC ?? p.telemetry.temperatureC,
+      sensors: s.temperatures ?? p.telemetry.sensors,
       brightness: power === 'on' ? p.telemetry.brightness || DEFAULT_BRIGHTNESS : 0,
     },
   }

@@ -1,6 +1,6 @@
 # MikMaster — Danh sách tính năng
 
-Kiến trúc dữ liệu: **Project → Booth → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32-RGB** (ngoài ra PJLink và các giao thức chung).
+Kiến trúc dữ liệu: **Project → Booth → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32 / 4K50-RGB** (ngoài ra PJLink và các giao thức chung).
 
 ## Cách đọc trạng thái
 
@@ -94,7 +94,27 @@ Hai chế độ chạy, hiển thị ở chân trang:
 - Chỉ kết nối / ping tới IPv4 nội bộ (10/8, 172.16/12, 192.168/16, 169.254/16, 127/8) để không thành cửa SSRF; HTTP API không đi theo redirect.
 - Mật khẩu máy chiếu: mã hoá trên đĩa ở gateway; **không** ghi vào localStorage hay file project; cache đăng nhập chỉ trong phiên trình duyệt.
 
-## Real temperature and lamp hours
+## 7. Kiểm trên máy thật (2026-09-29, chỉ gửi lệnh hỏi)
 
-- **PJLink:** lamp hours are read natively (`LAMP ?`). PJLink has no temperature command.
-- **Other drivers (Panasonic, Christie, Barco…):** no verified vendor command for temperature / lamp hours, so they are user-defined in the projector's COMMANDS section: a query command copied from the manual plus an optional regex whose group 1 captures the number (empty = last number in the reply). The gateway sends the query with every status poll (temperature only while the projector is not in standby); a failed query just leaves the previous value.
+Hai máy thử: **Panasonic PT-RQ35K** `192.168.1.176` (firmware 1.21) và **Christie Griffyn 4K50-RGB** `192.168.1.107` (griffyn 1.3.7).
+
+| Thông tin | PT-RQ35K (PJLink — hãng khuyên dùng) | Griffyn (Christie serial 3002) |
+|---|---|---|
+| Nguồn bật / tắt (đọc) | ✅ `POWR ?` | ✅ `(PWR?)` |
+| Shutter (đọc) | ✅ `AVMT ?` | ✅ `(SHU?)` |
+| Input (đọc) | ✅ `INPT ?` (máy chỉ có HDMI 1 / 2 qua PJLink) | ✅ `(SIN?)` → "One-Port HDMI0" = HDMI 1 |
+| Giờ đèn / laser | ✅ `LAMP ?` | ✅ `(SST+LGHT?)` Laser On Hours; dự phòng `(SST+SYST?)` Projector Hours |
+| Nhiệt độ | ⬜ PJLink không có lệnh nhiệt độ; NTCONTROL cần đăng nhập — chưa thử | ✅ `(SST+TEMP?)`: nhiệt độ khí vào + 12 cảm biến (trang máy: "Tất cả cảm biến") |
+| Lỗi | ✅ `ERST ?` | ⬜ (có nhóm `SST+ALRM`, chưa đưa vào) |
+| Độ sáng | ⬜ PJLink không có lệnh | ⬜ Griffyn không có `LPP` / `LOP` / `BRT` (Control Not Found) |
+| Đổi input (ghi) | 🧪 PJLink `INPT 31/32` — chưa gửi thử | ⬜ Chưa có bảng số `SIN` của cấu hình cổng |
+| Test pattern | ⬜ PJLink không có | ⬜ Có mã `ITP` (đang "Off"), chưa có danh sách giá trị |
+| Live preview | ⬜ | ⬜ Web của máy có ảnh thu nhỏ tín hiệu vào (`video:getInputInfo`, JSON-RPC `/cgi-bin/c4jweb`) — chưa làm |
+
+Nhập IP một máy Panasonic trả lời cả PJLink lẫn NTCONTROL → app chọn **PJLink**. Preset PT-RQ35K cũng dùng PJLink.
+
+## Nhiệt độ và giờ đèn
+
+- **PJLink:** giờ đèn đọc sẵn (`LAMP ?`); PJLink không có lệnh nhiệt độ.
+- **Christie:** nhiệt độ các cảm biến (`SST+TEMP`) và giờ laser (`SST+LGHT`) đọc sẵn mỗi lần poll.
+- **Giao thức khác:** tự khai báo ở mục LỆNH trên trang máy chiếu: lệnh hỏi (từ manual) + mẫu lấy số (nhóm 1; bỏ trống = số cuối trong phản hồi). Lỗi truy vấn chỉ giữ giá trị cũ, không ảnh hưởng trạng thái nguồn.

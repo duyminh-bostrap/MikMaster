@@ -5,8 +5,9 @@ import { SCAN_PROTOCOLS } from './scan.ts'
 
 /**
  * Thử mọi giao thức quét được trên một IP (song song, cổng mặc định). Chọn giao thức của hãng nếu có
- * (điều khiển được nhiều hơn PJLink) — trừ khi nó đòi đăng nhập mà PJLink thì không: khi đó chọn PJLink để
- * đọc trạng thái được ngay (vd. PT-RQ35K bật Command protect nhưng PJLink không mật khẩu).
+ * (Christie / Barco đọc được nhiều hơn PJLink: nhiệt độ, cảm biến…), trừ:
+ *   - Panasonic: hãng khuyên dùng PJLink cho RQ35K → có PJLink thì chọn PJLink;
+ *   - giao thức hãng đòi đăng nhập mà PJLink thì không → PJLink để đọc trạng thái được ngay.
  * Model / tên lấy từ PJLink (INF2 / NAME) vì các giao thức hãng chưa có lệnh hỏi model đã xác minh.
  */
 export async function identifyDevice(
@@ -28,7 +29,8 @@ export async function identifyDevice(
   const isPjlink = (p: DriverProtocol) => p.startsWith('pjlink')
   const vendor = found.find(r => !isPjlink(r.protocol))
   const pjlink = found.find(r => isPjlink(r.protocol))
-  const chosen = vendor && !(vendor.authRequired && pjlink && !pjlink.authRequired) ? vendor : pjlink ?? vendor!
+  const preferPjlink = !!pjlink && !!vendor && (vendor.protocol === 'panasonic-nt-control' || (vendor.authRequired && !pjlink.authRequired))
+  const chosen = vendor && !preferPjlink ? vendor : pjlink ?? vendor!
   return {
     found: true,
     protocol: chosen.protocol === 'pjlink-class1' ? 'pjlink-class2' : chosen.protocol,

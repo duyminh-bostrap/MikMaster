@@ -138,6 +138,34 @@ describe('Panasonic NTCONTROL driver', () => {
   })
 })
 
+describe('Christie SST status groups (replies captured from a real Griffyn 4K50-RGB)', () => {
+  test('parseSst handles escaped parentheses and the degree sign', async () => {
+    const { parseSst } = await import('../src/drivers/christie.ts')
+    assert.deepEqual(parseSst('(SST+TEMP!002 000 "30 °C" "Air Intake Temperature \\(Temp 2\\)")'), { index: '002', value: '30 °C', label: 'Air Intake Temperature (Temp 2)' })
+    assert.equal(parseSst('(65535 00000 ERR00102 "SST+LAMP: Cannot find status group")'), null)
+  })
+
+  test('inputFrom maps zero-based Christie port names', async () => {
+    const { inputFrom } = await import('../src/drivers/christie.ts')
+    assert.deepEqual(['One-Port HDMI0', 'One-Port HDMI1', 'Quad SDI2', 'One-Port DP0', 'Nothing'].map(inputFrom), ['HDMI 1', 'HDMI 2', undefined, 'DisplayPort', undefined])
+  })
+
+  test('status reads intake temperature, every sensor and projector hours', async () => {
+    const sim = new ChristieSimulator()
+    await sim.start()
+    try {
+      sim.power = 1
+      const s = await christieDriver.status({ host: '127.0.0.1', port: sim.port, timeoutMs: 800 })
+      assert.equal(s.power, 'on')
+      assert.equal(s.temperatureC, 30)
+      assert.deepEqual(s.temperatures?.map(x => x.c), [30, 47, 66])
+      assert.equal(s.temperatures?.[0]?.name, 'Air Intake (Temp 2)')
+      assert.equal(s.lampHours, 260) // Laser On Hours (SST+LGHT) trước Projector Hours
+      assert.equal(s.input, 'HDMI 1')
+    } finally { await sim.stop() }
+  })
+})
+
 describe('Christie serial driver', () => {
   const sim = new ChristieSimulator()
   before(() => sim.start())
@@ -239,9 +267,9 @@ describe('identifyDevice', async () => {
   after(async () => { await pj.stop(); await pana.stop() })
   const ports = () => ({ 'pjlink-class1': pj.port, 'panasonic-nt-control': pana.port, 'christie-serial-ip': 1, 'barco-pulse': 1 })
 
-  test('prefers the vendor protocol and reads the model through PJLink with the login', async () => {
+  test('Panasonic answering both → PJLink (vendor advice), model and name read through PJLink with the login', async () => {
     const r = await identifyDevice('127.0.0.1', { password: 'pw' }, 800, ports())
-    assert.deepEqual([r.found, r.protocol, r.port, r.model, r.name], [true, 'panasonic-nt-control', pana.port, 'PT-RQ35K', 'Stage L'])
+    assert.deepEqual([r.found, r.protocol, r.port, r.model, r.name], [true, 'pjlink-class2', pj.port, 'PT-RQ35K', 'Stage L'])
   })
 
   test('without the PJLink password the model falls back to what the vendor protocol reports', async () => {

@@ -35,7 +35,7 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
   const { updateProjector, syncProjector } = useProjectActions()
   const { gateway } = useGateway()
   const [reconnecting, setReconnecting] = useState(false)
-  const { temperatureC, lampHours, brightness } = p.telemetry
+  const { temperatureC, lampHours, brightness, sensors } = p.telemetry
   const conn = CONNECTION[p.connection]
 
   // LIVE: đọc trạng thái thật ngay (kết quả đi qua cùng đường với vòng poll, kể cả lỗi).
@@ -64,6 +64,19 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
         <Row label={t('LAMP HOURS')} value={lampHours > 0 ? formatHours(lampHours) : '—'} />
         <Row label={t('BRIGHTNESS')} value={`${brightness}%`} />
         <Row label={t('TEMPERATURE')} value={temperatureC > 0 ? `${temperatureC}°C` : '—'} valueClassName={TONE_TEXT[temperatureTone(temperatureC)]} />
+        {sensors && sensors.length > 1 && (
+          <details className="font-mono text-[10px]">
+            <summary className="cursor-pointer text-muted-foreground">{t('All sensors ({n})', { n: sensors.length })}</summary>
+            <ul className="mt-1.5 flex flex-col gap-1 pl-2">
+              {[...sensors].sort((a, b) => b.c - a.c).map(x => (
+                <li key={x.name} className="flex justify-between gap-2">
+                  <span className="truncate text-muted-foreground">{x.name}</span>
+                  <span className={TONE_TEXT[temperatureTone(x.c)]}>{x.c}°C</span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
       </div>
 
       <SectionHeader label={t('EVENT LOG')} />

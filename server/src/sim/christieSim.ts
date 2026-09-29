@@ -24,7 +24,26 @@ export class ChristieSimulator extends SimServer {
     })
   }
 
+  /** Trích từ phản hồi thật của Griffyn 4K50-RGB (2026-09-29). */
+  static readonly SST: Record<string, string[]> = {
+    TEMP: [
+      '(SST+TEMP!002 000 "30 °C" "Air Intake Temperature \\(Temp 2\\)")',
+      '(SST+TEMP!004 000 "47 °C" "Main Control Board Temperature")',
+      '(SST+TEMP!124 000 "66 °C" "Power Supply 1 Temperature")',
+    ],
+    LGHT: [
+      '(SST+LGHT!000 000 "On" "LOS State")',
+      '(SST+LGHT!186 000 "260.3" "Laser On Hours")',
+    ],
+    SYST: [
+      '(SST+SYST!000 000 "466:50 \\(h:m\\)" "Projector Hours")',
+      '(SST+SYST!001 000 "8.00 / 2.00" "Pitch / Roll")',
+    ],
+  }
+
   private handle(frame: string): string {
+    const sst = /^\(SST\+([A-Z]{4})\?\)$/.exec(frame)
+    if (sst) return ChristieSimulator.SST[sst[1]!]?.join('') ?? `(65535 00000 ERR00102 "SST+${sst[1]}: Cannot find status group")`
     const m = /^\(([A-Z]{3}) ?(\?|\d+)?\)$/.exec(frame)
     if (!m) return '(ERR "Unrecognized command")'
     const [, code, arg] = m
@@ -32,6 +51,7 @@ export class ChristieSimulator extends SimServer {
       if (arg !== '?') { this.power = Number(arg); if (this.power > 1) return '(ERR "Bad value")' }
       return `(PWR!00${this.power} "${this.power ? 'Power On' : 'Standby Mode'}")`
     }
+    if (code === 'SIN' && arg === '?') return '(SIN!001 "One-Port HDMI0")'
     if (code === 'SHU') {
       if (!this.power) return '(ERR "Not available in standby")'
       if (arg !== '?') this.shutter = Number(arg)

@@ -24,6 +24,8 @@ export interface Telemetry {
   lampHours: number
   /** 0..100 (%) */
   brightness: number
+  /** Nhiệt độ từng cảm biến, nếu máy báo (Christie). */
+  sensors?: { name: string; c: number }[]
 }
 
 /** Trạng thái liên lạc với thiết bị (tách khỏi Power: máy có thể bật nhưng mất kết nối). */

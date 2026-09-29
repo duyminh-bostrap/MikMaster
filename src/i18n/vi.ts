@@ -324,6 +324,7 @@ export const VI: Record<string, string> = {
   'TEST PATTERN ON': 'BẬT TEST PATTERN',
   'TEST PATTERN OFF': 'TẮT TEST PATTERN',
   'TEMPERATURE QUERY': 'LỆNH HỎI NHIỆT ĐỘ',
+  'All sensors ({n})': 'Tất cả cảm biến ({n})',
   'TEMPERATURE PATTERN': 'MẪU LẤY SỐ NHIỆT ĐỘ',
   'LAMP HOURS QUERY': 'LỆNH HỎI GIỜ ĐÈN',
   'LAMP HOURS PATTERN': 'MẪU LẤY SỐ GIỜ ĐÈN',
