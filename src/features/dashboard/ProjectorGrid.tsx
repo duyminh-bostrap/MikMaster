@@ -1,8 +1,13 @@
 import { ProjectorCard } from '@/components/projector/ProjectorCard'
 import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
+import { projectorDragProps } from './moveProjector'
 
-export function ProjectorGrid({ projectors, onOpen }: { projectors: Projector[]; onOpen: (id: string) => void }) {
+export function ProjectorGrid({ projectors, onOpen, onContextMenu }: {
+  projectors: Projector[]
+  onOpen: (id: string) => void
+  onContextMenu: (e: React.MouseEvent, id: string) => void
+}) {
   const { setPower, setShutter } = useProjectActions()
 
   if (projectors.length === 0) {
@@ -22,6 +27,8 @@ export function ProjectorGrid({ projectors, onOpen }: { projectors: Projector[];
           onOpen={() => onOpen(p.id)}
           onTogglePower={() => setPower([p.id], p.power === 'on' ? 'standby' : 'on')}
           onToggleShutter={() => setShutter([p.id], !p.shutter)}
+          onContextMenu={e => onContextMenu(e, p.id)}
+          dragProps={projectorDragProps(p.id)}
         />
       ))}
     </div>

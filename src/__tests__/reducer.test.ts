@@ -45,6 +45,15 @@ describe('projectReducer', () => {
     expect(find(s, 'PJ-01').connection).toBe('disconnected')
   })
 
+  test('projectors/move đổi booth và ghi log; cùng booth thì không đổi gì', () => {
+    const s = launched()
+    const moved = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: 'booth-c', boothName: 'Rear Screen' })
+    expect(find(moved, 'PJ-01').boothId).toBe('booth-c')
+    expect(find(moved, 'PJ-01').log[0]?.message).toBe('Moved to booth Rear Screen')
+    const same = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: find(s, 'PJ-01').boothId, boothName: 'x' })
+    expect(find(same, 'PJ-01')).toBe(find(s, 'PJ-01'))
+  })
+
   describe('lens', () => {
     test('adjust kẹp trong giới hạn và bỏ preset đang chọn', () => {
       const s = projectReducer(launched(), { type: 'lens/adjust', id: 'PJ-01', delta: { zoom: 1000, shiftX: -1000 } })

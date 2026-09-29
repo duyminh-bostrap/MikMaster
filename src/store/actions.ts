@@ -20,6 +20,8 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     closeProject: () => dispatch({ type: 'project/close' }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>
       dispatch({ type: 'projector/patch', id, patch }),
+    moveToBooth: (ids: string[], booth: { id: string; name: string }) =>
+      dispatch({ type: 'projectors/move', ids, boothId: booth.id, boothName: booth.name }),
     setPower: (ids: string[], power: PowerState) => {
       dispatch({ type: 'projectors/setPower', ids, power })
       effects?.power(ids, power)

@@ -16,9 +16,11 @@ interface ProjectorCardProps {
   onOpen: () => void
   onTogglePower: () => void
   onToggleShutter: () => void
+  onContextMenu?: (e: React.MouseEvent) => void
+  dragProps?: React.HTMLAttributes<HTMLElement> & { draggable?: boolean }
 }
 
-export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShutter }: ProjectorCardProps) {
+export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShutter, onContextMenu, dragProps }: ProjectorCardProps) {
   const hasError = p.errors.length > 0
 
   function handleKey(e: KeyboardEvent) {
@@ -35,6 +37,8 @@ export function ProjectorCard({ projector: p, onOpen, onTogglePower, onToggleShu
       aria-label={`Open control for ${p.name}`}
       onClick={onOpen}
       onKeyDown={handleKey}
+      onContextMenu={onContextMenu}
+      {...dragProps}
       className={cn(
         'group relative cursor-pointer overflow-hidden rounded-sm border bg-card outline-none transition-colors focus-visible:ring-2 focus-visible:ring-primary/60',
         hasError ? 'border-danger/25 shadow-[0_0_0_1px_rgb(239_68_68/0.13)]' : 'border-border hover:border-primary/30',

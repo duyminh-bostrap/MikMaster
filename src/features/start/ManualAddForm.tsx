@@ -1,10 +1,10 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Field, PasswordInput, SelectInput, TextInput } from '@/components/ui/Field'
+import { Field, SelectInput, TextInput } from '@/components/ui/Field'
 import { Panel } from '@/components/ui/Panel'
 import { MODEL_PRESETS } from '@/constants/models'
-import { PROTOCOL_OPTIONS, getProtocolOption } from '@/constants/protocols'
+import { PROTOCOL_OPTIONS } from '@/constants/protocols'
 import type { ProtocolType } from '@/types'
 import type { ManualDeviceInput } from './useNewProjectDraft'
 
@@ -13,12 +13,9 @@ export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => 
   const [name, setName] = useState('')
   const [preset, setPreset] = useState('')
   const [protocol, setProtocol] = useState<ProtocolType>('pjlink-class2')
-  const [username, setUsername] = useState('')
-  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
 
   const model = MODEL_PRESETS.find(m => m.id === preset)
-  const auth = getProtocolOption(protocol).auth !== 'None'
 
   function choosePreset(id: string) {
     setPreset(id)
@@ -27,9 +24,9 @@ export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => 
   }
 
   function submit() {
-    const result = onAdd({ ip, name, protocol, model: model?.label, username, password })
+    const result = onAdd({ ip, name, protocol, model: model?.label })
     setError(result ?? '')
-    if (!result) { setIp(''); setName(''); setPassword('') }
+    if (!result) { setIp(''); setName('') }
   }
   const onEnter = (e: React.KeyboardEvent) => e.key === 'Enter' && submit()
 
@@ -53,12 +50,6 @@ export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => 
           </SelectInput>
         )}
       </Field>
-      {auth && (
-        <div className="grid grid-cols-2 gap-2">
-          <Field label="USERNAME (opt.)">{id => <TextInput id={id} value={username} autoComplete="off" placeholder={protocol === 'panasonic-nt-control' ? 'admin1' : ''} onChange={e => setUsername(e.target.value)} />}</Field>
-          <Field label="PASSWORD (opt.)">{id => <PasswordInput id={id} value={password} placeholder={protocol === 'panasonic-nt-control' ? 'panasonic' : ''} onChange={e => setPassword(e.target.value)} />}</Field>
-        </div>
-      )}
       {error && <p role="alert" className="font-mono text-xs text-danger">{error}</p>}
       <Button size="md" onClick={submit}><Plus size={12} strokeWidth={2.5} />ADD DEVICE</Button>
     </Panel>

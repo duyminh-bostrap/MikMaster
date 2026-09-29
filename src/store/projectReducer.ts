@@ -28,6 +28,7 @@ export type ProjectAction =
   | { type: 'projector/sync'; id: string; result: SyncResult }
   | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
   | { type: 'projectors/setCredentials'; ids: string[]; username?: string; password?: string }
+  | { type: 'projectors/move'; ids: string[]; boothId: string; boothName: string }
   | { type: 'projectors/setPower'; ids: string[]; power: PowerState }
   | { type: 'projectors/setShutter'; ids: string[]; shutter: boolean }
   | { type: 'projector/setTestPattern'; id: string; patch: Partial<TestPatternState> }
@@ -71,6 +72,10 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
           ? { ...next, connection: 'connected', errors: p.errors.filter(e => e !== 'Protocol error') }
           : next
       })
+
+    case 'projectors/move':
+      return mapProjectors(state, action.ids, p =>
+        p.boothId === action.boothId ? p : { ...p, boothId: action.boothId, log: appendLog(p, 'info', `Moved to booth ${action.boothName}`) })
 
     case 'projectors/setPower':
       return mapProjectors(state, action.ids, p => applyPower(p, action.power))

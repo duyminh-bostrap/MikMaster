@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { ALL_BOOTHS } from '@/hooks/useBoothFilter'
 import { cn } from '@/utils/cn'
 import type { Booth, Project, Projector } from '@/types'
+import { BoothDropZone, projectorDragProps } from './moveProjector'
 import { QuickControls } from './QuickControls'
 
 interface SidebarProps {
@@ -16,9 +17,11 @@ interface SidebarProps {
   onSelectBooth: (boothId: string) => void
   onOpenProjector: (id: string) => void
   onSave: () => Promise<boolean>
+  onMoveProjector: (projectorId: string, boothId: string) => void
+  onProjectorContextMenu: (e: React.MouseEvent, projectorId: string) => void
 }
 
-export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave }: SidebarProps) {
+export function Sidebar({ project, booths, projectors, activeBooth, onSelectBooth, onOpenProjector, onSave, onMoveProjector, onProjectorContextMenu }: SidebarProps) {
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set(booths.map(b => b.id)))
   const [saveState, setSaveState] = useState<'idle' | 'saved' | 'failed'>('idle')
 
@@ -72,9 +75,11 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
           const isActive = activeBooth === booth.id
 
           return (
-            <div key={booth.id}>
+            <BoothDropZone key={booth.id} onDrop={id => onMoveProjector(id, booth.id)}>
+              {over => (<>
               <div
-                className={cn('flex cursor-pointer items-center border-l-2 px-3 py-2 transition-colors', isActive ? 'border-primary bg-primary/[0.06]' : 'border-transparent hover:bg-muted')}
+                className={cn('flex cursor-pointer items-center border-l-2 px-3 py-2 transition-colors',
+                  over ? 'border-accent bg-accent/15 ring-1 ring-accent/50 ring-inset' : isActive ? 'border-primary bg-primary/[0.06]' : 'border-transparent hover:bg-muted')}
                 onClick={() => { onSelectBooth(booth.id); toggle(booth.id) }}
               >
                 <button
@@ -107,6 +112,8 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                       key={p.id}
                       type="button"
                       onClick={() => onOpenProjector(p.id)}
+                      onContextMenu={e => onProjectorContextMenu(e, p.id)}
+                      {...projectorDragProps(p.id)}
                       className="flex w-full items-center gap-2 px-4 py-1.5 text-left hover:bg-muted"
                     >
                       <PowerDot power={p.power} />
@@ -117,7 +124,8 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                   ))}
                 </>
               )}
-            </div>
+              </>)}
+            </BoothDropZone>
           )
         })}
       </nav>
