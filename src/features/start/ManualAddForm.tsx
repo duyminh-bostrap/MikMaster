@@ -1,7 +1,7 @@
 import { Plus } from 'lucide-react'
 import { useState } from 'react'
 import { Button } from '@/components/ui/Button'
-import { Field, SelectInput, TextInput } from '@/components/ui/Field'
+import { Field, PasswordInput, SelectInput, TextInput } from '@/components/ui/Field'
 import { Panel } from '@/components/ui/Panel'
 import { MODEL_PRESETS } from '@/constants/models'
 import { PROTOCOL_OPTIONS, getProtocolOption } from '@/constants/protocols'
@@ -56,7 +56,7 @@ export function ManualAddForm({ onAdd }: { onAdd: (input: ManualDeviceInput) => 
       {auth && (
         <div className="grid grid-cols-2 gap-2">
           <Field label="USERNAME (opt.)">{id => <TextInput id={id} value={username} autoComplete="off" placeholder={protocol === 'panasonic-nt-control' ? 'admin1' : ''} onChange={e => setUsername(e.target.value)} />}</Field>
-          <Field label="PASSWORD (opt.)">{id => <TextInput id={id} type="password" autoComplete="new-password" value={password} placeholder={protocol === 'panasonic-nt-control' ? 'panasonic' : ''} onChange={e => setPassword(e.target.value)} />}</Field>
+          <Field label="PASSWORD (opt.)">{id => <PasswordInput id={id} value={password} placeholder={protocol === 'panasonic-nt-control' ? 'panasonic' : ''} onChange={e => setPassword(e.target.value)} />}</Field>
         </div>
       )}
       {error && <p role="alert" className="font-mono text-xs text-danger">{error}</p>}

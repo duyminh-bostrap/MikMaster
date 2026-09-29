@@ -5,12 +5,15 @@ import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
 import { Panel } from '@/components/ui/Panel'
 import { getProtocolOption } from '@/constants/protocols'
+import { saveDeviceCredentials } from '@/services/credentialCache'
+import { needsAuth } from '@/utils/credentials'
 import type { ProjectSnapshot } from '@/services/projectRepository'
 import { BoothEditor } from './BoothEditor'
 import { DeviceList } from './DeviceList'
 import { StepHeader } from './LoadProjectList'
 import { ManualAddForm } from './ManualAddForm'
 import { ScanPanel } from './ScanPanel'
+import { SharedLoginBar } from './SharedLoginBar'
 import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
 
@@ -27,6 +30,16 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
 
   const ready = draft.selectedCount > 0
 
+  function launch() {
+    const payload = draft.buildLaunchPayload()
+    // Ghi cache theo từng máy để lần mở project sau trong phiên này không phải nhập lại.
+    for (const p of payload.projectors) {
+      const { username, password, port } = p.network.protocol
+      if (username || password) saveDeviceCredentials(p.network.ip, port, { username, password })
+    }
+    onLaunch(payload)
+  }
+
   return (
     <div className="w-full max-w-6xl">
       <StepHeader title="New Project" onBack={onBack}
@@ -40,6 +53,11 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
           </Panel>
 
           <ScanPanel subnet={subnet} onSubnetChange={setSubnet} status={scan.status} progress={scan.progress} currentIp={scan.currentIp} error={scan.error} foundIps={draft.devices.map(d => d.projector.network.ip)} onStart={scan.status === 'done' ? rescan : startScan} />
+
+          {draft.devices.some(d => d.authRequired) && (
+            <SharedLoginBar value={draft.shared} onChange={draft.setShared} onApply={draft.applySharedToAll}
+              targets={draft.devices.filter(d => d.authRequired && needsAuth(d.projector.network.protocol.type)).length} />
+          )}
 
           {draft.devices.length > 0 && (
             <DeviceList devices={draft.devices} booths={draft.booths} onSelect={draft.setSelected} onBooth={draft.setBoothOf} onProtocol={draft.setProtocolOf} onCredentials={draft.setCredentialsOf} />
@@ -63,7 +81,7 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
             })}
           </div>
 
-          <Button size="md" variant="primary" disabled={!ready} className="py-3 text-sm font-semibold tracking-[0.04em]" onClick={() => onLaunch(draft.buildLaunchPayload())}>
+          <Button size="md" variant="primary" disabled={!ready} className="py-3 text-sm font-semibold tracking-[0.04em]" onClick={launch}>
             {ready ? `LAUNCH — ${draft.selectedCount} DEVICE${draft.selectedCount > 1 ? 'S' : ''}` : 'SELECT DEVICES FIRST'}
             {ready && <ArrowRight size={14} strokeWidth={2.5} />}
           </Button>

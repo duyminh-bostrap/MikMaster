@@ -84,10 +84,10 @@ export interface DiscoverableDevice extends DiscoveredDevice {
 export const MOCK_DISCOVERABLE: DiscoverableDevice[] = [
   { ip: '192.168.10.21', port: 3002, name: 'Stage Left', location: 'FOH Truss L', model: 'Christie Griffyn 4K32-RGB', suggestedBoothId: 'booth-a', protocol: 'christie-serial-ip', authRequired: false, foundAtPct: 12 },
   { ip: '192.168.10.22', port: 3002, name: 'Stage Right', location: 'FOH Truss R', model: 'Christie Griffyn 4K32-RGB', suggestedBoothId: 'booth-a', protocol: 'christie-serial-ip', authRequired: false, foundAtPct: 25 },
-  { ip: '192.168.10.23', port: 1024, name: 'Center Fill', location: 'Mid Truss C', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-a', protocol: 'panasonic-nt-control', authRequired: false, foundAtPct: 44 },
+  { ip: '192.168.10.23', port: 1024, name: 'Center Fill', location: 'Mid Truss C', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-a', protocol: 'panasonic-nt-control', authRequired: true, foundAtPct: 44 },
   { ip: '192.168.10.30', port: 3002, name: 'Rear Blend', location: 'Upstage Truss', model: 'Christie Griffyn 4K32-RGB', suggestedBoothId: 'booth-c', protocol: 'christie-serial-ip', authRequired: false, foundAtPct: 62 },
-  { ip: '192.168.10.41', port: 1024, name: 'LED Wall A', location: 'DS Floor Left', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-b', protocol: 'panasonic-nt-control', authRequired: false, foundAtPct: 78 },
-  { ip: '192.168.10.42', port: 1024, name: 'LED Wall B', location: 'DS Floor Right', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-b', protocol: 'panasonic-nt-control', authRequired: false, foundAtPct: 90 },
+  { ip: '192.168.10.41', port: 1024, name: 'LED Wall A', location: 'DS Floor Left', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-b', protocol: 'panasonic-nt-control', authRequired: true, foundAtPct: 78 },
+  { ip: '192.168.10.42', port: 1024, name: 'LED Wall B', location: 'DS Floor Right', model: 'Panasonic PT-RQ35K', suggestedBoothId: 'booth-b', protocol: 'panasonic-nt-control', authRequired: true, foundAtPct: 90 },
 ]
 
 export const MOCK_SAVED_PROJECTS: SavedProjectSummary[] = [

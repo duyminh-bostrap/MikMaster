@@ -6,6 +6,7 @@ import { DetailHeader } from '@/features/detail/DetailHeader'
 import { LensPanel } from '@/features/detail/lens/LensPanel'
 import { PreviewPanel } from '@/features/detail/PreviewPanel'
 import { TestPatternPanel } from '@/features/detail/TestPatternPanel'
+import { AccountPanel } from '@/features/detail/AccountPanel'
 import { InputPanel } from '@/features/detail/InputPanel'
 import { RawConsole } from '@/features/detail/RawConsole'
 import { UnavailableNotice } from '@/features/detail/UnavailableNotice'
@@ -37,6 +38,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
           <BasicControls projector={projector} />
           {/* key: form nháp được dựng lại khi chuyển sang máy khác */}
           <NetworkEditor key={projector.id} projector={projector} />
+          <AccountPanel key={`${projector.id}:${projector.network.protocol.type}`} projector={projector} />
           <DeviceStatus projector={projector} />
           {caps.raw && <div className="mt-5"><RawConsole projector={projector} /></div>}
         </aside>

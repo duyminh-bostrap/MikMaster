@@ -2,6 +2,8 @@ import type { Dispatch } from 'react'
 import type { OsdKeyDto } from '../../shared/api.ts'
 import type { SyncResult } from '@/utils/sync'
 import type { InputSource, LensPosition, LensSlot, PowerState, Projector, TestPatternState } from '@/types'
+import { getDeviceCredentials, getSharedCredentials } from '@/services/credentialCache'
+import { fillMissingCredentials } from '@/utils/credentials'
 import type { DeviceEffects } from './deviceEffects'
 import type { ProjectAction, ProjectState } from './projectReducer'
 
@@ -9,7 +11,12 @@ import type { ProjectAction, ProjectState } from './projectReducer'
 export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects: DeviceEffects | null = null) {
   return {
     launchProject: (payload: Extract<ProjectAction, { type: 'project/launch' }>['payload']) =>
-      dispatch({ type: 'project/launch', payload }),
+      dispatch({
+        type: 'project/launch',
+        payload: { ...payload, projectors: fillMissingCredentials(payload.projectors, { device: getDeviceCredentials, shared: getSharedCredentials }) },
+      }),
+    setCredentials: (ids: string[], creds: { username?: string; password?: string }) =>
+      dispatch({ type: 'projectors/setCredentials', ids, ...creds }),
     closeProject: () => dispatch({ type: 'project/close' }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>
       dispatch({ type: 'projector/patch', id, patch }),

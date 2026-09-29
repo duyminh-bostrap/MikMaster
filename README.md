@@ -4,6 +4,8 @@ Web app desktop điều khiển và quản lý nhiều máy chiếu AV. Phân c�
 
 Stack: React 19 · TypeScript · Vite · Tailwind CSS v4 · React Router (hash) · pnpm.
 
+Cần **Node ≥ 22.6** (`node -v`; có `.nvmrc`) và pnpm. Chưa có pnpm: `corepack enable` (kèm Node) hoặc `npm i -g pnpm`.
+
 ```bash
 pnpm install
 pnpm dev        # http://localhost:5173

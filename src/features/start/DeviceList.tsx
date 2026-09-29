@@ -1,7 +1,7 @@
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Badge } from '@/components/ui/Badge'
 import { Panel } from '@/components/ui/Panel'
-import { SelectInput, TextInput } from '@/components/ui/Field'
+import { PasswordInput, SelectInput, TextInput } from '@/components/ui/Field'
 import { PROTOCOL_OPTIONS } from '@/constants/protocols'
 import { cn } from '@/utils/cn'
 import type { Booth, ProtocolType } from '@/types'
@@ -20,9 +20,9 @@ export function DeviceList({ devices, booths, onSelect, onBooth, onProtocol, onC
   return (
     <Panel title="DISCOVERED DEVICES" aside={<span className="font-mono text-xs text-accent">{selected}/{devices.length} SELECTED</span>} bodyClassName="p-0">
       {devices.map(({ projector: p, selected: isSelected, source, authRequired }, i) => (
-        <div key={`${p.network.ip}:${p.network.protocol.type}`} className={cn('flex items-center gap-3 px-4 py-3', i > 0 && 'border-t border-border', isSelected && 'bg-primary/[0.04]')}>
+        <div key={`${p.network.ip}:${p.network.protocol.type}`} className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3', i > 0 && 'border-t border-border', isSelected && 'bg-primary/[0.04]')}>
           <Checkbox checked={isSelected} onChange={c => onSelect(p.network.ip, c)} label={`Select ${p.name}`} />
-          <div className="min-w-0 flex-1">
+          <div className="min-w-44 flex-1">
             <div className="mb-0.5 flex items-center gap-2">
               <span className="truncate text-sm font-medium text-foreground">{p.name}</span>
               {source === 'manual' && <Badge tone="accent">MANUAL</Badge>}
@@ -37,7 +37,7 @@ export function DeviceList({ devices, booths, onSelect, onBooth, onProtocol, onC
               {p.network.protocol.type === 'panasonic-nt-control' && (
                 <TextInput aria-label={`Username for ${p.name}`} placeholder="admin1" value={p.network.protocol.username ?? ''} className="w-20 px-2 py-1.5 text-xs" onChange={e => onCredentials(p.network.ip, { username: e.target.value || undefined })} />
               )}
-              <TextInput aria-label={`Password for ${p.name}`} type="password" autoComplete="new-password" placeholder="password" value={p.network.protocol.password ?? ''} className="w-24 px-2 py-1.5 text-xs" onChange={e => onCredentials(p.network.ip, { password: e.target.value || undefined })} />
+              <PasswordInput aria-label={`Password for ${p.name}`} placeholder="password" value={p.network.protocol.password ?? ''} className="w-28 px-2 py-1.5 text-xs" onChange={e => onCredentials(p.network.ip, { password: e.target.value || undefined })} />
             </div>
           )}
           <SelectInput aria-label={`Protocol for ${p.name}`} value={p.network.protocol.type} onChange={e => onProtocol(p.network.ip, e.target.value as ProtocolType)} className="w-44 px-2 py-1.5 text-xs">

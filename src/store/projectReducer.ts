@@ -1,5 +1,6 @@
 import { applyLensDelta, buildLensPreset } from '@/utils/lens'
 import { applyPower, appendLog } from '@/utils/projector'
+import { withCredentials } from '@/utils/credentials'
 import { applyRemote, type SyncResult } from '@/utils/sync'
 import type {
   Booth,
@@ -26,6 +27,7 @@ export type ProjectAction =
   | { type: 'projector/patch'; id: string; patch: Partial<Omit<Projector, 'id'>> }
   | { type: 'projector/sync'; id: string; result: SyncResult }
   | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
+  | { type: 'projectors/setCredentials'; ids: string[]; username?: string; password?: string }
   | { type: 'projectors/setPower'; ids: string[]; power: PowerState }
   | { type: 'projectors/setShutter'; ids: string[]; shutter: boolean }
   | { type: 'projector/setTestPattern'; id: string; patch: Partial<TestPatternState> }
@@ -60,6 +62,15 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'projector/log':
       return mapProjectors(state, [action.id], p => ({ ...p, log: appendLog(p, action.level, action.message) }))
+
+    case 'projectors/setCredentials':
+      // Đổi tài khoản = cho phép thử lại: máy đang bị từ chối xác thực được gỡ cờ lỗi để vòng poll kiểm tra lại.
+      return mapProjectors(state, action.ids, p => {
+        const next = withCredentials(p, { username: action.username, password: action.password })
+        return p.connection === 'protocol-error'
+          ? { ...next, connection: 'connected', errors: p.errors.filter(e => e !== 'Protocol error') }
+          : next
+      })
 
     case 'projectors/setPower':
       return mapProjectors(state, action.ids, p => applyPower(p, action.power))
