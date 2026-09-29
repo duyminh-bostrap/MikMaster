@@ -175,6 +175,19 @@ describe('project storage', () => {
   })
   after(async () => { await new Promise(r => s.close(r)); fs.rmSync(dir, { recursive: true, force: true }) })
 
+  test('quick logins per brand: saved encrypted on disk, read back in clear', async () => {
+    assert.deepEqual(await (await fetch(`${u}/api/quick-logins`)).json(), {})
+    const body = { panasonic: { username: 'op', password: 'secret-p' }, christie: { username: 'viewer', password: 'secret-c' } }
+    const r = await fetch(`${u}/api/quick-logins`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    assert.equal(r.status, 200)
+    assert.deepEqual(await (await fetch(`${u}/api/quick-logins`)).json(), body)
+    const onDisk = fs.readFileSync(path.join(dir, 'quick-logins.json'), 'utf8')
+    assert.ok(!onDisk.includes('secret-p') && !onDisk.includes('secret-c'))
+    assert.ok(onDisk.includes('"op"'))
+    const bad = await fetch(`${u}/api/quick-logins`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ christie: { username: 1 } }) })
+    assert.equal(bad.status, 400)
+  })
+
   test('save → list → load round trip returns the plaintext password', async () => {
     assert.equal((await put('show-1', snap('show-1', 'hunter2'))).status, 200)
     const list = await (await fetch(`${u}/api/projects`)).json() as any[]

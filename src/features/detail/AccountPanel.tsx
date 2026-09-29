@@ -1,5 +1,6 @@
-import { LogIn, LogOut } from 'lucide-react'
-import { useState } from 'react'
+import { LogIn, LogOut, Zap } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import type { QuickLoginsDto } from '../../../shared/api.ts'
 import { Button } from '@/components/ui/Button'
 import { Checkbox } from '@/components/ui/Checkbox'
 import { Field, PasswordInput, TextInput } from '@/components/ui/Field'
@@ -8,6 +9,7 @@ import { forgetDeviceCredentials, saveDeviceCredentials, saveSharedCredentials }
 import { useProjectActions, useProjectState } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
 import { hasCredentials, hasWebLogin, lacksPassword, needsAuth, withCredentials } from '@/utils/credentials'
+import { BRAND_LABEL, brandOf } from '@/utils/quickLogin'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
 
@@ -27,6 +29,17 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [applyAll, setApplyAll] = useState(true)
+  // Đăng nhập nhanh theo hãng: tài khoản người dùng tự lưu (mã hoá ở gateway), bấm một nút là đăng nhập.
+  const brand = brandOf(p)
+  const [quick, setQuick] = useState<QuickLoginsDto>({})
+  const [saveQuick, setSaveQuick] = useState(true)
+  useEffect(() => {
+    if (!gateway) return
+    let alive = true
+    void gateway.getQuickLogins().then(r => { if (alive && r.ok) setQuick(r.value) })
+    return () => { alive = false }
+  }, [gateway])
+  const quickLogin = brand ? quick[brand] : undefined
 
   const { ip, protocol } = p.network
   // Tài khoản web (Christie): chỉ cho live preview, kiểm bằng chính preview; không áp cho máy khác.
@@ -34,10 +47,11 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
   const others = web ? [] : projectors.filter(o => o.id !== p.id && needsAuth(o.network.protocol.type) && (lacksPassword(o) || o.connection === 'auth-failed'))
   const canSubmit = !busy && (username !== '' || password !== '')
 
-  async function signIn() {
+  async function signIn(override?: { username: string; password: string }) {
     setBusy(true)
     setError('')
-    const creds = { username: username || undefined, password: password || undefined }
+    const u = override?.username ?? username, pw = override?.password ?? password
+    const creds = { username: u || undefined, password: pw || undefined }
     // Có gateway: thử thật trước khi lưu. Không có: chế độ mô phỏng, không có gì để kiểm.
     if (gateway) {
       const r = web ? await gateway.preview(withCredentials(p, creds)) : await gateway.status(withCredentials(p, creds))
@@ -58,7 +72,12 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
       saveSharedCredentials(creds)
       others.forEach(o => saveDeviceCredentials(o.network.ip, o.network.protocol.port, creds))
     }
-    logEvent(p.id, 'info', `Signed in${username ? ` as ${username}` : ''}${gateway ? '' : ' (simulated, not verified)'}${applyAll && others.length ? `; same login applied to ${others.length} other device(s)` : ''}`)
+    // Lưu làm đăng nhập nhanh cho hãng này (chỉ khi đã kiểm thật qua gateway, và không phải chính tài khoản nhanh).
+    if (gateway && brand && !override && saveQuick) {
+      const next = { ...quick, [brand]: { username: u, password: pw } }
+      if ((await gateway.saveQuickLogins(next)).ok) setQuick(next)
+    }
+    logEvent(p.id, 'info', `Signed in${u ? ` as ${u}` : ''}${override ? ' (quick login)' : ''}${gateway ? '' : ' (simulated, not verified)'}${applyAll && others.length ? `; same login applied to ${others.length} other device(s)` : ''}`)
     setBusy(false)
     onDone?.()
   }
@@ -82,6 +101,11 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
             {p.connection === 'auth-failed' ? t('The projector refused the login.') : t('This projector is protected by a password.')} {t('Sign in to control it.')}
           </p>
         )}
+        {quickLogin && brand && (
+          <Button variant="accent" disabled={busy} onClick={() => void signIn(quickLogin)}>
+            <Zap size={12} />{t('QUICK LOGIN · {brand}', { brand: BRAND_LABEL[brand] })} <span className="opacity-70">({quickLogin.username || '—'})</span>
+          </Button>
+        )}
         <div className="grid grid-cols-2 gap-2">
           <Field label={t('USERNAME')}>{id => <TextInput id={id} value={username} autoComplete="off" autoFocus={mode === 'required'} onKeyDown={onEnter} onChange={e => { setUsername(e.target.value); setError('') }} className="px-2 py-1.5 text-xs" />}</Field>
           <Field label={t('PASSWORD')}>{id => <PasswordInput id={id} value={password} onKeyDown={onEnter} onChange={e => { setPassword(e.target.value); setError('') }} className="px-2 py-1.5 text-xs" />}</Field>
@@ -90,6 +114,12 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
           <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px] text-muted-foreground">
             <Checkbox checked={applyAll} onChange={setApplyAll} label={t('Use for all devices')} />
             {t('Also use for {n} other device(s) that need a login', { n: others.length })}
+          </label>
+        )}
+        {gateway && brand && (
+          <label className="flex cursor-pointer items-center gap-2 font-mono text-[10px] text-muted-foreground">
+            <Checkbox checked={saveQuick} onChange={setSaveQuick} label={t('Save as quick login')} />
+            {quickLogin ? t('Replace the {brand} quick login with this account', { brand: BRAND_LABEL[brand] }) : t('Save as quick login for {brand} projectors', { brand: BRAND_LABEL[brand] })}
           </label>
         )}
         {error && <p role="alert" className="font-mono text-[10px] leading-relaxed text-danger">{error}</p>}

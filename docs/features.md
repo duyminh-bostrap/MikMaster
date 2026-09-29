@@ -79,6 +79,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Cài đặt: theme Tối / Sáng / Theo hệ thống, ngôn ngữ English / Tiếng Việt, khoảng cách bật máy | ✅ | Lưu trong trình duyệt |
 | Hướng dẫn và Giới thiệu trong menu logo | ✅ | |
 | Đăng nhập máy ở góc trên bên phải trang máy chiếu | ✅ | Chỉ hiện khi máy cần đăng nhập |
+| **Đăng nhập nhanh theo hãng** (Panasonic / Christie / Barco): đăng nhập thành công một lần → lưu làm tài khoản của hãng → các máy cùng hãng chỉ bấm một nút | 🧪 | Tài khoản lưu mã hoá ở gateway (`quick-logins.json`, AES-256-GCM); **không ghi sẵn mật khẩu nào trong mã nguồn** |
 
 ## 6. Chạy / đóng gói
 

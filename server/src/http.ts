@@ -1,7 +1,7 @@
 import http from 'node:http'
 import {
-  DEFAULT_PORTS, LIVE_CAPABILITIES, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
-  type ApiErrorCode, type CommandDto, type CommandTemplates, type DriverProtocol, type HealthDto, type TargetDto,
+  DEFAULT_PORTS, LIVE_CAPABILITIES, QUICK_LOGIN_BRANDS, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
+  type ApiErrorCode, type CommandDto, type CommandTemplates, type DriverProtocol, type HealthDto, type QuickLoginsDto, type TargetDto,
 } from '../../shared/api.ts'
 import { DRIVERS } from './drivers/index.ts'
 import { christiePreview } from './drivers/christieWeb.ts'
@@ -73,6 +73,14 @@ function parseTemplates(raw: unknown): CommandTemplates | undefined {
   return out
 }
 
+/** Ghi kết quả live preview ra terminal gateway khi nó đổi (không ghi tài khoản), để dò lỗi với máy thật. */
+const lastPreviewLog = new Map<string, string>()
+function logPreview(host: string, line: string): void {
+  if (lastPreviewLog.get(host) === line) return
+  lastPreviewLog.set(host, line)
+  console.log(`[preview ${host}] ${line}`)
+}
+
 function requireCapability(protocol: DriverProtocol, cap: 'raw' | 'preview' | CommandDto['kind'], target: DriverTarget): void {
   if (!effectiveCapabilities(protocol, target.commands).includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"${TEMPLATE_PROTOCOLS.includes(protocol) ? ' (no command template configured)' : ''}`)
 }
@@ -109,6 +117,26 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         if (!store.remove(id)) throw new DeviceError('not-found', `No project "${id}"`)
         return sendJson(res, 200, { ok: true })
       }
+    }
+  }
+
+  if (url.pathname === '/api/quick-logins') {
+    if (!store) throw new DeviceError('unsupported', 'Storage is not enabled on this gateway')
+    if (req.method === 'GET') return sendJson(res, 200, store.getQuickLogins())
+    if (req.method === 'PUT') {
+      const body = await readJson(req)
+      if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
+      const logins: QuickLoginsDto = {}
+      for (const brand of QUICK_LOGIN_BRANDS) {
+        const e = body[brand]
+        if (e === undefined || e === null) continue
+        if (!isObject(e) || typeof e.username !== 'string' || typeof e.password !== 'string' || e.username.length > 128 || e.password.length > 256) {
+          throw new DeviceError('bad-request', `Invalid quick login for ${brand}`)
+        }
+        logins[brand] = { username: e.username, password: e.password }
+      }
+      store.setQuickLogins(logins)
+      return sendJson(res, 200, { ok: true })
     }
   }
 
@@ -166,7 +194,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
     const { protocol, target } = parseTarget(body.target)
     requireCapability(protocol, 'preview', target)
-    return sendJson(res, 200, await christiePreview(target))
+    try {
+      const preview = await christiePreview(target)
+      logPreview(target.host, `ok: ${preview.state}${preview.input ? ` (${preview.input})` : ''}`)
+      return sendJson(res, 200, preview)
+    } catch (err) {
+      logPreview(target.host, `failed: ${err instanceof DeviceError ? `${err.code} — ${err.message}` : String(err)}`)
+      throw err
+    }
   }
 
   if (req.method === 'POST' && ['/api/devices/status', '/api/devices/command', '/api/devices/raw'].includes(url.pathname)) {

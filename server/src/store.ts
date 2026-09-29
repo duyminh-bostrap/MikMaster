@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { ProjectSnapshotDto, ProjectSummaryDto } from '../../shared/api.ts'
+import { QUICK_LOGIN_BRANDS, type ProjectSnapshotDto, type ProjectSummaryDto, type QuickLoginsDto } from '../../shared/api.ts'
 import { DeviceError } from './net/tcp.ts'
 
 /*
@@ -71,6 +71,9 @@ export interface ProjectStore {
   load(id: string): ProjectSnapshotDto | null
   save(snapshot: ProjectSnapshotDto): ProjectSummaryDto
   remove(id: string): boolean
+  /** Tài khoản đăng nhập nhanh theo hãng; mật khẩu mã hoá trên đĩa như project. */
+  getQuickLogins(): QuickLoginsDto
+  setQuickLogins(logins: QuickLoginsDto): void
 }
 
 export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectStore {
@@ -93,6 +96,7 @@ export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectSt
   }
   const key = loadKey()
   const fileOf = (id: string) => path.join(projectsDir, `${id}.json`)
+  const quickFile = path.join(dir, 'quick-logins.json')
 
   function read(id: string): { summary: ProjectSummaryDto; snapshot: ProjectSnapshotDto } | null {
     try { return JSON.parse(fs.readFileSync(fileOf(id), 'utf8')) } catch { return null }
@@ -121,6 +125,28 @@ export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectSt
     },
     remove(id) {
       try { fs.unlinkSync(fileOf(id)); return true } catch { return false }
+    },
+    getQuickLogins() {
+      let raw: unknown
+      try { raw = JSON.parse(fs.readFileSync(quickFile, 'utf8')) } catch { return {} }
+      const out: QuickLoginsDto = {}
+      for (const brand of QUICK_LOGIN_BRANDS) {
+        const e = isObject(raw) ? raw[brand] : undefined
+        if (!isObject(e) || typeof e.username !== 'string' || typeof e.password !== 'string') continue
+        const password = e.password === '' ? '' : decryptSecret(key, e.password)
+        if (password !== undefined) out[brand] = { username: e.username, password }
+      }
+      return out
+    },
+    setQuickLogins(logins) {
+      const body: Record<string, { username: string; password: string }> = {}
+      for (const brand of QUICK_LOGIN_BRANDS) {
+        const e = logins[brand]
+        if (e) body[brand] = { username: e.username, password: e.password === '' ? '' : encryptSecret(key, e.password) }
+      }
+      const tmp = `${quickFile}.${process.pid}.tmp`
+      fs.writeFileSync(tmp, JSON.stringify(body), { mode: 0o600 })
+      fs.renameSync(tmp, quickFile)
     },
   }
 }

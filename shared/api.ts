@@ -12,6 +12,11 @@ export const WEB_LOGIN_PROTOCOLS: readonly string[] = ['christie-serial-ip']
 
 export interface LensReadingDto { shiftH?: number; shiftV?: number; zoom?: number; focus?: number }
 
+/** Hãng có "đăng nhập nhanh": một tài khoản người dùng tự lưu cho mỗi hãng / dòng máy. */
+export const QUICK_LOGIN_BRANDS = ['panasonic', 'christie', 'barco'] as const
+export type QuickLoginBrand = (typeof QUICK_LOGIN_BRANDS)[number]
+export type QuickLoginsDto = Partial<Record<QuickLoginBrand, { username: string; password: string }>>
+
 /** Ảnh tín hiệu vào hiện tại của máy (live preview). */
 export interface PreviewDto {
   state: 'image' | 'no-signal' | 'no-thumbnail'

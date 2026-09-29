@@ -67,7 +67,7 @@ async function connect(t: DriverTarget, port: number): Promise<string> {
   if (!t.username && !t.password) throw new DeviceError('auth', 'Enter the projector web account (top right) to see the live preview')
   try {
     const token = await rpc(t.host, port, '/cgi-bin/c4jweb/', 'session:connect', { user: t.username ?? '', pass: t.password ?? '' }, t.timeoutMs)
-    if (!isSessionPath(token)) throw new DeviceError('protocol', 'Unexpected session answer from the projector web')
+    if (!isSessionPath(token)) throw new DeviceError('protocol', `Unexpected session answer from the projector web: ${JSON.stringify(token).slice(0, 120)}`)
     return token
   } catch (err) {
     if (err instanceof RpcError) throw new DeviceError('auth', `Projector web refused the login (${err.message})`)
