@@ -1,0 +1,76 @@
+@import 'tailwindcss';
+@import '@fontsource-variable/inter';
+@import '@fontsource-variable/jetbrains-mono';
+
+/*
+ * Design tokens (lấy từ bản thiết kế Figma Make).
+ * Khai báo trong @theme để dùng trực tiếp như utility: bg-card, text-muted-foreground,
+ * border-border, bg-ok/10 ...
+ */
+@theme {
+  --font-sans: 'Inter Variable', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono Variable', ui-monospace, monospace;
+
+  --color-background: #07090c;
+  --color-foreground: #e2e8f0;
+  --color-card: #0f1318;
+  --color-card-foreground: #cbd5e1;
+  --color-primary: #f59e0b;
+  --color-primary-foreground: #0f0a00;
+  --color-secondary: #1a2030;
+  --color-secondary-foreground: #94a3b8;
+  --color-muted: #141820;
+  --color-muted-foreground: #64748b;
+  --color-accent: #06b6d4;
+  --color-accent-foreground: #001a1f;
+  --color-border: #1e2633;
+
+  /* Trạng thái thiết bị */
+  --color-ok: #22c55e;
+  --color-warn: #f59e0b;
+  --color-danger: #ef4444;
+  --color-off: #374151;
+
+  /* Bề mặt điều khiển */
+  --color-elevated: #141b26;
+  --color-elevated-hover: #1e2a3a;
+  --color-inset: #0a0e14;
+  --color-screen-on: #080f1c;
+  --color-screen-off: #070809;
+
+  --radius-sm: 4px;
+
+  --animate-status: status-pulse 2.5s ease-in-out infinite;
+  @keyframes status-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+}
+
+@layer base {
+  body {
+    background-color: var(--color-background);
+    color: var(--color-foreground);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+  button:not(:disabled) { cursor: pointer; }
+  ::-webkit-scrollbar { width: 4px; height: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+  ::-webkit-scrollbar-thumb:hover { background: var(--color-muted-foreground); }
+}
+
+@layer components {
+  /* Đường quét mờ tạo cảm giác màn hình AV */
+  .scanlines { position: relative; }
+  .scanlines::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    pointer-events: none;
+    border-radius: inherit;
+    background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgb(0 0 0 / 0.04) 2px, rgb(0 0 0 / 0.04) 4px);
+  }
+}
