@@ -55,15 +55,19 @@ jobs:
           ls -la dl
           (cd dl && sha256sum * > ../SHA256SUMS.txt) && mv SHA256SUMS.txt dl/
           gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+          # Đọc ở đây vì token của bước sau chỉ có quyền trên repo công khai.
+          if [ "$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" = "$TAG" ]; then echo true > latest.txt; else echo false > latest.txt; fi
 
       - name: Publish to the public repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
         run: |
+          # Chỉ bản mới nhất của repo private mới được đánh dấu "Latest" ở repo công khai (sửa ghi chú bản cũ không đổi điều đó).
+          LATEST=$(cat latest.txt)
           if gh release view "$TAG" --repo "$MIRROR_REPO" > /dev/null 2>&1; then
-            gh release edit "$TAG" --repo "$MIRROR_REPO" --title "MikMaster $TAG" --notes-file notes.md
+            gh release edit "$TAG" --repo "$MIRROR_REPO" --title "MikMaster $TAG" --notes-file notes.md --latest="$LATEST"
           else
-            gh release create "$TAG" --repo "$MIRROR_REPO" --title "MikMaster $TAG" --notes-file notes.md --latest
+            gh release create "$TAG" --repo "$MIRROR_REPO" --title "MikMaster $TAG" --notes-file notes.md --latest="$LATEST"
           fi
           gh release upload "$TAG" dl/* --repo "$MIRROR_REPO" --clobber
           echo "Published: https://github.com/$MIRROR_REPO/releases/tag/$TAG"
