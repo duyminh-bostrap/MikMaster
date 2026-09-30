@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import type { PreviewDto } from '../../shared/api.ts'
+import { previewBrandOf, type PreviewDto } from '../../shared/api.ts'
 import { deviceCapabilities } from '@/services/capabilities'
 import { useQuickLogins } from '@/services/quickLogins'
 import { useGateway } from '@/store/useGateway'
@@ -34,7 +34,9 @@ export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
   const fallback = !own && brand ? quick[brand] : undefined
   const username = own ? p.network.protocol.username : fallback?.username
   const password = own ? p.network.protocol.password : fallback?.password
-  const hasAccount = !!(username || password)
+  // Christie cần tài khoản web của máy; Panasonic (WebSocket cổng 8080) KHÔNG cần đăng nhập.
+  const needsAccount = previewBrandOf(p.network.protocol.type, p.model) === 'christie'
+  const hasAccount = !needsAccount || !!(username || password)
   const on = p.power === 'on' && p.connection === 'connected'
   const [live, setLive] = useState<Live>({ kind: 'idle' })
   const latest = useRef(p)

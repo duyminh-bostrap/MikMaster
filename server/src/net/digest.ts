@@ -3,6 +3,7 @@ import http from 'node:http'
 import { DeviceError } from './tcp.ts'
 
 /*
+ * (Chưa dùng cho preview: cổng WebSocket 8080 của Panasonic không cần đăng nhập. Giữ lại cho các trang web của máy cần Digest, vd. trang điều khiển.)
  * HTTP Digest (RFC 7616 / 2617) cho trang web của máy chiếu (Panasonic: realm "WEB Zone"). Không dùng thư viện.
  *
  * Bảo vệ máy chiếu: nếu tài khoản bị từ chối, KHÔNG thử lại cùng tài khoản trong BLOCK_MS (nhiều máy khoá đăng nhập web sau vài lần sai).

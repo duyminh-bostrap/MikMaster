@@ -1,111 +1,88 @@
 import assert from 'node:assert/strict'
-import http from 'node:http'
-import type { AddressInfo } from 'node:net'
-import { after, beforeEach, describe, test } from 'node:test'
-import { findImageCandidates, panasonicPreview, resetPanasonicPreview, toDataUrl } from '../src/drivers/panasonicWeb.ts'
-import { digestResponse, parseChallenge, resetDigestState } from '../src/net/digest.ts'
 import crypto from 'node:crypto'
+import http from 'node:http'
+import type { Socket } from 'node:net'
+import type { AddressInfo } from 'node:net'
+import { after, afterEach, describe, test } from 'node:test'
+import { closeAllPanasonicStreams, panasonicPreview } from '../src/drivers/panasonicWeb.ts'
 
-// 1×1 JPEG hợp lệ (đủ để nhận diện bằng 2 byte đầu FFD8).
+// JPEG tối thiểu (2 byte đầu FFD8 là đủ để driver nhận diện).
 const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=', 'base64')
 
-describe('HTTP Digest', () => {
-  test('matches the RFC 2617 example (qop=auth, MD5)', () => {
-    const c = parseChallenge('Digest realm="testrealm@host.com", qop="auth,auth-int", nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093", opaque="5ccc069c403ebaf9f0171e9517f40e41"')!
-    assert.equal(c.qop, 'auth')
-    assert.equal(digestResponse(c, { username: 'Mufasa', password: 'Circle Of Life', method: 'GET', uri: '/dir/index.html', nc: '00000001', cnonce: '0a4f113b' }), '6629fae49393a05397450978507c4ef1')
-  })
-
-  test('parses the projector style challenge and rejects unsupported ones', () => {
-    assert.deepEqual(parseChallenge('Digest realm="WEB Zone", nonce="abc", algorithm="MD5", qop="auth"'), { realm: 'WEB Zone', nonce: 'abc', qop: 'auth', algorithm: 'MD5' })
-    assert.equal(parseChallenge('Basic realm="x"'), null)
-    assert.equal(parseChallenge('Digest realm="x", nonce="n", algorithm=SHA-512-256'), null)
-  })
-})
-
-/** "Máy chiếu" giả: web có Digest (realm WEB Zone) + trang preview.cgi có script + điểm cuối ảnh. */
-function fakeProjector(opts: { imageAs?: 'jpeg' | 'base64' | 'html' } = {}) {
-  const user = 'admin', pass = 'admin-pw'
-  const requests: string[] = []
-  const nonce = 'n0nce'
-  const server = http.createServer((req, res) => {
-    requests.push(`${req.method} ${req.url}`)
-    const auth = req.headers.authorization ?? ''
-    const f = Object.fromEntries([...auth.matchAll(/(\w+)=(?:"([^"]*)"|([^\s,]+))/g)].map(m => [m[1], m[2] ?? m[3]]))
-    const ok = f.username === user && f.nonce === nonce && f.response === crypto.createHash('md5').update(
-      `${crypto.createHash('md5').update(`${user}:WEB Zone:${pass}`).digest('hex')}:${nonce}:${f.nc}:${f.cnonce}:auth:${crypto.createHash('md5').update(`GET:${req.url}`).digest('hex')}`).digest('hex')
-    if (!ok) return void res.writeHead(401, { 'WWW-Authenticate': `Digest realm="WEB Zone", nonce="${nonce}", algorithm="MD5", qop="auth"` }).end('unauthorized')
-    const url = new URL(req.url ?? '/', 'http://x')
-    if (url.pathname === '/cgi-bin/preview.cgi') {
-      return void res.writeHead(200, { 'Content-Type': 'text/html' }).end(`<html><body><div id="images"><img src=""></div><script>
-        var xhr = new XMLHttpRequest();
-        xhr.open('GET', '/cgi-bin/get_preview_image.cgi?t=' + new Date().getTime(), true);
-        xhr.responseType = 'blob';
-        var css = '/cgi-bin/style.css';
-      </script></body></html>`)
-    }
-    if (url.pathname === '/cgi-bin/get_preview_image.cgi') {
-      if (opts.imageAs === 'html') return void res.writeHead(200, { 'Content-Type': 'text/html' }).end('<html>nope</html>')
-      if (opts.imageAs === 'base64') return void res.writeHead(200, { 'Content-Type': 'text/plain' }).end(JPEG.toString('base64'))
-      return void res.writeHead(200, { 'Content-Type': 'image/jpeg' }).end(JPEG)
-    }
-    res.writeHead(404).end()
-  })
-  return { server, user, pass, requests }
+/** Khung WebSocket phía máy chủ (không che): 1 = text, 2 = binary. */
+function frame(opcode: 1 | 2, payload: Buffer): Buffer {
+  const head = payload.length < 126 ? Buffer.from([0x80 | opcode, payload.length]) : Buffer.from([0x80 | opcode, 126, payload.length >> 8, payload.length & 255])
+  return Buffer.concat([head, payload])
 }
 
-describe('Panasonic Remote preview over the projector web (Digest)', () => {
-  let fp: ReturnType<typeof fakeProjector>
-  let port = 0
-  const target = (username?: string, password?: string) => ({ host: '127.0.0.1', port: 4352, timeoutMs: 2000, username, password })
-  beforeEach(() => { resetDigestState(); resetPanasonicPreview() })
-  const servers: http.Server[] = []
-  const start = async (o?: Parameters<typeof fakeProjector>[0]) => { fp = fakeProjector(o); servers.push(fp.server); await new Promise<void>(r => fp.server.listen(0, '127.0.0.1', r)); port = (fp.server.address() as AddressInfo).port }
-  after(async () => { for (const s of servers) { s.closeAllConnections(); await new Promise(r => s.close(r)) } })
-
-  test('candidates: finds the XHR address, skips css / frames / other hosts', () => {
-    const html = `xhr.open("GET", "/cgi-bin/get_preview_image.cgi?t=" + x); var a="/cgi-bin/style.css"; img.src = "http://evil.example/x.jpg"; var b='/cgi-bin/preview_status.cgi'`
-    const c = findImageCandidates(html)
-    assert.ok(c[0]!.startsWith('/cgi-bin/get_preview_image.cgi'))
-    assert.ok(!c.some(u => /style\.css|evil|preview_status/.test(u)))
+/** "Máy chiếu" giả nói giao thức pj-cast-protocol: sau khi nhận 'start' thì gửi ảnh JPEG đều đặn (hoặc chuỗi trạng thái). */
+function fakeProjector(mode: 'frames' | 'blank' | 'hdcp' | 'silent') {
+  const received: string[] = []
+  const sockets = new Set<Socket>()
+  let connections = 0
+  let subprotocol = ''
+  const server = http.createServer()
+  server.on('upgrade', (req, socket: Socket) => {
+    connections++
+    sockets.add(socket)
+    subprotocol = String(req.headers['sec-websocket-protocol'] ?? '')
+    const accept = crypto.createHash('sha1').update(`${req.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64')
+    socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\nSec-WebSocket-Protocol: pj-cast-protocol\r\n\r\n`)
+    let timer: ReturnType<typeof setInterval> | undefined
+    socket.on('data', (d: Buffer) => {
+      // Khung của khách luôn được che (mask): đọc text ngắn.
+      const len = d[1]! & 0x7f, mask = d.subarray(2, 6), body = d.subarray(6, 6 + len)
+      const text = Buffer.from(body.map((b, i) => b ^ mask[i % 4]!)).toString()
+      received.push(text)
+      if (text !== 'start') return
+      if (mode === 'blank') socket.write(frame(1, Buffer.from('BLANK')))
+      else if (mode === 'hdcp') socket.write(frame(1, Buffer.from('HDCP')))
+      else if (mode === 'frames') { socket.write(frame(1, Buffer.from('SIGNAL'))); timer = setInterval(() => socket.write(frame(2, JPEG)), 50) }
+    })
+    socket.on('close', () => { clearInterval(timer); sockets.delete(socket) })
+    socket.on('error', () => undefined)
   })
+  return { server, received, get connections() { return connections }, get subprotocol() { return subprotocol }, stop: async () => { for (const s of sockets) s.destroy(); server.close() } }
+}
 
-  test('toDataUrl: raw JPEG, base64 text, and non-image answers', () => {
-    assert.match(toDataUrl(JPEG, 'image/jpeg')!, /^data:image\/jpeg;base64,/)
-    assert.match(toDataUrl(Buffer.from(JPEG.toString('base64')), 'text/plain')!, /^data:image\/jpeg;base64,/)
-    assert.equal(toDataUrl(Buffer.from('<html>login</html>'), 'text/html'), null)
-  })
+describe('Panasonic Remote preview over WebSocket (pj-cast-protocol on port 8080)', () => {
+  const started: Array<ReturnType<typeof fakeProjector>> = []
+  const start = async (mode: Parameters<typeof fakeProjector>[0]) => {
+    const fp = fakeProjector(mode); started.push(fp)
+    await new Promise<void>(r => fp.server.listen(0, '127.0.0.1', r))
+    return { fp, port: (fp.server.address() as AddressInfo).port }
+  }
+  const target = { host: '127.0.0.1', port: 4352, timeoutMs: 2000 }
+  afterEach(() => closeAllPanasonicStreams())
+  after(async () => { for (const s of started) await s.stop() })
 
-  test('signs in with Digest, discovers the image endpoint on preview.cgi and returns the picture', async () => {
-    await start()
-    const r = await panasonicPreview(target(fp.user, fp.pass), port)
+  test('connects with the pj-cast-protocol sub-protocol, sends only "start", and returns the JPEG as a data URL (no account needed)', async () => {
+    const { fp, port } = await start('frames')
+    const r = await panasonicPreview(target, port)
     assert.equal(r.state, 'image')
     assert.equal(r.image, `data:image/jpeg;base64,${JPEG.toString('base64')}`)
-    // Lần sau dùng luôn địa chỉ đã dò (không đọc lại preview.cgi).
-    fp.requests.length = 0
-    await panasonicPreview(target(fp.user, fp.pass), port)
-    assert.ok(!fp.requests.some(x => x.includes('preview.cgi')), fp.requests.join(' | '))
+    assert.equal(fp.subprotocol, 'pj-cast-protocol')
+    assert.deepEqual(fp.received, ['start']) // không bao giờ gửi preshow:1 / preshow:0 (đổi cài đặt máy)
   })
 
-  test('the image may come as base64 text', async () => {
-    await start({ imageAs: 'base64' })
-    assert.equal((await panasonicPreview(target(fp.user, fp.pass), port)).state, 'image')
+  test('one shared connection serves many callers (page + dashboard cards)', async () => {
+    const { fp, port } = await start('frames')
+    const results = await Promise.all([1, 2, 3, 4, 5].map(() => panasonicPreview(target, port)))
+    assert.ok(results.every(r => r.state === 'image'))
+    await panasonicPreview(target, port)
+    assert.equal(fp.connections, 1)
   })
 
-  test('a wrong password is tried ONCE, then not again for a while (protects the projector from locking the account)', async () => {
-    await start()
-    await assert.rejects(panasonicPreview(target(fp.user, 'wrong'), port), (e: { code?: string }) => e.code === 'auth')
-    const before = fp.requests.length
-    await assert.rejects(panasonicPreview(target(fp.user, 'wrong'), port), (e: { code?: string; message: string }) => e.code === 'auth' && /not retrying/.test(e.message))
-    assert.equal(fp.requests.length, before) // lần 2 không gửi gì tới máy
-    resetDigestState()
-    assert.equal((await panasonicPreview(target(fp.user, fp.pass), port)).state, 'image') // tài khoản đúng thì được ngay
+  test("'BLANK' → no signal, 'HDCP' → cannot be previewed", async () => {
+    const a = await start('blank')
+    assert.equal((await panasonicPreview(target, a.port)).state, 'no-signal')
+    const b = await start('hdcp')
+    assert.equal((await panasonicPreview(target, b.port)).state, 'no-thumbnail')
   })
 
-  test('no account → asks for it without contacting the projector; unknown image format → clear error', async () => {
-    await start({ imageAs: 'html' })
-    await assert.rejects(panasonicPreview(target(), port), (e: { code?: string }) => e.code === 'auth')
-    assert.equal(fp.requests.length, 0)
-    await assert.rejects(panasonicPreview(target(fp.user, fp.pass), port), (e: Error) => /Could not find the preview image/.test(e.message))
+  test('a projector that never sends an image → clear timeout error; nothing listening → connect error', async () => {
+    const { port } = await start('silent')
+    await assert.rejects(panasonicPreview(target, port), (e: { code?: string; message: string }) => e.code === 'timeout' && /no preview image/.test(e.message))
+    await assert.rejects(panasonicPreview({ ...target, host: '127.0.0.1' }, 1), (e: { code?: string }) => e.code === 'connect' || e.code === 'timeout')
   })
 })

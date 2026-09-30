@@ -1,94 +1,105 @@
 import type { PreviewDto } from '../../../shared/api.ts'
-import { digestGet } from '../net/digest.ts'
 import { DeviceError } from '../net/tcp.ts'
 import type { DriverTarget } from './types.ts'
 
 /*
- * Remote Preview của Panasonic (PT-RQ35K…) qua trang web của máy (cổng 80, xác thực Digest, realm "WEB Zone").
- * Đã biết từ giao diện web (DevTools, 2026-09-30) và sách hướng dẫn (Web control → [Status] → [Remote preview], tr. 257):
- *   /cgi-bin/main.cgi?page=MENU_PREVIEW → khung /cgi-bin/preview_status.cgi → iframe /cgi-bin/preview.cgi?lang=e
- *   preview.cgi chứa <img src="blob:…"> do JavaScript của trang tạo ra từ dữ liệu ảnh tải về (địa chỉ ảnh nằm trong script).
- * CHƯA BIẾT (chưa đọc được script vì cần đăng nhập): địa chỉ và định dạng chính xác của yêu cầu lấy ảnh. Vì vậy driver này
- * ĐỌC preview.cgi, DÒ trong script các địa chỉ có dạng ảnh, thử lần lượt (chỉ GET), nhận ảnh nếu là JPEG / PNG / GIF (trực tiếp hoặc base64),
- * rồi nhớ địa chỉ tìm được. Nếu dò không ra, gateway ghi các ứng viên ra terminal ([preview <ip>] …) để sửa cho đúng.
+ * Remote Preview của Panasonic (PT-RQ35K…). Đọc từ mã nguồn trang /cgi-bin/preview.cgi của máy thật (2026-09-30) và ĐÃ KIỂM trên
+ * PT-RQ35K (192.168.1.176, firmware 1.21): trang KHÔNG tải ảnh bằng HTTP mà mở WebSocket
+ *
+ *     ws://<ip>:8080     giao thức con "pj-cast-protocol"     KHÔNG cần đăng nhập
+ *
+ *   máy → khách : khung NHỊ PHÂN = một ảnh JPEG (480×304, ~5 khung/giây, ~50 KB)
+ *                 chuỗi 'BLANK' (không có ảnh) · 'HDCP' (nội dung có HDCP, không xem trước được) · 'SIGNAL' / 'REFRESH' (đổi tín hiệu)
+ *                 · 'CHANGING_PRE' (đang đổi Pre-Show)
+ *   khách → máy : 'start' khi mở kết nối (bắt đầu gửi ảnh); 'preshow:1' / 'preshow:0' bật / tắt Pre-Show — driver KHÔNG gửi (đó là đổi cài đặt máy).
+ *
+ * Mỗi máy giữ MỘT kết nối dùng chung cho mọi lời gọi (trang máy + nhiều thẻ Dashboard), giữ khung mới nhất, tự đóng sau IDLE_MS không ai hỏi.
  */
-const PREVIEW_PAGE = '/cgi-bin/preview.cgi?lang=e'
-const MAX_CANDIDATES = 4
+const WS_PORT = 8080
+const PROTOCOL = 'pj-cast-protocol'
+const OPEN_TIMEOUT_MS = 3000
+const FRAME_TIMEOUT_MS = 4000
+/** Khung mới hơn ngần này được coi là "mới", trả luôn không chờ khung kế tiếp. */
+const FRESH_MS = 1500
+const IDLE_MS = 20_000
 
-const discovered = new Map<string, string>()
-
-/** Ứng viên địa chỉ ảnh trong HTML / JavaScript của preview.cgi (theo thứ tự khả năng đúng). */
-export function findImageCandidates(html: string): string[] {
-  const out: string[] = []
-  const add = (u: string | undefined) => {
-    if (!u) return
-    const clean = u.trim().replace(/[?&]$/, '')
-    if (!/^\/?[\w./-]+(?:\?[\w=&%.-]*)?$/.test(clean) || /^(?:https?:)?\/\//.test(clean)) return // chỉ đường dẫn trên chính máy, không nhảy sang host khác
-    if (/\.(?:css|js|htm|html|svg|ico)(?:\?|$)/i.test(clean)) return
-    if (/preview\.cgi|preview_status\.cgi|simple_status\.cgi|titleframe|leftframe|rightframe|topframe/i.test(clean)) return
-    const path = clean.startsWith('/') ? clean : `/cgi-bin/${clean}`
-    if (!out.includes(path)) out.push(path)
-  }
-  for (const m of html.matchAll(/\.open\(\s*['"]GET['"]\s*,\s*['"]([^'"]+)['"]/gi)) add(m[1])
-  for (const m of html.matchAll(/\bfetch\(\s*['"]([^'"]+)['"]/gi)) add(m[1])
-  for (const m of html.matchAll(/\.(?:src|href)\s*=\s*['"]([^'"]+)['"]/gi)) add(m[1])
-  for (const m of html.matchAll(/['"](\/?cgi-bin\/[\w./-]+(?:\?[\w=&%.-]*)?)['"]/gi)) add(m[1])
-  for (const m of html.matchAll(/['"]([\w./-]*(?:preview|capture|image|screen)[\w./-]*\.(?:cgi|jpe?g|png|bmp))(?:\?[^'"]*)?['"]/gi)) add(m[1])
-  // Ưu tiên địa chỉ có chữ gợi ý là ảnh.
-  const score = (u: string) => (/preview|image|capture|screen|snap|thumb/i.test(u) ? 0 : 1) + (/\.(?:jpe?g|png)/i.test(u) ? 0 : 0.5)
-  return out.sort((a, b) => score(a) - score(b)).slice(0, MAX_CANDIDATES)
+interface Frame { data: Buffer; at: number }
+interface Stream {
+  ws: WebSocket
+  frame?: Frame
+  /** trạng thái do máy báo bằng chuỗi (xoá khi có ảnh mới) */
+  status?: 'blank' | 'hdcp'
+  waiters: Array<() => void>
+  idle?: ReturnType<typeof setTimeout>
+  dead: boolean
 }
 
-/** Nhận diện ảnh: JPEG / PNG / GIF trực tiếp, hoặc chuỗi base64 (có thể kèm tiền tố data:). Trả về `data:` URL. */
-export function toDataUrl(body: Buffer, contentType: string): string | null {
-  const magic = (b: Buffer): string | null =>
-    b[0] === 0xff && b[1] === 0xd8 ? 'image/jpeg' : b.subarray(1, 4).toString('latin1') === 'PNG' && b[0] === 0x89 ? 'image/png' : b.subarray(0, 3).toString('latin1') === 'GIF' ? 'image/gif' : null
-  const direct = magic(body)
-  if (direct) return `data:${direct};base64,${body.toString('base64')}`
-  if (/^image\//i.test(contentType) && body.length > 0) return `data:${contentType.split(';')[0]};base64,${body.toString('base64')}`
-  const text = body.toString('latin1').trim()
-  const m = /^(?:data:image\/[a-z]+;base64,)?([A-Za-z0-9+/=\r\n]{40,})$/.exec(text)
-  if (m) {
-    const decoded = Buffer.from(m[1]!.replace(/\s+/g, ''), 'base64')
-    const type = magic(decoded)
-    if (type) return `data:${type};base64,${decoded.toString('base64')}`
-  }
-  return null
+const streams = new Map<string, Stream>()
+/** Kết nối đang mở dở: nhiều lời gọi cùng lúc chờ chung một kết nối thay vì mỗi cái mở một. */
+const opening = new Map<string, Promise<Stream>>()
+
+const isJpeg = (b: Buffer) => b.length > 4 && b[0] === 0xff && b[1] === 0xd8
+
+function close(key: string, s: Stream): void {
+  s.dead = true
+  clearTimeout(s.idle)
+  if (streams.get(key) === s) streams.delete(key)
+  try { s.ws.close() } catch { /* đã đóng */ }
+  for (const w of s.waiters.splice(0)) w()
 }
 
-const logged = new Set<string>()
-const logOnce = (host: string, line: string) => { const k = `${host}|${line}`; if (!logged.has(k)) { logged.add(k); console.log(`[preview ${host}] ${line}`) } }
+function open(key: string, host: string, port: number): Promise<Stream> {
+  return new Promise((resolve, reject) => {
+    let ws: WebSocket
+    try { ws = new WebSocket(`ws://${host}:${port}`, PROTOCOL) } catch (err) { return reject(new DeviceError('connect', `Cannot open the preview stream (${err instanceof Error ? err.message : 'error'})`)) }
+    ws.binaryType = 'arraybuffer'
+    const s: Stream = { ws, waiters: [], dead: false }
+    const timer = setTimeout(() => { close(key, s); reject(new DeviceError('timeout', `${host}:${port} did not open the preview stream within ${OPEN_TIMEOUT_MS}ms`)) }, OPEN_TIMEOUT_MS)
+    ws.addEventListener('open', () => { clearTimeout(timer); ws.send('start'); streams.set(key, s); resolve(s) })
+    ws.addEventListener('message', e => {
+      if (typeof e.data === 'string') {
+        if (e.data === 'BLANK') { s.status = 'blank'; s.frame = undefined }
+        else if (e.data === 'HDCP') { s.status = 'hdcp'; s.frame = undefined }
+        else return
+      } else {
+        const b = Buffer.from(e.data as ArrayBuffer)
+        if (!isJpeg(b)) return
+        s.frame = { data: b, at: Date.now() }
+        s.status = undefined
+      }
+      for (const w of s.waiters.splice(0)) w()
+    })
+    ws.addEventListener('error', () => { clearTimeout(timer); if (!streams.has(key)) reject(new DeviceError('connect', `Cannot reach the preview stream at ${host}:${port}`)); close(key, s) })
+    ws.addEventListener('close', () => { clearTimeout(timer); close(key, s) })
+  })
+}
 
-export async function panasonicPreview(t: DriverTarget, port = 80): Promise<PreviewDto> {
-  if (!t.username && !t.password) throw new DeviceError('auth', 'Enter the projector web account (admin) to see the live preview')
-  const get = (uri: string) => digestGet({ host: t.host, port, uri, username: t.username ?? '', password: t.password ?? '', timeoutMs: t.timeoutMs })
+const toResult = (s: Stream): PreviewDto | null =>
+  s.frame ? { state: 'image', image: `data:image/jpeg;base64,${s.frame.data.toString('base64')}`, resolution: '480x304' }
+  : s.status === 'blank' ? { state: 'no-signal' }
+  : s.status === 'hdcp' ? { state: 'no-thumbnail' }
+  : null
+
+/** Ảnh xem trước hiện tại của máy Panasonic. Không cần tài khoản (cổng 8080 của máy không đòi đăng nhập). */
+export async function panasonicPreview(t: DriverTarget, port = WS_PORT): Promise<PreviewDto> {
   const key = `${t.host}:${port}`
-
-  const tryImage = async (uri: string): Promise<PreviewDto | null> => {
-    const r = await get(uri)
-    if (r.status !== 200) return null
-    const image = toDataUrl(r.body, String(r.headers['content-type'] ?? ''))
-    return image ? { state: 'image', image } : null
+  let s = streams.get(key)
+  if (!s) {
+    let p = opening.get(key)
+    if (!p) { p = open(key, t.host, port).finally(() => opening.delete(key)); opening.set(key, p) }
+    s = await p
   }
+  clearTimeout(s.idle)
+  s.idle = setTimeout(() => close(key, s), IDLE_MS)
 
-  const known = discovered.get(key)
-  if (known) {
-    const hit = await tryImage(known).catch(err => { if (err instanceof DeviceError && err.code === 'auth') throw err; return null })
-    if (hit) return hit
-    discovered.delete(key) // địa chỉ cũ không còn dùng được → dò lại
-  }
-
-  const page = await get(PREVIEW_PAGE)
-  if (page.status === 404) throw new DeviceError('unsupported', 'This projector has no Remote preview page')
-  if (page.status !== 200) throw new DeviceError('protocol', `Projector web answered HTTP ${page.status} for the preview page`)
-  const candidates = findImageCandidates(page.body.toString('utf8'))
-  for (const uri of candidates) {
-    const hit = await tryImage(uri).catch(err => { if (err instanceof DeviceError && err.code === 'auth') throw err; return null })
-    if (hit) { discovered.set(key, uri); logOnce(t.host, `found the preview image at ${uri}`); return hit }
-  }
-  logOnce(t.host, `could not find the preview image; candidates tried: ${candidates.join(', ') || '(none)'} — send the source of ${PREVIEW_PAGE} to fix this`)
-  throw new DeviceError('protocol', 'Could not find the preview image in the projector web page (see the gateway terminal for details)')
+  if (s.frame && Date.now() - s.frame.at < FRESH_MS) return toResult(s)!
+  // Chờ khung / trạng thái kế tiếp.
+  await new Promise<void>(resolve => { const timer = setTimeout(resolve, FRAME_TIMEOUT_MS); s.waiters.push(() => { clearTimeout(timer); resolve() }) })
+  const r = toResult(s)
+  if (r) return r
+  if (s.dead) throw new DeviceError('connect', 'The preview stream closed')
+  throw new DeviceError('timeout', 'The projector sent no preview image (is it in standby? Pre-Show mode shows the picture without projecting)')
 }
 
 /** Chỉ để test. */
-export function resetPanasonicPreview(): void { discovered.clear(); logged.clear() }
+export function closeAllPanasonicStreams(): void { for (const [k, s] of [...streams]) close(k, s) }
