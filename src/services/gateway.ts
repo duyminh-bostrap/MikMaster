@@ -24,6 +24,8 @@ export interface Gateway {
   getLicense(): Promise<GatewayResult<LicenseStatusDto>>
   installLicense(key: string): Promise<GatewayResult<LicenseStatusDto>>
   removeLicense(): Promise<GatewayResult<LicenseStatusDto>>
+  /** Kiểm tra bản quyền qua mạng ngay (tải file trạng thái đã ký). */
+  checkLicenseOnline(): Promise<GatewayResult<LicenseStatusDto>>
   /** Tắt gateway (và MikMaster). */
   quit(): Promise<GatewayResult<unknown>>
   /** Nhận diện máy ở một IP: giao thức, cổng, hãng, model. */
@@ -93,6 +95,7 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
     getLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'GET'),
     installLicense: key => call<LicenseStatusDto>(base, token, '/api/license', { key }, 'PUT'),
     removeLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'DELETE'),
+    checkLicenseOnline: () => call<LicenseStatusDto>(base, token, '/api/license/check', {}),
     quit: () => call<unknown>(base, token, '/api/app/quit', {}),
     identify: (ip, creds) => call<IdentifyDto>(base, token, '/api/devices/identify', { ip, ...creds }),
     ping: p => call<PingDto>(base, token, '/api/devices/ping', { target: toTarget(p) }),

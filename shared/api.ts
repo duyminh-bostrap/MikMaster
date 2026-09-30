@@ -14,8 +14,11 @@ export interface LensReadingDto { shiftH?: number; shiftV?: number; zoom?: numbe
 
 /** Bản quyền phần mềm MikMaster (khoá ký số Ed25519, kiểm ngoại tuyến). */
 export interface LicenseStatusDto {
-  /** licensed = khoá hợp lệ · trial = đang dùng thử · expired = khoá đã hết hạn · unlicensed = hết dùng thử, chưa có khoá */
-  state: 'licensed' | 'trial' | 'expired' | 'unlicensed'
+  /**
+   * licensed = khoá hợp lệ · trial = đang dùng thử · expired = khoá đã hết hạn · unlicensed = hết dùng thử, chưa có khoá ·
+   * unverified = quá 30 ngày chưa kiểm tra được với mạng · revoked = khoá đã bị thu hồi
+   */
+  state: 'licensed' | 'trial' | 'expired' | 'unlicensed' | 'unverified' | 'revoked'
   licensee?: string
   id?: string
   /** Số máy chiếu tối đa; 0 = không giới hạn. */
@@ -26,6 +29,10 @@ export interface LicenseStatusDto {
   freeLimit: number
   /** Đang bị giới hạn: chỉ xem trạng thái tối đa `freeLimit` máy, không gửi lệnh. */
   restricted: boolean
+  /** Số ngày còn lại tới ngày hết hạn của khoá (chỉ khi khoá có hạn và chưa hết). */
+  expiresInDays?: number
+  /** Kiểm tra bản quyền qua mạng (bật khi có địa chỉ kiểm tra): phải kiểm được ít nhất 30 ngày một lần. */
+  online?: { configured: boolean; lastCheckAt?: string; daysLeft?: number; lastError?: string }
   /** Mã của máy tính này (gửi cho người cấp khoá để nhận khoá gắn với máy). */
   machineCode: string
   /** Khoá đang dùng gắn với một máy (khác với khoá dùng chung mọi máy). */

@@ -55,6 +55,9 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
     // Chỉ khi có cửa sổ console (Windows .exe, terminal); app macOS chạy nền → tắt bằng menu Quit.
     if (process.stdout.isTTY) console.log('Keep this window open while you use MikMaster. Press Ctrl+C (or Quit in the app menu) to stop.')
     if (opts.openBrowser) openUrl(appUrl)
+    // Kiểm tra bản quyền qua mạng khi khởi động và mỗi 6 giờ (chỉ khi có địa chỉ kiểm tra); lỗi mạng chỉ bỏ qua lần đó.
+    void license.checkNow()
+    setInterval(() => void license.checkNow(), 6 * 3_600_000).unref()
   })
 }
 

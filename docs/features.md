@@ -93,11 +93,16 @@ Hai chế độ chạy, hiển thị ở chân trang:
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Khoá ký số Ed25519 (`MIKM1.…`), kiểm ngoại tuyến bằng khoá công khai nhúng trong app; khoá chứa tên người dùng, số máy tối đa, ngày hết hạn (tuỳ chọn) | ✅ | Cấp bằng `node scripts/license.mjs issue --licensee "Tên" [--max N] [--days N]`; khoá bí mật ở `~/.mikmaster-license/private.pem`, **không nằm trong repo** — sao lưu cẩn thận |
-| Dùng thử 30 ngày đủ tính năng, tính từ lần chạy đầu | ✅ | Ghi ở thư mục dữ liệu của gateway |
-| Hết dùng thử / hết hạn: chỉ xem trạng thái tối đa 3 máy, không gửi lệnh (API trả 402 `license`) | ✅ | Rào chắn cho người dùng bình thường, không phải chống bẻ khoá |
-| Có khoá: giới hạn số máy chiếu đang làm việc (10 phút gần nhất) theo `max` | ✅ | `max = 0` là không giới hạn |
-| Cài đặt → mục Bản quyền: xem trạng thái, nhập / gỡ khoá; huy hiệu ở chân trang khi còn ≤ 7 ngày dùng thử hoặc hết hạn | ✅ | Cần gateway; ở chế độ mô phỏng không có |
+| Khoá ký số Ed25519, kiểm ngoại tuyến bằng khoá công khai nhúng trong app. Định dạng gọn `MIKM2-…` (~115–140 ký tự); khoá cũ `MIKM1.…` (~220 ký tự) vẫn dùng được | ✅ | Cấp bằng `node scripts/license.mjs issue --licensee "Tên" [--max N] [--days N] [--machine MÃ]`. Khoá bí mật ở `~/.mikmaster-license/private.pem`, **không nằm trong repo** — sao lưu cẩn thận |
+| Dùng thử 30 ngày đủ tính năng; hết dùng thử / hết hạn: chỉ xem trạng thái tối đa 3 máy, không gửi lệnh (API trả 402 `license`) | ✅ | Chính sách ở `server/src/license.ts` |
+| Có khoá: giới hạn số máy chiếu làm việc trong 10 phút gần nhất theo `max` (0 = không giới hạn) | ✅ | |
+| **Gắn khoá với máy tính** (mã máy = băm một chiều định danh phần cứng) và **gỡ key khỏi máy này** để chuyển máy: nhận "mã gỡ" → người cấp chạy `rebind` cấp khoá mới cho máy kia | ✅ | Sổ cấp phát `~/.mikmaster-license/issued.json`. Không có máy chủ nên "gỡ" chỉ là biên nhận, khoá gắn máy nào chỉ chạy được trên máy đó |
+| **Cảnh báo** khi dùng thử / khoá còn ≤ 14 ngày (huy hiệu chân trang + Cài đặt) | ✅ | |
+| **Kiểm tra qua mạng ≥ 30 ngày một lần** (khi đã đặt địa chỉ kiểm tra `MIKMASTER_LICENSE_URL` hoặc `licenseKey.ts`): file trạng thái đã ký (`node scripts/license.mjs status`) chứa danh sách khoá bị thu hồi. Quá 30 ngày không tải được → bị giới hạn tới khi kết nối lại; cảnh báo khi còn ≤ 14 ngày; nút "Kiểm tra ngay" | 🧪 | Chưa có địa chỉ kiểm tra thật → mặc định **tắt**. Đăng file trạng thái lên hosting tĩnh bất kỳ và nhớ đăng lại mới định kỳ |
+
+**Chống crack — đã làm:** khoá không sửa / ghép / cắt được (chữ ký phủ toàn bộ dữ liệu, có tiền tố riêng nên không dùng lại chữ ký của file khác); trạng thái dùng thử / lần kiểm tra mạng được niêm phong bằng HMAC và lưu 2 nơi (sửa tay bị phát hiện, xoá một bản được khôi phục, chép từ máy khác không hợp lệ); chỉnh đồng hồ lùi không kéo dài được dùng thử / hạn khoá; file trạng thái cũ hơn file đã nhận bị bỏ qua (không hoàn tác thu hồi).
+
+**Không thể ngăn (giới hạn của license ngoại tuyến):** người biết vá mã của app (thay khoá công khai, bỏ đoạn kiểm tra) hoặc xoá cả hai nơi lưu trạng thái + cài lại thì vượt được. Cách giảm rủi ro: ký số app (Windows / Apple), và nếu cần chặt hơn thì chuyển sang kích hoạt qua máy chủ.
 
 ## Bảo mật
 

@@ -1,4 +1,4 @@
-import { Check, Copy, KeyRound, Unplug } from 'lucide-react'
+import { Check, Copy, KeyRound, RefreshCw, Unplug } from 'lucide-react'
 import { useState } from 'react'
 import type { LicenseStatusDto } from '../../../shared/api.ts'
 import { Badge } from '@/components/ui/Badge'
@@ -6,13 +6,14 @@ import { Button } from '@/components/ui/Button'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useT } from '@/i18n'
 import { setLicenseStatus, useLicense } from '@/services/license'
+import { licenseNotice } from '@/utils/licenseNotice'
 import { useGateway } from '@/store/useGateway'
 
 function StateBadge({ s }: { s: LicenseStatusDto }) {
   const t = useT()
-  if (s.state === 'licensed') return <Badge tone="ok">{t('LICENSED')}</Badge>
-  if (s.state === 'trial') return <Badge tone="warn">{t('TRIAL · {n} day(s) left', { n: s.trialDaysLeft ?? 0 })}</Badge>
-  return <Badge tone="danger">{s.state === 'expired' ? t('LICENSE EXPIRED') : t('TRIAL ENDED')}</Badge>
+  const notice = licenseNotice(s)
+  if (notice) return <Badge tone={notice.tone}>{t(notice.text, notice.vars)}</Badge>
+  return <Badge tone="ok">{t('LICENSED')}</Badge>
 }
 
 /** Bản quyền MikMaster: xem trạng thái, nhập / gỡ khoá. Cần gateway (khoá kiểm và lưu ở gateway). */
@@ -24,6 +25,7 @@ export function LicenseSection() {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const [copied, setCopied] = useState('')
+  const [checking, setChecking] = useState(false)
   const [confirmDialog, confirm] = useConfirm()
 
   if (!gateway || !s) {
@@ -40,6 +42,12 @@ export function LicenseSection() {
     const r = await gateway!.installLicense(key.trim())
     setBusy(false)
     if (r.ok) { setLicenseStatus(r.value); setKey('') } else setError(r.message)
+  }
+  async function checkOnline() {
+    setChecking(true)
+    const r = await gateway!.checkLicenseOnline()
+    setChecking(false)
+    if (r.ok) setLicenseStatus(r.value)
   }
   async function release() {
     const ok = await confirm({
@@ -67,12 +75,22 @@ export function LicenseSection() {
         <span className="font-mono text-xs text-muted-foreground">{t('LICENSE')}</span>
         <StateBadge s={s} />
       </div>
-      {(s.state === 'licensed' || s.state === 'expired') && (
+      {(s.state === 'licensed' || s.state === 'expired' || s.state === 'unverified' || s.state === 'revoked') && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[11px]">
           <dt className="text-muted-foreground">{t('Licensed to')}</dt><dd className="text-foreground">{s.licensee}</dd>
           <dt className="text-muted-foreground">{t('Projectors')}</dt><dd className="text-foreground">{limit}</dd>
           <dt className="text-muted-foreground">{t('Valid until')}</dt><dd className="text-foreground">{s.expiresAt ? s.expiresAt.slice(0, 10) : t('no expiry')}</dd>
+          {s.online?.configured && <><dt className="text-muted-foreground">{t('Last online check')}</dt><dd className="text-foreground">{s.online.lastCheckAt ? s.online.lastCheckAt.slice(0, 10) : '—'}</dd></>}
         </dl>
+      )}
+      {s.online?.configured && s.state !== 'trial' && s.state !== 'unlicensed' && (
+        <div className="flex flex-col gap-1">
+          <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
+            <span>{s.state === 'unverified' ? t('The license was not verified online for 30 days. Connect to the internet and check again.') : t('The license must be verified online at least every 30 days — {n} day(s) left.', { n: s.online.daysLeft ?? 0 })}</span>
+            <Button type="button" size="xs" disabled={checking} onClick={() => void checkOnline()}><RefreshCw size={10} className={checking ? 'animate-spin' : ''} />{t('CHECK NOW')}</Button>
+          </div>
+          {s.online.lastError && <p className="font-mono text-[10px] text-danger">{t('Online check failed: {message}', { message: s.online.lastError })}</p>}
+        </div>
       )}
       {s.restricted && (
         <p className="font-mono text-[10px] leading-relaxed text-danger">

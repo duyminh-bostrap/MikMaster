@@ -3,6 +3,8 @@
 //   node scripts/license.mjs issue --licensee "Tên khách" [--max 10] [--days 365] [--machine XXXX-XXXX-XXXX-XXXX]
 //   node scripts/license.mjs rebind <mã gỡ MIKR1.…> --machine <mã máy mới>     (chuyển khoá sang máy khác)
 //   node scripts/license.mjs verify <khoá>
+//   node scripts/license.mjs revoke <id>                                          (thu hồi một khoá)
+//   node scripts/license.mjs status                                               (in file trạng thái đã ký để đăng lên địa chỉ kiểm tra)
 //   node scripts/license.mjs ledger                                               (danh sách khoá đã cấp)
 //
 // --machine gắn khoá với một máy tính (mã máy lấy ở Cài đặt → Bản quyền của máy đó); không có --machine = dùng được mọi máy.
@@ -14,7 +16,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { randomBytes } from 'node:crypto'
-import { normalizeMachineCode, parseReleaseCode, signLicense, verifyLicense } from '../server/src/license.ts'
+import { normalizeMachineCode, parseReleaseCode, signLicense, signStatusDoc, verifyLicense } from '../server/src/license.ts'
 
 const [cmd, ...rest] = process.argv.slice(2)
 const flag = name => { const i = rest.indexOf(`--${name}`); return i >= 0 ? rest[i + 1] : undefined }
@@ -61,9 +63,21 @@ if (cmd === 'issue') {
   entry.machine = mc
   writeLedger(ledger)
   console.log(key)
+} else if (cmd === 'revoke') {
+  const ledger = readLedger()
+  const id = rest[0]
+  if (!id || !ledger[id]) { console.error(`Không thấy khoá "${id ?? ''}" trong sổ cấp phát.`); process.exit(1) }
+  ledger[id].revoked = true
+  writeLedger(ledger)
+  console.error(`Đã đánh dấu thu hồi ${id}. Chạy "status" và đăng file mới lên địa chỉ kiểm tra để có hiệu lực.`)
+} else if (cmd === 'status') {
+  // File này đăng ở địa chỉ MIKMASTER_LICENSE_URL (hosting tĩnh bất kỳ). App tải về mỗi 6 giờ; mỗi lần tải được = "đã kiểm tra".
+  // Nhớ đăng lại file mới (chạy lại lệnh này) ít nhất mỗi vài tuần: file cũ hơn file app đã nhận sẽ bị bỏ qua.
+  const revoked = Object.entries(readLedger()).filter(([, e]) => e.revoked).map(([id]) => id)
+  process.stdout.write(signStatusDoc(privateKey(), revoked))
 } else if (cmd === 'ledger') {
   for (const [id, e] of Object.entries(readLedger())) {
-    console.log(`${id}  ${e.licensee}  max=${e.max || 'không giới hạn'}  hạn=${e.exp ? e.exp.slice(0, 10) : 'không'}  máy=${e.machine ?? 'mọi máy'}  chuyển=${e.history.length} lần`)
+    console.log(`${id}  ${e.licensee}  max=${e.max || 'không giới hạn'}  hạn=${e.exp ? e.exp.slice(0, 10) : 'không'}${e.revoked ? '  [ĐÃ THU HỒI]' : ''}  máy=${e.machine ?? 'mọi máy'}  chuyển=${e.history.length} lần`)
   }
 } else if (cmd === 'verify') {
   const p = verifyLicense(rest[0] ?? '')

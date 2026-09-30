@@ -121,6 +121,11 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     }
   }
 
+  if (route === 'POST /api/license/check') {
+    if (!license) throw new DeviceError('unsupported', 'Licensing is not enabled on this gateway')
+    return sendJson(res, 200, await license.checkNow())
+  }
+
   if (url.pathname === '/api/license') {
     if (!license) throw new DeviceError('unsupported', 'Licensing is not enabled on this gateway')
     if (req.method === 'GET') return sendJson(res, 200, license.status())
