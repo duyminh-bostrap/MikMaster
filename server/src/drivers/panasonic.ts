@@ -1,6 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { CommandDto, OsdKeyDto, StatusDto } from '../../../shared/api.ts'
 import { DeviceError, TcpConnection, serialize, splitOnCR } from '../net/tcp.ts'
+import { panasonicWebTemperatures } from './panasonicWeb.ts'
 import type { Driver, DriverTarget, ProbeResult } from './types.ts'
 
 /*
@@ -110,16 +111,23 @@ const lastTempAt = new Map<string, number>()
 async function readTemperatures(t: DriverTarget, status: StatusDto): Promise<void> {
   const key = `${t.host}:${t.port}`
   if (Date.now() - (lastTempAt.get(key) ?? 0) < TEMP_EVERY_MS) return
-  const sensors: { name: string; c: number }[] = []
-  for (const [code, name] of [['QTM:0', 'Intake air'], ['QTM:1', 'Exhaust air']] as const) {
-    const c = parseTemperature((await optional(exchange(t, code))) ?? '')
-    if (c !== undefined) sensors.push({ name, c })
-  }
   lastTempAt.set(key, Date.now())
+  // 1) Trang web của máy (cấu trúc đã thấy trên máy thật) — cùng tài khoản với NTCONTROL; 2) lệnh QTM qua NTCONTROL.
+  let sensors: { name: string; c: number }[] = await panasonicWebTemperatures(t, webPort).catch(() => [])
+  if (!sensors.length) {
+    for (const [code, name] of [['QTM:0', 'Intake air'], ['QTM:1', 'Exhaust air']] as const) {
+      const c = parseTemperature((await optional(exchange(t, code))) ?? '')
+      if (c !== undefined) sensors.push({ name, c })
+    }
+  }
   if (!sensors.length) return
   status.temperatures = sensors
   status.temperatureC = sensors[0]!.c // nhiệt độ chính = khí vào (giống Christie)
 }
+
+/** Cổng web của máy (chỉ đổi trong test). */
+let webPort = 80
+export function setPanasonicWebPort(port: number): void { webPort = port }
 
 export const panasonicDriver: Driver = {
   async status(t) {

@@ -1,4 +1,5 @@
 import type { PreviewDto } from '../../../shared/api.ts'
+import { digestGet } from '../net/digest.ts'
 import { DeviceError } from '../net/tcp.ts'
 import type { DriverTarget } from './types.ts'
 
@@ -103,3 +104,34 @@ export async function panasonicPreview(t: DriverTarget, port = WS_PORT): Promise
 
 /** Chỉ để test. */
 export function closeAllPanasonicStreams(): void { for (const [k, s] of [...streams]) close(k, s) }
+
+/*
+ * Nhiệt độ từ trang web của máy: /cgi-bin/simple_status.cgi (trang này là khung "trạng thái" nằm dưới ảnh trong Remote preview;
+ * cấu trúc đọc từ DevTools của một PT-RQ35K thật, 2026-09-30):
+ *   <div class="contents_name">INTAKE AIR</div> … <span class="temp_string_good">27°C</span><span class="temp_string_good">80°F</span>
+ * Cần tài khoản web của máy (Digest, realm "WEB Zone"), khác cổng WebSocket của ảnh.
+ */
+const STATUS_URI = '/cgi-bin/simple_status.cgi?lang=e'
+
+const titleCase = (s: string) => s.trim().toLowerCase().replace(/^\w/, c => c.toUpperCase())
+
+/** Các nhiệt độ °C trong trang simple_status (tên nhãn phía trước, mặc định "Intake air"); bỏ số °F. */
+export function parseSimpleStatus(html: string): { name: string; c: number }[] {
+  const out: { name: string; c: number }[] = []
+  const names = [...html.matchAll(/class="contents_name"[^>]*>([\s\S]*?)<\/div>/gi)].map(m => ({ at: m.index ?? 0, text: m[1]!.replace(/<[^>]*>|&nbsp;/g, ' ').replace(/\s+/g, ' ').trim() }))
+  for (const m of html.matchAll(/<span[^>]*class="temp_string_\w+"[^>]*>\s*(-?\d{1,3})\s*(?:&deg;|&#176;|°|º)\s*C\s*<\/span>/gi)) {
+    const c = Number(m[1])
+    if (c < -20 || c > 150) continue
+    const label = [...names].reverse().find(n => n.at < (m.index ?? 0))?.text
+    out.push({ name: label ? titleCase(label) : 'Intake air', c })
+  }
+  return out
+}
+
+/** Đọc nhiệt độ từ web của máy; ném DeviceError('auth') nếu tài khoản bị từ chối (digest tự chặn thử lại 5 phút). */
+export async function panasonicWebTemperatures(t: DriverTarget, port = 80): Promise<{ name: string; c: number }[]> {
+  if (!t.username && !t.password) throw new DeviceError('auth', 'The projector web needs an account')
+  const r = await digestGet({ host: t.host, port, uri: STATUS_URI, username: t.username ?? '', password: t.password ?? '', timeoutMs: t.timeoutMs })
+  if (r.status !== 200) throw new DeviceError('protocol', `The projector web answered ${r.status}`)
+  return parseSimpleStatus(r.body.toString('utf8'))
+}

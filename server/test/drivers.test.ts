@@ -1,7 +1,11 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import { christieDriver } from '../src/drivers/christie.ts'
-import { panasonicDriver, parseTemperature } from '../src/drivers/panasonic.ts'
+import { panasonicDriver, parseTemperature, setPanasonicWebPort } from '../src/drivers/panasonic.ts'
+import { parseSimpleStatus } from '../src/drivers/panasonicWeb.ts'
+import crypto from 'node:crypto'
+import http from 'node:http'
+import type { AddressInfo } from 'node:net'
 import { pjlinkDriver } from '../src/drivers/pjlink.ts'
 import type { DriverTarget } from '../src/drivers/types.ts'
 import { DeviceError, splitParens } from '../src/net/tcp.ts'
@@ -128,6 +132,34 @@ describe('Panasonic NTCONTROL driver', () => {
       assert.equal(again.temperatureC, undefined)
       assert.equal(sim.received.filter(c => c.startsWith('QTM')).length, 2)
     } finally { await sim.stop() }
+  })
+
+  test('parseSimpleStatus reads °C from the projector web status page (structure seen on a real PT-RQ35K), ignores °F', () => {
+    const html = '<div class="contents_name">INTAKE&nbsp;AIR</div><div class="contents_string"><p class="top_p"><span class="temp_string_good">27°C</span><span class="temp_string_good">80°F</span></p></div>'
+    assert.deepEqual(parseSimpleStatus(html), [{ name: 'Intake air', c: 27 }])
+    assert.deepEqual(parseSimpleStatus('<span class="temp_string_warn">&nbsp;</span>'), [])
+  })
+
+  test('temperature from the projector web page (Digest login with the same account), preferred over QTM', async () => {
+    const user = 'admin1', pass = 'panasonic', nonce = 'abc123'
+    const md5 = (x: string) => crypto.createHash('md5').update(x).digest('hex')
+    const web = http.createServer((req, res) => {
+      const f = Object.fromEntries([...(req.headers.authorization ?? '').matchAll(/(\w+)=(?:"([^"]*)"|([^\s,]+))/g)].map(m => [m[1], m[2] ?? m[3]]))
+      const ok = f.username === user && f.response === md5(`${md5(`${user}:WEB Zone:${pass}`)}:${nonce}:${f.nc}:${f.cnonce}:auth:${md5(`GET:${req.url}`)}`)
+      if (!ok) return void res.writeHead(401, { 'WWW-Authenticate': `Digest realm="WEB Zone", nonce="${nonce}", algorithm="MD5", qop="auth"` }).end('no')
+      res.writeHead(200, { 'Content-Type': 'text/html' }).end('<div class="contents_name">INTAKE AIR</div><span class="temp_string_good">27°C</span><span class="temp_string_good">80°F</span>')
+    })
+    await new Promise<void>(r => web.listen(0, '127.0.0.1', r))
+    const sim = new PanasonicSimulator({ credentials: { username: user, password: pass }, temps: [99, 99] })
+    await sim.start()
+    setPanasonicWebPort((web.address() as AddressInfo).port)
+    try {
+      await panasonicDriver.command(target(sim.port, { username: user, password: pass }), { kind: 'power', value: 'on' })
+      const s = await panasonicDriver.status(target(sim.port, { username: user, password: pass }))
+      assert.equal(s.temperatureC, 27)
+      assert.deepEqual(s.temperatures, [{ name: 'Intake air', c: 27 }])
+      assert.equal(sim.received.filter(c => c.startsWith('QTM')).length, 0) // đã có từ web → không hỏi QTM
+    } finally { setPanasonicWebPort(80); web.closeAllConnections(); await new Promise(r => web.close(r)); await sim.stop() }
   })
 
   test('parseTemperature accepts plain integers in range only', () => {
