@@ -6,10 +6,10 @@ import { useT } from '@/i18n'
 import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
 
-/** Power · Shutter · OSD on/off. Tắt máy hỏi xác nhận. OSD chưa có lệnh đã xác minh nên chỉ đổi trạng thái trong app. */
+/** Power · Shutter · OSD on/off. Tắt máy hỏi xác nhận. OSD gửi tới máy nếu driver có lệnh (Christie), còn lại chỉ đổi trạng thái trong app. */
 export function BasicControls({ projector: p }: { projector: Projector }) {
   const t = useT()
-  const { setPower, setShutter, updateProjector } = useProjectActions()
+  const { setPower, setShutter, setOsdMany } = useProjectActions()
   const [confirmDialog, confirm] = useConfirm()
   const osdOn = p.osd !== false
   const isOff = p.power === 'standby' || p.power === 'off'
@@ -40,8 +40,8 @@ export function BasicControls({ projector: p }: { projector: Projector }) {
 
       <SectionHeader label={t('OSD')} />
       <div className="mb-5 flex gap-2">
-        <Button size="md" variant="ok" selected={osdOn} className="flex-1" onClick={() => updateProjector(p.id, { osd: true })}>{t('ON')}</Button>
-        <Button size="md" variant="secondary" selected={!osdOn} className="flex-1" onClick={() => updateProjector(p.id, { osd: false })}>{t('OFF')}</Button>
+        <Button size="md" variant="ok" selected={osdOn} className="flex-1" onClick={() => setOsdMany([p.id], true)}>{t('ON')}</Button>
+        <Button size="md" variant="secondary" selected={!osdOn} className="flex-1" onClick={() => setOsdMany([p.id], false)}>{t('OFF')}</Button>
       </div>
       {confirmDialog}
     </>

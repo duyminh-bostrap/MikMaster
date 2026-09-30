@@ -235,9 +235,10 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       if (!isObject(body.command) || typeof body.command.kind !== 'string') throw new DeviceError('bad-request', 'Missing command.kind')
       const command = body.command as unknown as CommandDto
       requireCapability(protocol, command.kind, target)
-      if (command.kind === 'testPattern') {
-        // Không có lệnh test pattern chuẩn: gửi đúng lệnh người dùng khai báo qua đường RAW của driver.
-        await driver.raw(target, target.commands![command.enabled ? 'testPatternOn' : 'testPatternOff']!.trim())
+      const templates = target.commands
+      if (command.kind === 'testPattern' && templates?.testPatternOn && templates.testPatternOff) {
+        // Người dùng đã khai báo lệnh test pattern của riêng mình: gửi đúng lệnh đó qua đường RAW của driver.
+        await driver.raw(target, templates[command.enabled ? 'testPatternOn' : 'testPatternOff']!.trim())
       } else {
         await driver.command(target, command)
       }

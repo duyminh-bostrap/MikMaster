@@ -42,7 +42,7 @@ describe('HTTP API', () => {
   test('health lists driver capabilities (no lens / test pattern)', async () => {
     const body = await (await fetch(`${base}/api/health`)).json() as any
     assert.equal(body.ok, true)
-    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'raw', 'preview'])
+    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'raw', 'preview', 'testPattern', 'osdDisplay'])
     for (const caps of Object.values<string[]>(body.drivers)) assert.ok(!caps.includes('lens'))
   })
 
@@ -335,8 +335,27 @@ describe('quit', () => {
 describe('test pattern via user commands', () => {
   const pj = (commands?: object) => ({ ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, ...(commands ? { commands } : {}) } })
 
-  test('vendor protocol without test pattern commands → 501', async () => {
-    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: true } })).status, 501)
+  test('protocol without a built-in test pattern (PJLink) and without commands → 501', async () => {
+    const pjlink = { ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: 4352 } }
+    assert.equal((await post('/api/devices/command', { target: pjlink, command: { kind: 'testPattern', enabled: true } })).status, 501)
+    assert.equal((await post('/api/devices/command', { target: pjlink, command: { kind: 'osdDisplay', visible: true } })).status, 501)
+  })
+
+  test('Christie built-in: (ITP n) per pattern, (ITP 0) off, unsupported pattern → 501-style error, (OSD n)', async () => {
+    const before = christie.received.length
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: true, pattern: 'color-bars' } })).status, 200)
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: false } })).status, 200)
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'osdDisplay', visible: false } })).status, 200)
+    assert.deepEqual(christie.received.slice(before), ['(ITP 5)', '(ITP 0)', '(OSD 0)'])
+    const bad = await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: true, pattern: 'focus' } })
+    assert.equal(bad.status, 501)
+    assert.match(bad.body.error.message, /no "focus" test pattern/)
+  })
+
+  test('user-declared templates still win over the built-in pattern', async () => {
+    const before = christie.received.length
+    await post('/api/devices/command', { target: pj({ testPatternOn: '(PWR?)', testPatternOff: '(SHU?)' }), command: { kind: 'testPattern', enabled: true, pattern: 'grid' } })
+    assert.deepEqual(christie.received.slice(before), ['(PWR?)'])
   })
 
   test('with both commands the configured text is sent through RAW', async () => {

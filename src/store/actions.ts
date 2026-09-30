@@ -63,14 +63,17 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     logEvent: (id: string, level: 'info' | 'warn' | 'error', message: string) => dispatch({ type: 'projector/log', id, level, message }),
     setTestPattern: (id: string, patch: Partial<TestPatternState>) => {
       dispatch({ type: 'projector/setTestPattern', id, patch })
-      if (patch.enabled !== undefined) effects?.testPattern([id], patch.enabled)
+      if (patch.enabled !== undefined || patch.type !== undefined) effects?.testPattern([id], patch.enabled, patch.type)
     },
-    /** OSD chưa có lệnh đã xác minh: chỉ đổi trạng thái trong app. */
-    setOsdMany: (ids: string[], osd: boolean) => dispatch({ type: 'projectors/setOsd', ids, osd }),
+    /** Hiện / ẩn OSD: đổi trong app, và gửi tới máy nếu driver có lệnh (Christie); còn lại chỉ đổi trong app. */
+    setOsdMany: (ids: string[], osd: boolean) => {
+      dispatch({ type: 'projectors/setOsd', ids, osd })
+      effects?.osdDisplay(ids, osd)
+    },
     /** Cả booth: bật / tắt / chọn pattern cho nhiều máy. */
     setTestPatternMany: (ids: string[], patch: Partial<TestPatternState>) => {
       dispatch({ type: 'projectors/setTestPattern', ids, patch })
-      if (patch.enabled !== undefined) effects?.testPattern(ids, patch.enabled)
+      if (patch.enabled !== undefined || patch.type !== undefined) effects?.testPattern(ids, patch.enabled, patch.type)
     },
     adjustLens: (id: string, delta: Partial<LensPosition>) => dispatch({ type: 'lens/adjust', id, delta }),
     resetLensShift: (id: string) => dispatch({ type: 'lens/resetShift', id }),

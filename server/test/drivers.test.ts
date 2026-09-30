@@ -162,6 +162,7 @@ describe('Christie SST status groups (replies captured from a real Griffyn 4K50-
       assert.equal(s.temperatures?.[0]?.name, 'Air Intake (Temp 2)')
       assert.equal(s.lampHours, 260) // Laser On Hours (SST+LGHT) trước Projector Hours
       assert.equal(s.input, 'HDMI 1')
+      assert.equal(s.osd, true)
       assert.deepEqual(s.lens, { shiftH: -3, shiftV: -604, zoom: -50, focus: 273 })
     } finally { await sim.stop() }
   })

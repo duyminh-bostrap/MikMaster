@@ -6,6 +6,10 @@ import { SimServer } from './base.ts'
 export class ChristieSimulator extends SimServer {
   power = 0
   shutter = 0
+  /** (ITP n): 0 = tắt. */
+  pattern = 0
+  /** (OSD 0|1): mặc định hiện. */
+  osd = 1
   received: string[] = []
 
   constructor(opts: { host?: string; port?: number } = {}) {
@@ -54,6 +58,14 @@ export class ChristieSimulator extends SimServer {
     if (code === 'SIN' && arg === '?') return '(SIN!001 "One-Port HDMI0")'
     const lens: Record<string, string> = { LHO: '-003', LVO: '-604', ZOM: '-050', FCS: '273' }
     if (code! in lens && arg === '?') return `(${code}!${lens[code!]})`
+    if (code === 'OSD') {
+      if (arg !== '?') this.osd = Number(arg)
+      return `(OSD!00${this.osd})`
+    }
+    if (code === 'ITP') {
+      if (arg !== '?') { this.pattern = Number(arg); if (this.pattern > 13) return '(65535 00000 ERR00012 "Value out of range")' }
+      return `(ITP!${String(this.pattern).padStart(3, '0')} "${this.pattern ? 'Pattern' : 'Off'}")`
+    }
     if (code === 'SHU') {
       if (!this.power) return '(ERR "Not available in standby")'
       if (arg !== '?') this.shutter = Number(arg)

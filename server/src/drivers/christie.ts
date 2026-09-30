@@ -16,12 +16,22 @@ import type { Driver, DriverTarget, ProbeResult } from './types.ts'
  *   Phản hồi: `(PWR!000 "Standby Mode")` hoặc `(PWR! 001 "On")` — mã, "!", giá trị số độ dài cố định, mô tả
  *   (Tài liệu tổng hợp do người dùng cung cấp, 2026-09: xác nhận PWR 1/0, SHU 1 = đóng / 0 = mở, cổng 3002.)
  *
+ * Tài liệu chính thức "4K7-HS and 4K10-HS Technical Reference — Serial Commands" (020-102782-02, 2021) do người dùng cung cấp:
+ * dòng máy khác Griffyn nhưng cùng họ lệnh. Dùng ở đây: `(OSD <0|1>)` hiện / ẩn OSD (Griffyn trả lời `(OSD?)` → `(OSD!000)`),
+ * `(ITP <n>)` test pattern (0 tắt, 1 lưới, 2 trắng, 3 đen, 4 ô cờ, 5 thanh màu, 6 đỏ, 7 xanh lá, 8 xanh dương, 9 vàng, 10 tím, 11 lục lam,
+ * 12 boresight, 13 toàn màn hình). Số mẫu CHƯA kiểm trên Griffyn (mới xác nhận `(ITP?)` → `(ITP!000 "Off")`).
+ * Có trong tài liệu nhưng CHƯA làm: `(LMA n)` / `(LMS n)` nạp / lưu 5 bộ nhớ lens (0–4), `(KEY n)` phím menu, `(LCB+HOME 1)` lens về giữa,
+ * `(SIN+MAIN n)` chọn input — số input của 4K7-HS (3 = HDMI 1…) KHÁC Griffyn (`(SIN!001 "One-Port HDMI0")`) nên không dùng.
+ *
  * Các điểm chưa chắc, cố ý tách riêng để sửa một chỗ khi có tài liệu Griffyn:
  *   - POWER_STATE: ý nghĩa các giá trị số ngoài 0/1 → suy từ phần mô tả.
  *   - SHUTTER_CLOSED: (SHU1) = đóng, (SHU0) = mở.
  */
 /** Đã hỏi thử trên Griffyn 4K50 thật: `(LHO!-003)` `(LVO!-604)` `(ZOM!-050)` `(FCS!273)`. */
 const LENS_QUERIES = [['LHO', 'shiftH'], ['LVO', 'shiftV'], ['ZOM', 'zoom'], ['FCS', 'focus']] as const satisfies readonly (readonly [string, keyof LensReadingDto])[]
+
+/** Loại mẫu của app → số `(ITP n)`; mẫu không có tương ứng thì không hỗ trợ. */
+const ITP_PATTERNS: Record<string, number> = { grid: 1, white: 2, black: 3, 'color-bars': 5, red: 6, green: 7, blue: 8 }
 
 const SHUTTER_CLOSED = '1'
 const SHUTTER_OPEN = '0'
@@ -136,6 +146,8 @@ export const christieDriver: Driver = {
       if (shu) status.shutter = shu.value.replace(/^0+(?=\d)/, '') === SHUTTER_CLOSED
       const sin = await query(t, 'SIN').catch(() => undefined)
       if (sin) status.input = inputFrom(sin.description)
+      const osd = await query(t, 'OSD').catch(() => undefined)
+      if (osd && /^\d+$/.test(osd.value)) status.osd = Number(osd.value) === 1
     }
     // Vị trí ống kính (chỉ hỏi "?", không bao giờ gửi lệnh di chuyển): `(LHO!-003)` → -3.
     const lens: LensReadingDto = {}
@@ -161,6 +173,14 @@ export const christieDriver: Driver = {
       case 'shutter': parseFrame(await exchange(t, `(SHU ${c.closed ? SHUTTER_CLOSED : SHUTTER_OPEN})`)); return
       case 'input': throw new DeviceError('unsupported', 'Christie input/channel mapping is not verified for Griffyn')
       case 'osd': throw new DeviceError('unsupported', 'Christie OSD navigation has no verified command')
+      case 'osdDisplay': parseFrame(await exchange(t, `(OSD ${c.visible ? 1 : 0})`)); return
+      case 'testPattern': {
+        if (!c.enabled) { parseFrame(await exchange(t, '(ITP 0)')); return }
+        const n = ITP_PATTERNS[c.pattern ?? 'grid']
+        if (n === undefined) throw new DeviceError('unsupported', `Christie has no "${c.pattern}" test pattern (available: ${Object.keys(ITP_PATTERNS).join(', ')})`)
+        parseFrame(await exchange(t, `(ITP ${n})`))
+        return
+      }
     }
   },
 

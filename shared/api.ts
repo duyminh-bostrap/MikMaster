@@ -2,7 +2,7 @@
 
 export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip' | 'barco-pulse' | 'generic-tcp' | 'generic-udp' | 'art-net' | 'http-api'
 
-export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'raw' | 'testPattern' | 'preview'
+export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'raw' | 'testPattern' | 'preview'
 
 /**
  * Giao thức điều khiển không cần đăng nhập, nhưng web của máy thì cần: tài khoản chỉ dùng cho live preview.
@@ -64,7 +64,8 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   'pjlink-class1': ['power', 'shutter', 'input', 'raw'],
   'pjlink-class2': ['power', 'shutter', 'input', 'raw'],
   'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw'],
-  'christie-serial-ip': ['power', 'shutter', 'raw', 'preview'],
+  // testPattern / osdDisplay: (ITP n) / (OSD 0|1) theo tài liệu Christie 4K7-HS/4K10-HS; chưa kiểm số mẫu trên Griffyn.
+  'christie-serial-ip': ['power', 'shutter', 'raw', 'preview', 'testPattern', 'osdDisplay'],
   'barco-pulse': ['power', 'shutter', 'raw'],
   // Chỉ RAW COMMAND: không có lệnh chuẩn nên không poll, không có power/shutter.
   'generic-tcp': ['raw'],
@@ -150,8 +151,10 @@ export type CommandDto =
   | { kind: 'shutter'; closed: boolean }
   | { kind: 'input'; input: string }
   | { kind: 'osd'; key: OsdKeyDto }
-  /** Gửi mẫu lệnh test pattern người dùng khai báo (chưa có lệnh chuẩn của hãng). */
-  | { kind: 'testPattern'; enabled: boolean }
+  /** Test pattern: theo mẫu lệnh người dùng khai báo, hoặc lệnh có sẵn của driver (Christie) với `pattern` = loại mẫu của app. */
+  | { kind: 'testPattern'; enabled: boolean; pattern?: string }
+  /** Hiện / ẩn OSD (on-screen display) của máy — khác `osd` là phím điều hướng menu. */
+  | { kind: 'osdDisplay'; visible: boolean }
 
 export interface StatusDto {
   power?: 'on' | 'standby' | 'cooling' | 'warmup'
@@ -159,6 +162,8 @@ export interface StatusDto {
   /** Nhãn InputSource của web app nếu ánh xạ được. */
   input?: string
   lampHours?: number
+  /** OSD của máy đang hiện (Christie `(OSD?)`). */
+  osd?: boolean
   /** °C, khi đọc được từ máy (nhiệt độ chính, vd. khí vào). */
   temperatureC?: number
   /** Vị trí ống kính máy báo, đơn vị của máy (Christie LHO / LVO / ZOM / FCS). Chỉ đọc. */

@@ -39,6 +39,7 @@ export function applyRemote(p: Projector, r: SyncResult): Projector {
     connection: 'connected',
     power,
     shutter: s.shutter ?? p.shutter,
+    osd: s.osd ?? p.osd,
     input: isInputSource(s.input) ? s.input : p.input,
     errors: s.errors,
     log,
