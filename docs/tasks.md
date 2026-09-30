@@ -43,7 +43,7 @@ Cập nhật: 2026-09-29 (khuya, sau khi kiểm máy thật). Ký hiệu: ✅ xo
 | C9 | Vitest (73) + test gateway (77) + Playwright e2e (6 luồng chính) + CI GitHub Actions | ✅ | `pnpm test`, `pnpm test:server`, `pnpm test:e2e` |
 | C10 | Thử độ phân giải nhỏ hơn 1440×900 | ✅ | Đã kiểm 1024×700 và 800×600 (Start, Wizard, Dashboard, Detail): không tràn ngang; Detail xếp dọc dưới 1024. Đã sửa vạch chia lẻ loi ở FleetMetrics khi hàng xuống dòng. Chưa kiểm màn hình > 1440 và chưa đo bằng thiết bị thật |
 | C11 | Nhận diện theo IP chọn PJLink cho Panasonic (hãng khuyên dùng) / khi cổng hãng cần đăng nhập | ✅ | Kiểm trên RQ35K thật (NTCONTROL 1, PJLink không mật khẩu) |
-| C12 | **Live preview** Griffyn: ảnh thu nhỏ tín hiệu vào qua JSON-RPC web (`video:getInputInfo`) | 🧪 | Đã làm (gateway `POST /api/devices/preview`, trang máy hiện ảnh mỗi giây). Cần tài khoản web của máy; người dùng tự kiểm trên máy thật. RQ35K: chưa tìm thấy |
+| C12 | **Live preview** Griffyn: ảnh thu nhỏ tín hiệu vào qua JSON-RPC web (`video:getInputInfo`) | 🧪 | Đã làm (gateway `POST /api/devices/preview`, trang máy hiện ảnh mỗi giây). Cần tài khoản web của máy; người dùng tự kiểm trên máy thật. RQ35K: đã làm (web Remote preview, Digest) nhưng chưa kiểm trên máy thật — xem `server/src/drivers/panasonicWeb.ts` |
 | C17 | Mục LỆNH gom vào nút **Nâng cao** (đóng mặc định) | ✅ | |
 | C13 | **Test pattern** Griffyn: mã `ITP` (đọc được "Off"); cần danh sách giá trị, bật thử phải được đồng ý | Cao | RQ35K: không có qua PJLink |
 | C14 | Độ sáng laser | Trung bình | Griffyn không có LPP/LOP/BRT; RQ35K không có qua PJLink. Cần tài liệu hãng |

@@ -108,7 +108,8 @@ export interface PreviewDto {
 export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = {
   'pjlink-class1': ['power', 'shutter', 'input', 'raw'],
   'pjlink-class2': ['power', 'shutter', 'input', 'raw'],
-  'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw'],
+  // preview: Remote preview qua trang web của máy (Digest) — địa chỉ ảnh tự dò, chưa kiểm trên máy thật (xem panasonicWeb.ts)
+  'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw', 'preview'],
   // testPattern / osdDisplay: (ITP n) / (OSD 0|1) theo tài liệu Christie 4K7-HS/4K10-HS; chưa kiểm số mẫu trên Griffyn.
   'christie-serial-ip': ['power', 'shutter', 'raw', 'preview', 'testPattern', 'osdDisplay'],
   'barco-pulse': ['power', 'shutter', 'raw'],
@@ -184,9 +185,20 @@ export function effectiveCapabilities(type: string, commands?: CommandTemplates)
   return [...extra, ...base]
 }
 
+/** Hãng có hình xem trước qua trang web của máy. PJLink chỉ biết hãng qua model → giao diện gửi kèm `brand`. */
+export type PreviewBrand = 'christie' | 'panasonic'
+export function previewBrandOf(type: string, model?: string): PreviewBrand | null {
+  if (type === 'christie-serial-ip') return 'christie'
+  if (type === 'panasonic-nt-control') return 'panasonic'
+  if (type.startsWith('pjlink') && /panasonic|\bPT-/i.test(model ?? '')) return 'panasonic'
+  return null
+}
+
 export interface TargetDto {
   ip: string
   protocol: { type: string; port: number; username?: string; password?: string; commands?: CommandTemplates }
+  /** Gợi ý hãng cho hình xem trước (chỉ dùng với PJLink, vốn không cho biết hãng). */
+  brand?: PreviewBrand
 }
 
 export type OsdKeyDto = 'menu' | 'back' | 'exit' | 'up' | 'down' | 'left' | 'right' | 'enter'

@@ -1,3 +1,4 @@
+import { previewBrandOf } from '../../shared/api.ts'
 import type { ApiErrorCode, CommandDto, CommandOverridesDto, HealthDto, IdentifyDto, LicenseStatusDto, PingDto, PreviewDto, ProjectSnapshotDto, ProjectSummaryDto, QuickLoginsDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
@@ -51,7 +52,8 @@ export interface Gateway {
 
 export function toTarget(p: Projector): TargetDto {
   const { type, port, username, password, commands } = p.network.protocol
-  return { ip: p.network.ip, protocol: { type, port, username, password, commands } }
+  const brand = previewBrandOf(type, p.model)
+  return { ip: p.network.ip, protocol: { type, port, username, password, commands }, ...(brand ? { brand } : {}) }
 }
 
 const TOKEN_KEY = 'mikmaster.gatewayToken'

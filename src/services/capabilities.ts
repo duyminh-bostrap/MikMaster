@@ -1,4 +1,4 @@
-import { LIVE_CAPABILITIES, commandBrandOf, effectiveCapabilities, isDriverProtocol, mergeCommands, type Capability } from '../../shared/api.ts'
+import { LIVE_CAPABILITIES, commandBrandOf, effectiveCapabilities, isDriverProtocol, mergeCommands, previewBrandOf, type Capability } from '../../shared/api.ts'
 import type { Projector, ProtocolType } from '@/types'
 import { getCommandOverrides } from './commandOverrides'
 
@@ -14,5 +14,7 @@ export function liveCapabilities(type: ProtocolType): readonly Capability[] {
 export function deviceCapabilities(p: Projector): readonly Capability[] {
   const type = p.network.protocol.type
   const brand = commandBrandOf(type)
-  return effectiveCapabilities(type, mergeCommands(brand ? getCommandOverrides()[brand] : undefined, p.network.protocol.commands))
+  const caps = effectiveCapabilities(type, mergeCommands(brand ? getCommandOverrides()[brand] : undefined, p.network.protocol.commands))
+  // PJLink không cho biết hãng: máy Panasonic cấu hình qua PJLink vẫn có hình xem trước (model chứa Panasonic / PT-).
+  return caps.includes('preview') || !previewBrandOf(type, p.model) ? caps : [...caps, 'preview']
 }

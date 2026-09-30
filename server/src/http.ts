@@ -1,10 +1,11 @@
 import http from 'node:http'
 import {
-  DEFAULT_PORTS, LIVE_CAPABILITIES, QUICK_LOGIN_BRANDS, commandBrandOf, mergeCommands, templateKeyFor, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
+  DEFAULT_PORTS, LIVE_CAPABILITIES, QUICK_LOGIN_BRANDS, commandBrandOf, previewBrandOf, mergeCommands, templateKeyFor, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
   type ApiErrorCode, type CommandDto, type CommandOverridesDto, type CommandTemplates, type DriverProtocol, type HealthDto, type QuickLoginsDto, type TargetDto,
 } from '../../shared/api.ts'
 import { DRIVERS } from './drivers/index.ts'
 import { christiePreview } from './drivers/christieWeb.ts'
+import { panasonicPreview } from './drivers/panasonicWeb.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
 import type { AccountManager } from './account.ts'
@@ -243,11 +244,14 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   if (route === 'POST /api/devices/preview') {
     const body = await readJson(req)
     if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
-    const { protocol, target } = parseTarget(body.target)
-    requireCapability(protocol, 'preview', target)
+    const { protocol, target } = parseTarget(body.target, store?.getCommandOverrides())
+    // Hãng: theo giao thức riêng của hãng; PJLink chỉ biết qua gợi ý `brand` của giao diện (đọc từ model).
+    const hint = isObject(body.target) && body.target.brand === 'panasonic' ? 'panasonic' : undefined
+    const brand = previewBrandOf(protocol, hint === 'panasonic' ? 'Panasonic' : undefined)
+    if (!brand) throw new DeviceError('unsupported', `${protocol} has no live preview`)
     license?.check(target.host, 'status')
     try {
-      const preview = await christiePreview(target)
+      const preview = brand === 'christie' ? await christiePreview(target) : await panasonicPreview(target)
       logPreview(target.host, `ok: ${preview.state}${preview.input ? ` (${preview.input})` : ''}`)
       return sendJson(res, 200, preview)
     } catch (err) {
