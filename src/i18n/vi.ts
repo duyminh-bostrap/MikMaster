@@ -198,6 +198,7 @@ export const VI: Record<string, string> = {
   'LOGIN & LAUNCH': 'ĐĂNG NHẬP & MỞ',
   '{n} DEVICE(S)': '{n} MÁY',
   '{n} device(s)': '{n} máy',
+  '{n} on': '{n} đang bật',
   'optional: live preview': 'tuỳ chọn: xem live preview',
   'One account per projector type. A device with a different login can be changed later on its page.': 'Mỗi loại máy chiếu một tài khoản. Máy dùng tài khoản khác thì đổi sau ở trang của máy đó.',
   'LAUNCH WITHOUT LOGIN': 'MỞ KHÔNG ĐĂNG NHẬP',

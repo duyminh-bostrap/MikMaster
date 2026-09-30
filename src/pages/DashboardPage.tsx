@@ -86,7 +86,7 @@ export default function DashboardPage() {
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts} />
       <main className="flex-1 overflow-y-auto p-5">
-        <ProjectorGrid projectors={visible} onOpen={openProjector} onContextMenu={openMenu}
+        <ProjectorGrid projectors={visible} groups={inBooth ? undefined : booths} onOpen={openProjector} onContextMenu={openMenu}
           emptyText={scope.length === 0 ? (inBooth ? t('No projectors in this group') : t('No projectors yet')) : t('No projector matches the filter')} />
       </main>
       {menu && menuProjector && (
