@@ -15,7 +15,7 @@ import { DeviceError } from './net/tcp.ts'
  */
 const TIMEOUT_MS = 10_000
 
-export interface Entitlement { kind: EntitlementKind; expiresAt?: string; /** thời điểm (ms) máy chủ xác nhận lần cuối */ checkedAt: number }
+export interface Entitlement { kind: EntitlementKind; expiresAt?: string; /** gói dùng vĩnh viễn: cập nhật đến hết ngày này */ updatesUntil?: string; /** thời điểm (ms) máy chủ xác nhận lần cuối */ checkedAt: number }
 
 export interface AccountManager {
   readonly configured: boolean
@@ -115,10 +115,10 @@ export function createAccountManager(dir: string, opts: {
   async function syncEntitlement(claim: boolean): Promise<void> {
     const token = await accessToken()
     if (claim) await call('/rest/v1/rpc/claim_trial', { p_machine: opts.machineCode }, token)
-    const e = await call('/rest/v1/rpc/get_entitlement', { p_machine: opts.machineCode }, token) as { state?: string; expires_at?: string | null }
+    const e = await call('/rest/v1/rpc/get_entitlement', { p_machine: opts.machineCode }, token) as { state?: string; expires_at?: string | null; updates_until?: string | null }
     const kind = KINDS.includes(e.state as EntitlementKind) ? e.state as EntitlementKind : 'none'
     if (session) {
-      session.entitlement = { kind, ...(typeof e.expires_at === 'string' ? { expiresAt: e.expires_at } : {}), checkedAt: now() }
+      session.entitlement = { kind, ...(typeof e.expires_at === 'string' ? { expiresAt: e.expires_at } : {}), ...(typeof e.updates_until === 'string' ? { updatesUntil: e.updates_until } : {}), checkedAt: now() }
       persist()
     }
   }

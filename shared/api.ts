@@ -16,9 +16,10 @@ export interface LensReadingDto { shiftH?: number; shiftV?: number; zoom?: numbe
 export interface LicenseStatusDto {
   /**
    * licensed = khoá hợp lệ · trial = đang dùng thử · expired = khoá đã hết hạn · unlicensed = hết dùng thử, chưa có khoá ·
-   * unverified = quá 30 ngày chưa kiểm tra được với mạng · revoked = khoá đã bị thu hồi
+   * unverified = quá 30 ngày chưa kiểm tra được với mạng · revoked = khoá đã bị thu hồi ·
+   * outdated = khoá hợp lệ (dùng vĩnh viễn) nhưng bản này phát hành SAU ngày hết hạn cập nhật — dùng bản cũ hơn hoặc gia hạn
    */
-  state: 'licensed' | 'trial' | 'expired' | 'unlicensed' | 'unverified' | 'revoked' | 'signin'
+  state: 'licensed' | 'trial' | 'expired' | 'unlicensed' | 'unverified' | 'revoked' | 'signin' | 'outdated'
   licensee?: string
   id?: string
   /** Số máy chiếu tối đa; 0 = không giới hạn. */
@@ -29,6 +30,12 @@ export interface LicenseStatusDto {
   freeLimit: number
   /** Đang bị giới hạn: chỉ xem trạng thái tối đa `freeLimit` máy, không gửi lệnh. */
   restricted: boolean
+  /** Ngày phát hành của bản build này (ISO). */
+  buildDate?: string
+  /** Khoá dùng vĩnh viễn kèm cập nhật đến ngày này (ISO, cuối ngày): chỉ mở các bản phát hành trước hoặc trong ngày đó. */
+  updatesUntil?: string
+  /** Số ngày cập nhật còn lại (chỉ khi còn hạn cập nhật). */
+  updatesInDays?: number
   /** Số ngày còn lại tới ngày hết hạn của khoá (chỉ khi khoá có hạn và chưa hết). */
   expiresInDays?: number
   /** Kiểm tra bản quyền qua mạng (bật khi có địa chỉ kiểm tra): phải kiểm được ít nhất 30 ngày một lần. */

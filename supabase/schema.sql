@@ -6,6 +6,9 @@
 --   * mỗi MÁY (mã máy) được dùng thử một lần — tạo tài khoản khác trên cùng máy KHÔNG được thêm 30 ngày;
 --   * dùng thử tính 30 ngày từ lần đầu tài khoản đăng nhập trên máy đó, và chỉ dùng được trên máy đó.
 -- Gói trả phí: chèn / sửa hàng trong bảng `entitlements` (xem cuối file) — có hiệu lực trên mọi máy của tài khoản.
+--   * Kiểu mới (như TouchDesigner / Resolume): DÙNG VĨNH VIỄN + cập nhật đến ngày `updates_until`. Hết hạn cập nhật thì bản đã có vẫn chạy,
+--     chỉ các bản phát hành SAU ngày đó cần gia hạn (app so ngày phát hành của chính nó với `updates_until`).
+--   * Kiểu thuê bao cũ: `paid_until` (dùng được tới ngày đó rồi khoá).
 
 create table if not exists public.trials (
   machine_code text primary key,
@@ -19,6 +22,9 @@ create table if not exists public.entitlements (
   paid_until timestamptz,
   note       text
 );
+-- Dùng vĩnh viễn + cập nhật đến ngày (thêm sau; chạy lại file này trên project cũ vẫn an toàn).
+alter table public.entitlements add column if not exists perpetual     boolean not null default false;
+alter table public.entitlements add column if not exists updates_until timestamptz;
 
 -- Không ai (kể cả người dùng đã đăng nhập) đọc / ghi trực tiếp bảng trials; chỉ qua hai hàm bên dưới.
 alter table public.trials       enable row level security;
@@ -59,11 +65,17 @@ as $$
 declare
   uid uuid := auth.uid();
   paid timestamptz;
+  perp boolean;
+  upd timestamptz;
   t trials%rowtype;
 begin
   if uid is null then raise exception 'not authenticated' using errcode = '28000'; end if;
 
-  select paid_until into paid from entitlements where user_id = uid;
+  select paid_until, perpetual, updates_until into paid, perp, upd from entitlements where user_id = uid;
+  -- Dùng vĩnh viễn: luôn 'paid'; app tự kiểm ngày phát hành của bản đang chạy với updates_until.
+  if perp and upd is not null then
+    return json_build_object('state', 'paid', 'updates_until', upd, 'server_now', now());
+  end if;
   if paid is not null and paid > now() then
     return json_build_object('state', 'paid', 'expires_at', paid, 'server_now', now());
   end if;
@@ -91,7 +103,16 @@ revoke all on function public.get_entitlement(text) from public, anon;
 grant execute on function public.claim_trial(text)     to authenticated;
 grant execute on function public.get_entitlement(text) to authenticated;
 
--- ── Cấp gói trả phí cho một tài khoản (chạy tay trong SQL Editor):
+-- ── Cấp gói "dùng vĩnh viễn + 12 tháng cập nhật" cho một tài khoản (chạy tay trong SQL Editor):
+--   insert into public.entitlements (user_id, perpetual, updates_until, note)
+--   select id, true, now() + interval '12 months', 'Cong ty ABC' from auth.users where email = 'khach@example.com'
+--   on conflict (user_id) do update set perpetual = true, updates_until = excluded.updates_until, note = excluded.note;
+--
+-- ── Gia hạn thêm 12 tháng cập nhật (cộng tiếp từ ngày cập nhật cuối nếu còn hạn, không thì từ hôm nay):
+--   update public.entitlements set updates_until = greatest(now(), coalesce(updates_until, now())) + interval '12 months'
+--   where user_id = (select id from auth.users where email = 'khach@example.com');
+--
+-- ── Gói thuê bao cũ (dùng được tới ngày paid_until rồi khoá):
 --   insert into public.entitlements (user_id, paid_until, note)
---   select id, now() + interval '365 days', 'Cong ty ABC' from auth.users where email = 'khach@example.com'
+--   select id, now() + interval '365 days', 'Thue bao' from auth.users where email = 'khach@example.com'
 --   on conflict (user_id) do update set paid_until = excluded.paid_until, note = excluded.note;

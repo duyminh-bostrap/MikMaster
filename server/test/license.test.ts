@@ -132,6 +132,58 @@ describe('tamper resistance of the local state', () => {
   })
 })
 
+describe('lifetime license with an update period (like TouchDesigner / Resolume)', () => {
+  let dir: string
+  const A = 'AAAA-1111-BBBB-2222'
+  const T0 = Date.UTC(2026, 8, 30)                 // 2026-09-30: ngày phát hành của "bản hiện tại"
+  const iso = (ms: number) => new Date(ms).toISOString()
+  const mgr = (buildDate: string, now = T0) => createLicenseManager(dir, { now: () => now, publicKey: PUB, mirrorDir: null, machineCode: A, checkUrl: '', buildDate })
+  before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-upd-')) })
+  after(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+  test('the update date roundtrips through the compact key together with exp and machine binding', () => {
+    const k = signLicense(PEM, { id: 'u1u1u1u1', licensee: 'ACME', max: 5, upd: '2027-03-15T00:00:00.000Z', exp: '2030-01-01T00:00:00.000Z', mc: A })
+    const p = verifyLicense(k, PUB)!
+    assert.deepEqual([p.upd, p.exp, p.mc, p.max], ['2027-03-15T23:59:59.999Z', '2030-01-01T23:59:59.999Z', A, 5])
+    assert.equal(verifyLicense(signLicense(PEM, { id: 'u2', licensee: '', max: 0 }), PUB)?.upd, undefined)
+  })
+
+  test('a build released within the update period is licensed for good; a build released after it is outdated', () => {
+    const key = signLicense(PEM, { id: 'lt01lt01', licensee: 'ACME', max: 0, upd: iso(T0 + 100 * DAY) }) // 100 ngày cập nhật còn lại
+    const m = mgr(iso(T0))
+    const s = m.install(key)
+    assert.deepEqual([s.state, s.restricted, s.expiresAt, s.buildDate], ['licensed', false, undefined, iso(T0)])
+    assert.ok(s.updatesInDays! >= 100 && s.updatesInDays! <= 101, String(s.updatesInDays))
+    m.check('10.0.0.1', 'control')
+
+    // Ba năm sau: hạn cập nhật đã hết. Bản build CŨ (phát hành trong hạn) vẫn dùng được, bản MỚI (phát hành sau hạn) thì không.
+    const later = T0 + 3 * 365 * DAY
+    const oldBuild = mgr(iso(T0 + 50 * DAY), later).status()
+    assert.deepEqual([oldBuild.state, oldBuild.restricted], ['licensed', false])
+    const newBuild = mgr(iso(T0 + 200 * DAY), later)
+    const n = newBuild.status()
+    assert.deepEqual([n.state, n.restricted, n.updatesUntil?.slice(0, 10)], ['outdated', true, iso(T0 + 100 * DAY).slice(0, 10)])
+    assert.equal(n.updatesInDays, undefined)
+    assert.throws(() => newBuild.check('10.0.0.1', 'control'), (e: Error) => /released after your updates ended/.test(e.message))
+    newBuild.check('10.0.0.1', 'status') // vẫn xem được trạng thái (chế độ giới hạn)
+  })
+
+  test('the update period ends at the END of the chosen day', () => {
+    const key = signLicense(PEM, { id: 'day1day1', licensee: 'ACME', max: 0, upd: '2026-10-05T00:00:00.000Z' })
+    const m = mgr('2026-10-05T18:00:00.000Z')
+    m.install(key)
+    assert.equal(m.status().state, 'licensed')                                   // phát hành cùng ngày → vẫn trong hạn
+    assert.equal(mgr('2026-10-06T00:00:01.000Z').status().state, 'outdated')     // sang ngày kế → ngoài hạn
+  })
+
+  test('a key without an update date (older format) keeps working with every build', () => {
+    const key = signLicense(PEM, { id: 'old0old0', licensee: 'ACME', max: 0 })
+    const m = mgr(iso(T0 + 5000 * DAY))
+    m.install(key)
+    assert.equal(m.status().state, 'licensed')
+  })
+})
+
 describe('license policy', () => {
   let dir: string
   let t = 1_800_000_000_000

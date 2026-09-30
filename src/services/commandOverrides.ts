@@ -13,7 +13,7 @@ const emit = () => listeners.forEach(l => l())
 
 export const getCommandOverrides = (): CommandOverridesDto => overrides
 
-export function setCommandOverrides(o: CommandOverridesDto): void { overrides = o; emit() }
+export function setCommandOverrides(o: CommandOverridesDto): void { overrides = o && typeof o === 'object' ? o : {}; emit() }
 
 export async function refreshCommandOverrides(gateway: Gateway): Promise<void> {
   const r = await gateway.getCommandOverrides()

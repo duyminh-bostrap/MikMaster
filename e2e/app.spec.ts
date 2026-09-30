@@ -220,3 +220,30 @@ test('booth page: ALL ON one by one, ALL OFF asks first; filter and add projecto
   await page.getByRole('dialog', { name: 'REMOVE PROJECTOR' }).getByRole('button', { name: 'REMOVE' }).click()
   await expect(page.locator('article', { hasText: 'Spare' })).toHaveCount(0)
 })
+
+test('REFRESH reads the status of every projector right away (gateway mocked, no real device)', async ({ page }) => {
+  await createProject(page, 'Refresh Show')
+  // Không có nút khi chưa có gateway (chế độ mô phỏng).
+  await expect(page.getByRole('button', { name: 'Refresh all projectors' })).toHaveCount(0)
+
+  const asked = new Set<string>()
+  let calls = 0
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', async r => {
+    calls++
+    asked.add(JSON.parse(r.request().postData() ?? '{}').target?.ip)
+    await r.fulfill({ json: { power: 'on', errors: [] } })
+  })
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+
+  const refresh = page.getByRole('button', { name: 'Refresh all projectors' })
+  await expect(refresh).toBeVisible()
+  asked.clear()
+  const before = calls
+  await refresh.click()
+  await expect.poll(() => asked.size, { timeout: 8000 }).toBe(6)          // đủ 6 máy, mỗi máy được hỏi
+  expect(calls - before).toBeGreaterThanOrEqual(6)
+  await expect(page.getByRole('status').filter({ hasText: /\d\d:\d\d:\d\d/ })).toBeVisible()  // hiện giờ cập nhật
+  await expect(refresh).toBeEnabled()
+})

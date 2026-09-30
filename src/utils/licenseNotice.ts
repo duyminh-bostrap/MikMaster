@@ -12,6 +12,7 @@ export interface LicenseNotice { tone: 'warn' | 'danger'; text: string; vars?: R
  */
 export function licenseNotice(s: LicenseStatusDto): LicenseNotice | null {
   switch (s.state) {
+    case 'outdated': return { tone: 'danger', text: 'THIS VERSION IS NEWER THAN YOUR UPDATES' }
     case 'signin': return { tone: 'danger', text: 'SIGN IN OR ENTER A LICENSE KEY' }
     case 'unlicensed': return { tone: 'danger', text: 'TRIAL ENDED · ENTER LICENSE' }
     case 'expired': return { tone: 'danger', text: 'LICENSE EXPIRED' }
@@ -19,6 +20,8 @@ export function licenseNotice(s: LicenseStatusDto): LicenseNotice | null {
     case 'unverified': return { tone: 'danger', text: 'CONNECT TO THE INTERNET TO VERIFY THE LICENSE' }
     case 'trial': return (s.trialDaysLeft ?? 99) <= WARN_DAYS ? { tone: 'warn', text: 'TRIAL · {n} day(s) left', vars: { n: s.trialDaysLeft ?? 0 } } : null
     case 'licensed':
+      // Dùng vĩnh viễn: vẫn chạy được, chỉ báo sắp hết hạn CẬP NHẬT (sớm hơn: 30 ngày).
+      if (s.updatesInDays !== undefined && s.updatesInDays <= 30) return { tone: 'warn', text: 'UPDATES END IN {n} day(s)', vars: { n: s.updatesInDays } }
       if (s.expiresInDays !== undefined && s.expiresInDays <= WARN_DAYS) return { tone: 'warn', text: 'LICENSE ENDS IN {n} day(s)', vars: { n: s.expiresInDays } }
       if (s.online?.configured && (s.online.daysLeft ?? 99) <= WARN_DAYS) return { tone: 'warn', text: 'CONNECT TO THE INTERNET WITHIN {n} day(s)', vars: { n: s.online.daysLeft ?? 0 } }
       return null

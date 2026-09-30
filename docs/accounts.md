@@ -11,7 +11,8 @@ Chưa cấu hình (mặc định) thì app chạy như trước: dùng thử 30 
 | Tạo tài khoản **khác** trên cùng máy đó | **Không** có thêm 30 ngày ("máy này đã dùng thử") |
 | Cùng tài khoản đăng nhập ở máy khác | **Không** có thêm ("tài khoản đã dùng thử ở máy khác") |
 | Có key offline (gắn với mã máy) | Vào được, không cần tài khoản |
-| Tài khoản có gói trả phí (`entitlements`) | Dùng được trên mọi máy của tài khoản |
+| Tài khoản có gói **dùng vĩnh viễn + cập nhật** (`perpetual`, `updates_until`) | Dùng được trên mọi máy; bản phát hành sau `updates_until` cần gia hạn, bản cũ hơn vẫn chạy |
+| Tài khoản có gói thuê bao (`paid_until`) | Dùng được tới ngày đó rồi khoá |
 | Mất mạng | Quyền dùng đã xác nhận còn giá trị tối đa **30 ngày**; quá hạn thì phải kết nối mạng để xác nhận lại |
 
 Mã máy hiện trong Cài đặt → Bản quyền (băm một chiều của định danh phần cứng). Máy chủ ghi nhận theo mã này.
@@ -28,15 +29,24 @@ Mã máy hiện trong Cài đặt → Bản quyền (băm một chiều của đ
 5. **Authentication → Providers → Email**: nên **bật "Confirm email"** (tránh đăng ký hàng loạt bằng email giả). Người dùng xác nhận email rồi mới đăng nhập được. Tuỳ chọn: thiết lập SMTP riêng (mặc định Supabase giới hạn số email gửi mỗi giờ).
 6. **Authentication → Rate limits**: giữ mặc định hoặc siết lại để hạn chế thử mật khẩu.
 
-## Cấp gói trả phí
+## Cấp gói trả phí (dùng vĩnh viễn + cập nhật)
 
 Trong SQL Editor (xem cuối `schema.sql`):
 
 ```sql
-insert into public.entitlements (user_id, paid_until, note)
-select id, now() + interval '365 days', 'Cong ty ABC' from auth.users where email = 'khach@example.com'
-on conflict (user_id) do update set paid_until = excluded.paid_until, note = excluded.note;
+insert into public.entitlements (user_id, perpetual, updates_until, note)
+select id, true, now() + interval '12 months', 'Cong ty ABC' from auth.users where email = 'khach@example.com'
+on conflict (user_id) do update set perpetual = true, updates_until = excluded.updates_until, note = excluded.note;
 ```
+
+Gia hạn 12 tháng cập nhật (cộng tiếp từ ngày cập nhật cuối nếu còn hạn):
+
+```sql
+update public.entitlements set updates_until = greatest(now(), coalesce(updates_until, now())) + interval '12 months'
+where user_id = (select id from auth.users where email = 'khach@example.com');
+```
+
+Chạy lại `schema.sql` trên project đã có là an toàn (thêm cột mới, không mất dữ liệu).
 
 ## Bảo mật và giới hạn
 

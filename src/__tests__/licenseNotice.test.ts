@@ -16,12 +16,18 @@ describe('licenseNotice', () => {
     expect(licenseNotice({ ...base, online: { configured: true, daysLeft: 3 } })).toMatchObject({ tone: 'warn', text: 'CONNECT TO THE INTERNET WITHIN {n} day(s)', vars: { n: 3 } })
   })
 
+  it('lifetime license: warns 30 days before the update period ends; an outdated build is red', () => {
+    expect(licenseNotice({ ...base, updatesInDays: 200 })).toBeNull()
+    expect(licenseNotice({ ...base, updatesInDays: 25 })).toMatchObject({ tone: 'warn', text: 'UPDATES END IN {n} day(s)', vars: { n: 25 } })
+    expect(licenseNotice({ ...base, state: 'outdated', restricted: true })).toMatchObject({ tone: 'danger', text: 'THIS VERSION IS NEWER THAN YOUR UPDATES' })
+  })
+
   it('does not nag about the online window when online verification is not configured', () => {
     expect(licenseNotice({ ...base, online: { configured: false } })).toBeNull()
   })
 
   it('is red when restricted', () => {
-    for (const state of ['unlicensed', 'expired', 'revoked', 'unverified'] as const) {
+    for (const state of ['unlicensed', 'expired', 'revoked', 'unverified', 'outdated', 'signin'] as const) {
       expect(licenseNotice({ ...base, state, restricted: true })?.tone).toBe('danger')
     }
   })

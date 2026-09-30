@@ -34,6 +34,7 @@ export function AuthGate() {
     : kind === 'other_machine' ? t('This account already used its free 30 days on another computer. Enter a license key to use it here.')
     : kind === 'expired' || license.state === 'expired' ? t('The 30 days are over. Enter a license key, or contact us to upgrade.')
     : license.state === 'unverified' ? t('The license could not be verified online for 30 days. Connect this computer to the internet and sign in again.')
+    : license.state === 'outdated' ? t('This version was released after your updates ended on {date}. Your license still works with any earlier version — install one released on or before that date, or renew your updates.', { date: license.updatesUntil?.slice(0, 10) ?? '' })
     : license.state === 'revoked' ? t('This license has been revoked.')
     : ''
 

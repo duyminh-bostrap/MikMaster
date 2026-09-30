@@ -5,6 +5,7 @@ import os from 'node:os'
 import path from 'node:path'
 import type { LicenseStatusDto } from '../../shared/api.ts'
 import type { AccountManager } from './account.ts'
+import { BUILD_DATE } from './buildInfo.ts'
 import { DEFAULT_LICENSE_CHECK_URL, LICENSE_PUBLIC_KEY } from './licenseKey.ts'
 import { DeviceError } from './net/tcp.ts'
 
@@ -32,7 +33,7 @@ export const WARN_DAYS = 14
 const CHECK_TIMEOUT_MS = 8000
 
 /** `mc` = mã máy: khoá chỉ dùng được trên máy có mã này (bỏ trống = dùng được mọi máy). */
-export interface LicensePayload { v: 1 | 2; id: string; licensee: string; max: number; exp?: string; iat?: string; mc?: string }
+export interface LicensePayload { v: 1 | 2; id: string; licensee: string; max: number; exp?: string; /** cập nhật đến hết ngày này (dùng vĩnh viễn các bản phát hành đến ngày đó) */ upd?: string; iat?: string; mc?: string }
 
 /** Chuẩn hoá mã máy do người dùng gõ: chữ hoa, bỏ khoảng trắng, dạng XXXX-XXXX-XXXX-XXXX. */
 export function normalizeMachineCode(code: string): string | null {
@@ -115,15 +116,20 @@ const endOfDay = (day: number) => new Date(EPOCH_MS + (day + 1) * DAY_MS - 1).to
  * (~86 ký tự) nên không thể ngắn hơn nhiều mà vẫn an toàn — muốn ngắn hơn phải kiểm số serial qua máy chủ.
  * Chữ ký phủ cả tiền tố "MIKM2\0" để không ai dùng lại chữ ký của loại dữ liệu khác (file trạng thái, khoá cũ).
  */
-function encodeV2(p: { id: string; licensee: string; max: number; exp?: string; mc?: string }): Buffer {
+function encodeV2(p: { id: string; licensee: string; max: number; exp?: string; upd?: string; mc?: string }): Buffer {
   const id = Buffer.from(p.id, 'utf8'), name = Buffer.from(p.licensee, 'utf8')
   if (id.length < 1 || id.length > MAX_ID_BYTES) throw new Error(`id must be 1–${MAX_ID_BYTES} bytes`)
   if (name.length > MAX_NAME_BYTES) throw new Error(`licensee must be at most ${MAX_NAME_BYTES} bytes`)
   if (!Number.isInteger(p.max) || p.max < 0 || p.max > 0xffff) throw new Error('max must be 0–65535')
-  const parts: Buffer[] = [Buffer.from([(p.exp ? 1 : 0) | (p.mc ? 2 : 0), id.length]), id, u16(p.max)]
+  const parts: Buffer[] = [Buffer.from([(p.exp ? 1 : 0) | (p.mc ? 2 : 0) | (p.upd ? 4 : 0), id.length]), id, u16(p.max)]
   if (p.exp) {
     const d = dayOf(p.exp)
     if (!(d >= 0 && d <= 0xffff)) throw new Error('exp out of range')
+    parts.push(u16(d))
+  }
+  if (p.upd) {
+    const d = dayOf(p.upd)
+    if (!(d >= 0 && d <= 0xffff)) throw new Error('upd out of range')
     parts.push(u16(d))
   }
   if (p.mc) parts.push(Buffer.from(p.mc.replace(/-/g, ''), 'hex'))
@@ -137,18 +143,19 @@ function decodeV2(b: Buffer): LicensePayload | null {
   const need = (n: number) => { if (i + n > b.length) throw new Error('short'); const o = i; i += n; return o }
   try {
     const flags = b[need(1)]!
-    if (flags > 3) return null
+    if (flags > 7) return null
     const idLen = b[need(1)]!
     if (idLen < 1 || idLen > MAX_ID_BYTES) return null
     const id = b.subarray(need(idLen), i).toString('utf8')
     const max = b.readUInt16BE(need(2))
     const exp = flags & 1 ? endOfDay(b.readUInt16BE(need(2))) : undefined
+    const upd = flags & 4 ? endOfDay(b.readUInt16BE(need(2))) : undefined
     const mc = flags & 2 ? normalizeMachineCode(b.subarray(need(8), i).toString('hex')) ?? undefined : undefined
     const nameLen = b[need(1)]!
     if (nameLen > MAX_NAME_BYTES) return null
     const licensee = b.subarray(need(nameLen), i).toString('utf8')
     if (i !== b.length) return null
-    return { v: 2, id, licensee, max, ...(exp ? { exp } : {}), ...(mc ? { mc } : {}) }
+    return { v: 2, id, licensee, max, ...(exp ? { exp } : {}), ...(upd ? { upd } : {}), ...(mc ? { mc } : {}) }
   } catch { return null }
 }
 
@@ -156,7 +163,7 @@ const spki = (der: string) => crypto.createPublicKey({ key: Buffer.from(der, 'ba
 const v2Message = (body: Buffer) => Buffer.concat([Buffer.from(`${KEY_PREFIX_V2}\0`), body])
 
 /** Ký một license (dùng ở scripts/license.mjs và test): định dạng gọn MIKM2. */
-export function signLicense(privateKeyPem: string, payload: { id: string; licensee: string; max: number; exp?: string; mc?: string }): string {
+export function signLicense(privateKeyPem: string, payload: { id: string; licensee: string; max: number; exp?: string; upd?: string; mc?: string }): string {
   const body = encodeV2(payload)
   const sig = crypto.sign(null, v2Message(body), crypto.createPrivateKey(privateKeyPem))
   return `${KEY_PREFIX_V2}-${b64url(Buffer.concat([body, sig]))}`
@@ -278,8 +285,12 @@ export function createLicenseManager(dir: string, opts: {
   mirrorDir?: string | null
   /** Tài khoản Supabase: khi đã cấu hình, dùng thử 30 ngày do máy chủ quyết định theo tài khoản + máy (thay cho dùng thử cục bộ). */
   account?: AccountManager
+  /** Ngày phát hành của bản build (mặc định BUILD_DATE); chỉ để test. */
+  buildDate?: string
 } = {}): LicenseManager {
   const account = opts.account?.configured ? opts.account : undefined
+  const buildDate = opts.buildDate ?? BUILD_DATE
+  const buildMs = Date.parse(buildDate)
   const realNow = opts.now ?? Date.now
   const publicKey = opts.publicKey ?? LICENSE_PUBLIC_KEY
   const keyFile = path.join(dir, 'license.key')
@@ -324,10 +335,15 @@ export function createLicenseManager(dir: string, opts: {
       const daysLeft = configured ? Math.ceil((state.lastOk + ONLINE_GRACE_DAYS * DAY_MS - t) / DAY_MS) : undefined
       const revoked = configured && state.revoked.includes(lic.id)
       const unverified = configured && (daysLeft as number) <= 0
-      const st = revoked ? 'revoked' : expired ? 'expired' : unverified ? 'unverified' : 'licensed'
+      // Dùng vĩnh viễn + cập nhật đến ngày `upd`: bản phát hành sau ngày đó không mở được (bản cũ hơn vẫn dùng được).
+      const updMs = lic.upd !== undefined ? Date.parse(lic.upd) : undefined
+      const outdated = updMs !== undefined && buildMs > updMs
+      const st = revoked ? 'revoked' : expired ? 'expired' : outdated ? 'outdated' : unverified ? 'unverified' : 'licensed'
       const fromKey: LicenseStatusDto = {
         state: st, licensee: lic.licensee, id: lic.id, maxProjectors: lic.max, expiresAt: lic.exp, freeLimit: FREE_LIMIT,
-        restricted: st !== 'licensed', machineCode, bound: lic.mc !== undefined,
+        restricted: st !== 'licensed', machineCode, bound: lic.mc !== undefined, buildDate,
+        ...(updMs !== undefined ? { updatesUntil: lic.upd } : {}),
+        ...(updMs !== undefined && !outdated ? { updatesInDays: Math.ceil((updMs - t) / DAY_MS) } : {}),
         ...(expiresMs !== undefined && !expired ? { expiresInDays: Math.ceil((expiresMs - t) / DAY_MS) } : {}),
         online: { configured, ...(configured ? { lastCheckAt: new Date(state.lastOk).toISOString(), daysLeft: Math.max(0, daysLeft as number) } : {}), ...(lastError ? { lastError } : {}) },
       }
@@ -353,10 +369,19 @@ export function createLicenseManager(dir: string, opts: {
       const expiresMs = e.expiresAt ? Date.parse(e.expiresAt) : Infinity
       if (expiresMs < t) return { ...base, state: 'expired', restricted: true, licensee: acc.email, expiresAt: e.expiresAt, online }
       if (graceLeft <= 0) return { ...base, state: 'unverified', restricted: true, licensee: acc.email, online }
+      // Gói mua kiểu "dùng vĩnh viễn + cập nhật đến ngày X" (máy chủ trả updatesUntil): bản phát hành sau ngày đó không mở được.
+      if (e.kind === 'paid' && e.updatesUntil !== undefined && buildMs > Date.parse(e.updatesUntil)) {
+        return { ...base, state: 'outdated', restricted: true, licensee: acc.email, updatesUntil: e.updatesUntil, buildDate, online }
+      }
       const days = Number.isFinite(expiresMs) ? Math.ceil((expiresMs - t) / DAY_MS) : undefined
       return e.kind === 'trial'
-        ? { ...base, state: 'trial', trialDaysLeft: days ?? 0, restricted: false, licensee: acc.email, expiresAt: e.expiresAt, online }
-        : { ...base, state: 'licensed', maxProjectors: 0, restricted: false, licensee: acc.email, expiresAt: e.expiresAt, ...(days !== undefined ? { expiresInDays: days } : {}), online }
+        ? { ...base, state: 'trial', trialDaysLeft: days ?? 0, restricted: false, licensee: acc.email, expiresAt: e.expiresAt, buildDate, online }
+        : {
+            ...base, state: 'licensed', maxProjectors: 0, restricted: false, licensee: acc.email, buildDate, online,
+            ...(e.expiresAt ? { expiresAt: e.expiresAt } : {}),
+            ...(days !== undefined && e.updatesUntil === undefined ? { expiresInDays: days } : {}),
+            ...(e.updatesUntil !== undefined ? { updatesUntil: e.updatesUntil, updatesInDays: Math.ceil((Date.parse(e.updatesUntil) - t) / DAY_MS) } : {}),
+          }
     }
     return { ...base, state: e.kind === 'expired' ? 'expired' : 'unlicensed', restricted: true, licensee: acc.email, online }
   }
@@ -373,6 +398,7 @@ export function createLicenseManager(dir: string, opts: {
       throw new DeviceError('license',
         s.state === 'expired' ? 'The MikMaster license has expired — enter a new license key in Settings'
         : s.state === 'revoked' ? 'This MikMaster license has been revoked — contact the license issuer'
+        : s.state === 'outdated' ? `This MikMaster version was released after your updates ended on ${s.updatesUntil?.slice(0, 10)} — use an earlier version (your license keeps working with those) or renew your updates`
         : s.state === 'signin' ? 'Sign in to your MikMaster account or enter a license key to control projectors'
         : s.state === 'unverified' ? `The license has not been verified online for ${ONLINE_GRACE_DAYS} days — connect this computer to the internet (Settings → License → Check now)`
         : 'The 30-day trial has ended — enter a license key in Settings to control projectors')

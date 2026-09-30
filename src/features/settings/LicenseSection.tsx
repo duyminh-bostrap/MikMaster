@@ -88,11 +88,14 @@ export function LicenseSection() {
           </span>
         </div>
       )}
-      {(s.state === 'licensed' || s.state === 'expired' || s.state === 'unverified' || s.state === 'revoked') && (
+      {(s.state === 'licensed' || s.state === 'expired' || s.state === 'unverified' || s.state === 'revoked' || s.state === 'outdated') && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[11px]">
           <dt className="text-muted-foreground">{t('Licensed to')}</dt><dd className="text-foreground">{s.licensee}</dd>
           <dt className="text-muted-foreground">{t('Projectors')}</dt><dd className="text-foreground">{limit}</dd>
-          <dt className="text-muted-foreground">{t('Valid until')}</dt><dd className="text-foreground">{s.expiresAt ? s.expiresAt.slice(0, 10) : t('no expiry')}</dd>
+          {s.updatesUntil
+            ? <><dt className="text-muted-foreground">{t('License')}</dt><dd className="text-foreground">{t('Lifetime')}</dd>
+                <dt className="text-muted-foreground">{t('Updates until')}</dt><dd className={s.state === 'outdated' ? 'text-danger' : 'text-foreground'}>{s.updatesUntil.slice(0, 10)}{s.updatesInDays !== undefined ? ` (${t('{n} day(s) left', { n: s.updatesInDays })})` : ''}</dd></>
+            : <><dt className="text-muted-foreground">{t('Valid until')}</dt><dd className="text-foreground">{s.expiresAt ? s.expiresAt.slice(0, 10) : t('no expiry')}</dd></>}
           {s.online?.configured && <><dt className="text-muted-foreground">{t('Last online check')}</dt><dd className="text-foreground">{s.online.lastCheckAt ? s.online.lastCheckAt.slice(0, 10) : '—'}</dd></>}
         </dl>
       )}
@@ -105,7 +108,12 @@ export function LicenseSection() {
           {s.online.lastError && <p className="font-mono text-[10px] text-danger">{t('Online check failed: {message}', { message: s.online.lastError })}</p>}
         </div>
       )}
-      {s.restricted && (
+      {s.state === 'outdated' && (
+        <p role="alert" className="font-mono text-[10px] leading-relaxed text-danger">
+          {t('This version was released after your updates ended. Your license still works with any version released on or before {date}: install one of those, or renew your updates.', { date: s.updatesUntil?.slice(0, 10) ?? '' })}
+        </p>
+      )}
+      {s.restricted && s.state !== 'outdated' && (
         <p className="font-mono text-[10px] leading-relaxed text-danger">
           {t('Without a valid license MikMaster only shows the status of up to {n} projectors and sends no commands.', { n: s.freeLimit })}
         </p>

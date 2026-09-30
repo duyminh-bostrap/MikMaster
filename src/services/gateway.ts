@@ -79,7 +79,8 @@ async function call<T>(base: string, token: string | null, path: string, body?: 
     if (token) headers.Authorization = `Bearer ${token}`
     const res = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
     const json = await res.json().catch(() => null)
-    if (res.ok) return { ok: true, value: json as T }
+    // 200 nhưng thân không phải JSON (bị proxy / trang khác che): coi là lỗi, không đưa `null` vào giao diện.
+    if (res.ok) return json === null ? { ok: false, code: 'network', message: 'Unexpected answer from the gateway' } : { ok: true, value: json as T }
     const err = json?.error
     return { ok: false, code: err?.code ?? 'network', message: err?.message ?? `Gateway error (${res.status})` }
   } catch {

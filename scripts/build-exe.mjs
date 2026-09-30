@@ -46,6 +46,8 @@ await build({
   outfile: path.join(work, 'gateway.cjs'),
   bundle: true, platform: 'node', format: 'cjs', target: 'node22',
   legalComments: 'none', logLevel: 'warning',
+  // Ngày phát hành của bản build: bản quyền "cập nhật đến ngày X" so sánh với ngày này (server/src/buildInfo.ts).
+  define: { __MIKMASTER_BUILD_DATE__: JSON.stringify(process.env.MIKMASTER_BUILD_DATE ?? new Date().toISOString()) },
 })
 
 step('Embedding the web app')

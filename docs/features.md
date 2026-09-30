@@ -107,6 +107,20 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Mất mạng: quyền đã xác nhận còn giá trị tối đa 30 ngày; kiểm tra lại mỗi 6 giờ, đăng nhập và nút "Kiểm tra ngay" | ✅ | |
 | Mật khẩu chỉ đi qua gateway tới Supabase, không lưu; ở máy lưu email + refresh token mã hoá (AES-256-GCM, khoá theo mã máy) | ✅ | |
 
+## Mô hình bản quyền: dùng vĩnh viễn + cập nhật theo hạn (như TouchDesigner / Resolume)
+
+| Tình huống | Kết quả |
+|---|---|
+| Mua license | **Dùng vĩnh viễn**, kèm thời hạn cập nhật (mặc định 12 tháng) |
+| Trong thời hạn cập nhật | Dùng được mọi phiên bản mới phát hành |
+| Hết thời hạn cập nhật | Vẫn dùng được **mọi phiên bản phát hành trước hoặc trong ngày hết hạn**; phiên bản phát hành **sau** ngày đó báo "mới hơn thời hạn cập nhật của bạn" cho tới khi gia hạn |
+| Gia hạn | Cộng tiếp từ ngày cập nhật cuối nếu còn hạn, không thì từ hôm nay |
+| Cách kiểm | Mỗi bản build ghi **ngày phát hành**; khoá / tài khoản ghi **"cập nhật đến ngày X"**; app so ngày phát hành của chính nó với X (khoá hết X vào cuối ngày) |
+| Cảnh báo | Huy hiệu vàng khi còn ≤ 30 ngày cập nhật; Cài đặt → Bản quyền hiện "Vĩnh viễn · Cập nhật đến …" |
+
+Áp dụng cho cả **key offline** (`node scripts/license.mjs issue … --updates-days 365`, gia hạn bằng `renew <id> --updates-days 365`) và **tài khoản** (cột `perpetual`, `updates_until` trong `entitlements`, xem `supabase/schema.sql`). Khoá / gói cũ không có ngày cập nhật vẫn chạy với mọi phiên bản như trước; `--days` vẫn là hạn dùng cứng (thuê bao).
+**Lưu ý:** các bản build trước tính năng này (≤ 0.5.9) không đọc được khoá có ngày cập nhật.
+
 ## Bản quyền (license)
 
 | Tính năng | Trạng thái | Ghi chú |

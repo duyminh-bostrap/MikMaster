@@ -1,6 +1,7 @@
 import { Search, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useT } from '@/i18n'
+import { RefreshAllButton } from './RefreshAllButton'
 import { cn } from '@/utils/cn'
 import { STATUS_FILTERS, type StatusFilter } from '@/utils/projectorFilter'
 
@@ -36,7 +37,9 @@ export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts }:
           </button>
         ))}
       </div>
-      <div className="relative ml-auto w-64 max-w-full">
+      <div className="ml-auto flex flex-wrap items-center gap-3">
+      <RefreshAllButton />
+      <div className="relative w-64 max-w-full">
         <Search size={12} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
         <input ref={input} type="search" value={query} onChange={e => onQuery(e.target.value)}
           onKeyDown={e => { if (e.key === 'Escape') { onQuery(''); input.current?.blur() } }}
@@ -46,6 +49,7 @@ export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts }:
           <button type="button" aria-label={t('Clear search')} onClick={() => onQuery('')}
             className="absolute top-1/2 right-2 -translate-y-1/2 text-muted-foreground hover:text-foreground"><X size={11} /></button>
         )}
+      </div>
       </div>
     </div>
   )

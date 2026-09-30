@@ -16,6 +16,7 @@ export class FakeSupabase {
   users = new Map<string, { id: string; password: string; confirmed: boolean }>()
   trials: { machine: string; user: string; startedAt: number }[] = []
   paid = new Map<string, number>() // user id → paid_until
+  perpetual = new Map<string, number>() // user id → updates_until (dùng vĩnh viễn, cập nhật đến ngày đó)
   tokens = new Map<string, string>() // access / refresh token → user id
   requests: string[] = []
 
@@ -65,6 +66,8 @@ export class FakeSupabase {
           return send(200, {})
         }
         if (u.pathname.endsWith('get_entitlement')) {
+          const updatesUntil = this.perpetual.get(uid)
+          if (updatesUntil !== undefined) return send(200, { state: 'paid', updates_until: new Date(updatesUntil).toISOString() })
           const paidUntil = this.paid.get(uid)
           if (paidUntil !== undefined && paidUntil > this.now) return send(200, { state: 'paid', expires_at: new Date(paidUntil).toISOString() })
           const mine = this.trials.find(t => t.user === uid)

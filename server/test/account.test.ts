@@ -145,6 +145,19 @@ describe('accounts (Supabase) + 30-day free trial per account and per machine', 
     assert.equal(license.status().state, 'licensed')
   })
 
+  test('a lifetime plan with an update period: builds released after it are outdated, earlier ones keep working', async () => {
+    const { account } = mk()
+    await account.signUp('a@example.com', 'secret1')
+    sb.perpetual.set([...sb.users.values()][0]!.id, t + 100 * DAY)         // dùng vĩnh viễn, cập nhật thêm 100 ngày
+    await account.refresh()
+    const build = (msFromNow: number) => createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: null, machineCode: A, checkUrl: '', account, buildDate: new Date(t + msFromNow).toISOString() })
+    const ok = build(10 * DAY).status()
+    assert.deepEqual([ok.state, ok.restricted, ok.expiresAt], ['licensed', false, undefined])
+    assert.ok(ok.updatesInDays! >= 99 && ok.updatesInDays! <= 101)
+    const outdated = build(400 * DAY).status()
+    assert.deepEqual([outdated.state, outdated.restricted, outdated.gate], ['outdated', true, true])
+  })
+
   test('the access token is refreshed automatically and requests never carry the password', async () => {
     const { account } = mk()
     await account.signUp('a@example.com', 'secret1')
