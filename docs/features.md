@@ -89,6 +89,13 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Chạy từ VS Code (F5) | ✅ | Dev: Gateway + Web, Build, Test |
 | Bộ cài `MikMaster-Setup.exe` (Windows, không cần admin) · `MikMaster.dmg` (Mac) · Quit từ menu logo | ✅ | Không cần cài Node; tự mở trình duyệt. Chưa ký số; .exe chưa thử trên Windows thật |
 
+## Trang Nâng cao (menu logo → Nâng cao…)
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Tài liệu lệnh theo hãng (PJLink, Panasonic, Christie, Barco): lệnh, chức năng, hỏi / ghi, nguồn tài liệu, mức đã kiểm (đã kiểm trên máy / theo tài liệu / chưa kiểm); tìm kiếm, lọc hỏi / ghi | ✅ | Danh mục ở `src/constants/commandCatalog.ts` — bổ sung khi có lệnh mới. Không cần mở project |
+| **Sửa lệnh dùng chung cho mọi máy cùng hãng** (nguồn, shutter, test pattern, đọc nhiệt độ / giờ đèn); lệnh trống = giữ lệnh có sẵn của driver (hiện mờ làm gợi ý), nút Về mặc định | ✅ | Lưu ở gateway (`command-overrides.json`), gửi nguyên văn qua đường RAW thay cho lệnh có sẵn; lệnh riêng của từng máy (Nâng cao trên trang máy) được ưu tiên. Cần gateway |
+
 ## Bản quyền (license)
 
 | Tính năng | Trạng thái | Ghi chú |
@@ -125,7 +132,8 @@ Hai máy thử: **Panasonic PT-RQ35K** `192.168.1.176` (firmware 1.21) và **Chr
 | Độ sáng | ⬜ PJLink không có lệnh | ⬜ Griffyn không có `LPP` / `LOP` / `BRT` (Control Not Found) |
 | Đổi input (ghi) | 🧪 PJLink `INPT 31/32` — chưa gửi thử | ⬜ Chưa có bảng số `SIN` của cấu hình cổng |
 | Vị trí lens (đọc) | ⬜ PJLink không có | ✅ `LHO?` `LVO?` `ZOM?` `FCS?` (đơn vị của máy) — ô "Vị trí lens (máy báo)" ở cột lens |
-| Test pattern | ⬜ PJLink không có | ⬜ Có mã `ITP` (đang "Off"), chưa có danh sách giá trị |
+| Test pattern | ⬜ PJLink không có | 🧪 `(ITP n)` theo tài liệu Christie 4K7-HS/4K10-HS: lưới, trắng, đen, thanh màu, đỏ, xanh lá, xanh dương (nút Test pattern gửi thẳng); các mẫu khác báo không hỗ trợ. **Chưa kiểm số mẫu trên Griffyn** |
+| OSD hiện / ẩn | ⬜ | 🧪 `(OSD 1)` / `(OSD 0)`, trạng thái đọc từ `(OSD?)` (đã kiểm phần đọc trên Griffyn); nút OSD gửi thẳng |
 | Live preview | ⬜ | 🧪 Ảnh tín hiệu vào qua web của máy (JSON-RPC `/cgi-bin/c4jweb`: `session:connect` → `video:getInputInfo` → `/cgi-bin/thumbnail`), làm mới mỗi giây ở trang máy, mỗi 3 giây ở thẻ Dashboard (thẻ có thumbnail thật). **Cần tài khoản web** (hoặc đăng nhập nhanh của hãng) — nhập ở góc trên bên phải trang máy ("Tài khoản web"). Đã kiểm với bộ giả lập; chưa kiểm với máy thật vì cần đăng nhập |
 
 Nhập IP một máy Panasonic trả lời cả PJLink lẫn NTCONTROL → app chọn **PJLink**. Preset PT-RQ35K cũng dùng PJLink.

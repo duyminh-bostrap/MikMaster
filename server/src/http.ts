@@ -1,7 +1,7 @@
 import http from 'node:http'
 import {
-  DEFAULT_PORTS, LIVE_CAPABILITIES, QUICK_LOGIN_BRANDS, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
-  type ApiErrorCode, type CommandDto, type CommandTemplates, type DriverProtocol, type HealthDto, type QuickLoginsDto, type TargetDto,
+  DEFAULT_PORTS, LIVE_CAPABILITIES, QUICK_LOGIN_BRANDS, commandBrandOf, mergeCommands, templateKeyFor, TEMPLATE_KEYS, TEMPLATE_PROTOCOLS, UDP_PROTOCOLS, effectiveCapabilities, isDriverProtocol,
+  type ApiErrorCode, type CommandDto, type CommandOverridesDto, type CommandTemplates, type DriverProtocol, type HealthDto, type QuickLoginsDto, type TargetDto,
 } from '../../shared/api.ts'
 import { DRIVERS } from './drivers/index.ts'
 import { christiePreview } from './drivers/christieWeb.ts'
@@ -53,7 +53,7 @@ function isObject(v: unknown): v is Record<string, unknown> {
   return typeof v === 'object' && v !== null && !Array.isArray(v)
 }
 
-function parseTarget(raw: unknown): { protocol: DriverProtocol; target: DriverTarget } {
+function parseTarget(raw: unknown, overrides?: CommandOverridesDto): { protocol: DriverProtocol; target: DriverTarget } {
   if (!isObject(raw) || typeof raw.ip !== 'string' || !isObject(raw.protocol)) throw new DeviceError('bad-request', 'Missing target.ip / target.protocol')
   const t = raw as unknown as TargetDto
   if (!isAllowedHost(t.ip)) throw new DeviceError('forbidden-host', `${t.ip} is not a private/loopback IPv4 address`)
@@ -61,7 +61,7 @@ function parseTarget(raw: unknown): { protocol: DriverProtocol; target: DriverTa
   const protocol = t.protocol.type
   const port = t.protocol.port ?? DEFAULT_PORTS[protocol]
   if (!Number.isInteger(port) || port < 1 || port > 65535) throw new DeviceError('bad-request', 'Invalid port')
-  return { protocol, target: { host: t.ip, port, username: t.protocol.username, password: t.protocol.password, timeoutMs: DEFAULT_TIMEOUT_MS, commands: parseTemplates(t.protocol.commands) } }
+  return { protocol, target: { host: t.ip, port, username: t.protocol.username, password: t.protocol.password, timeoutMs: DEFAULT_TIMEOUT_MS, commands: mergeCommands(commandBrandOf(protocol) ? overrides?.[commandBrandOf(protocol)!] : undefined, parseTemplates(t.protocol.commands)) } }
 }
 
 function parseTemplates(raw: unknown): CommandTemplates | undefined {
@@ -134,6 +134,17 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       const body = await readJson(req)
       if (!isObject(body) || typeof body.key !== 'string' || body.key.length > 2048) throw new DeviceError('bad-request', 'Missing license key')
       return sendJson(res, 200, license.install(body.key))
+    }
+  }
+
+  if (url.pathname === '/api/command-overrides') {
+    if (!store) throw new DeviceError('unsupported', 'Storage is not enabled on this gateway')
+    if (req.method === 'GET') return sendJson(res, 200, store.getCommandOverrides())
+    if (req.method === 'PUT') {
+      const body = await readJson(req)
+      if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
+      store.setCommandOverrides(body as CommandOverridesDto)
+      return sendJson(res, 200, store.getCommandOverrides())
     }
   }
 
@@ -225,7 +236,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
   if (req.method === 'POST' && ['/api/devices/status', '/api/devices/command', '/api/devices/raw'].includes(url.pathname)) {
     const body = await readJson(req)
     if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
-    const { protocol, target } = parseTarget(body.target)
+    const { protocol, target } = parseTarget(body.target, store?.getCommandOverrides())
     const driver = DRIVERS[protocol]
 
     license?.check(target.host, url.pathname === '/api/devices/status' ? 'status' : 'control')
@@ -240,7 +251,11 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         // Người dùng đã khai báo lệnh test pattern của riêng mình: gửi đúng lệnh đó qua đường RAW của driver.
         await driver.raw(target, templates[command.enabled ? 'testPatternOn' : 'testPatternOff']!.trim())
       } else {
-        await driver.command(target, command)
+        // Lệnh sửa ở trang Nâng cao (hoặc riêng từng máy) thay cho lệnh có sẵn của driver hãng: gửi nguyên văn qua đường RAW.
+        const key = templateKeyFor(command)
+        const custom = !TEMPLATE_PROTOCOLS.includes(protocol) && key && command.kind !== 'testPattern' ? templates?.[key]?.trim() : undefined
+        if (custom) await driver.raw(target, custom)
+        else await driver.command(target, command)
       }
       return sendJson(res, 200, { ok: true })
     }

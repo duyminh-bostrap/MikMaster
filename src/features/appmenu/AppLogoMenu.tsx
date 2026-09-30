@@ -1,4 +1,5 @@
-import { Check, FileDown, FolderOpen, HelpCircle, History, Info, Loader2, Plus, Power, Save, Settings as SettingsIcon } from 'lucide-react'
+import { Check, FileDown, FolderOpen, HelpCircle, History, Info, Loader2, Plus, Power, Save, Settings as SettingsIcon, Wrench } from 'lucide-react'
+import { useNavigate } from 'react-router'
 import { useT } from '@/i18n'
 import { openSettings } from '@/features/settings/settingsOpen'
 import { HelpDialog } from '@/features/help/HelpDialog'
@@ -25,6 +26,7 @@ type Busy = null | 'open' | 'save' | 'export' | 'recent'
  */
 export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
   const cmd = useProjectCommands()
+  const navigate = useNavigate()
   const { mode: gatewayMode, quit } = useGateway()
   const t = useT()
   const [dialog, setDialog] = useState<null | 'help' | 'about'>(null)
@@ -140,6 +142,7 @@ export function AppLogoMenu({ size = 'md' }: { size?: 'sm' | 'md' | 'lg' }) {
 
           <MenuSeparator />
           <MenuItem icon={<SettingsIcon size={11} />} label={t('Settings…')} onSelect={() => { close(); openSettings() }} />
+          <MenuItem icon={<Wrench size={11} />} label={t('Advanced…')} onSelect={() => { close(); navigate('/advanced') }} />
           <MenuItem icon={<HelpCircle size={11} />} label={t('Help')} onSelect={() => { close(); setDialog('help') }} />
           <MenuItem icon={<Info size={11} />} label={t('About MikMaster')} onSelect={() => { close(); setDialog('about') }} />
 

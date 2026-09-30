@@ -1,4 +1,4 @@
-import type { ApiErrorCode, CommandDto, HealthDto, IdentifyDto, LicenseStatusDto, PingDto, PreviewDto, ProjectSnapshotDto, ProjectSummaryDto, QuickLoginsDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
+import type { ApiErrorCode, CommandDto, CommandOverridesDto, HealthDto, IdentifyDto, LicenseStatusDto, PingDto, PreviewDto, ProjectSnapshotDto, ProjectSummaryDto, QuickLoginsDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
@@ -20,6 +20,9 @@ export interface Gateway {
   /** Tài khoản đăng nhập nhanh theo hãng (lưu mã hoá ở gateway). */
   getQuickLogins(): Promise<GatewayResult<QuickLoginsDto>>
   saveQuickLogins(logins: QuickLoginsDto): Promise<GatewayResult<unknown>>
+  /** Lệnh sửa ở trang Nâng cao, theo hãng (lưu ở gateway). */
+  getCommandOverrides(): Promise<GatewayResult<CommandOverridesDto>>
+  saveCommandOverrides(o: CommandOverridesDto): Promise<GatewayResult<CommandOverridesDto>>
   /** Bản quyền phần mềm. */
   getLicense(): Promise<GatewayResult<LicenseStatusDto>>
   installLicense(key: string): Promise<GatewayResult<LicenseStatusDto>>
@@ -92,6 +95,8 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
     preview: p => call<PreviewDto>(base, token, '/api/devices/preview', { target: toTarget(p) }),
     getQuickLogins: () => call<QuickLoginsDto>(base, token, '/api/quick-logins', undefined, 'GET'),
     saveQuickLogins: logins => call<unknown>(base, token, '/api/quick-logins', logins, 'PUT'),
+    getCommandOverrides: () => call<CommandOverridesDto>(base, token, '/api/command-overrides', undefined, 'GET'),
+    saveCommandOverrides: o => call<CommandOverridesDto>(base, token, '/api/command-overrides', o, 'PUT'),
     getLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'GET'),
     installLicense: key => call<LicenseStatusDto>(base, token, '/api/license', { key }, 'PUT'),
     removeLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'DELETE'),

@@ -1,4 +1,5 @@
 import { deviceCapabilities } from '@/services/capabilities'
+import { useCommandOverrides } from '@/services/commandOverrides'
 import { useGateway } from '@/store/useGateway'
 import type { Projector } from '@/types'
 
@@ -20,6 +21,7 @@ export interface Capabilities {
  */
 export function useCapabilities(p: Projector): Capabilities {
   const { gateway } = useGateway()
+  useCommandOverrides(gateway) // render lại khi lệnh chung của hãng (trang Nâng cao) đổi
   if (!gateway) return { live: false, osd: true, testPattern: true, lens: true, input: true, raw: false, preview: false }
   const caps = deviceCapabilities(p)
   return { live: true, osd: caps.includes('osd'), testPattern: caps.includes('testPattern'), lens: false, input: caps.includes('input'), raw: caps.includes('raw'), preview: caps.includes('preview') }

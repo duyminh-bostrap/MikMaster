@@ -415,3 +415,48 @@ describe('readings (temperature / lamp hours via user queries)', () => {
     assert.equal(r.body.power, 'standby')
   })
 })
+
+describe('command overrides (Advanced page)', () => {
+  let s: http.Server, u: string, dir: string
+  const sim = new ChristieSimulator()
+  before(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-ovr-'))
+    s = createServer({ store: createProjectStore(dir) })
+    await new Promise<void>(r => s.listen(0, '127.0.0.1', r))
+    u = `http://127.0.0.1:${(s.address() as AddressInfo).port}`
+    await sim.start()
+  })
+  after(async () => { await sim.stop(); await new Promise(r => s.close(r)); fs.rmSync(dir, { recursive: true, force: true }) })
+  const put = (body: unknown) => fetch(`${u}/api/command-overrides`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const cmd = (commands: object | undefined, command: object) => fetch(`${u}/api/devices/command`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: sim.port, ...(commands ? { commands } : {}) } }, command }),
+  })
+
+  test('saved sanitised: unknown brands / keys / empty values are dropped', async () => {
+    const r = await put({ christie: { powerOn: '(PWR?)', bogus: 'x', powerOff: '   ' }, hacker: { powerOn: 'y' } })
+    assert.deepEqual(await r.json(), { christie: { powerOn: '(PWR?)' } })
+    assert.deepEqual(await (await fetch(`${u}/api/command-overrides`)).json(), { christie: { powerOn: '(PWR?)' } })
+    assert.equal((await put([1, 2])).status, 400)
+  })
+
+  test('a brand-level command replaces the built-in one; a projector-level command wins over it', async () => {
+    await put({ christie: { powerOn: '(PWR?)', shutterClose: '(SHU?)' } })
+    let before = sim.received.length
+    assert.equal((await cmd(undefined, { kind: 'power', value: 'on' })).status, 200)
+    assert.deepEqual(sim.received.slice(before), ['(PWR?)']) // thay cho (PWR 1)
+    before = sim.received.length
+    assert.equal((await cmd({ powerOn: '(SHU?)' }, { kind: 'power', value: 'on' })).status, 200)
+    assert.deepEqual(sim.received.slice(before), ['(SHU?)'])
+    before = sim.received.length
+    await cmd(undefined, { kind: 'power', value: 'standby' }) // powerOff không sửa → lệnh có sẵn
+    assert.deepEqual(sim.received.slice(before), ['(PWR 0)'])
+  })
+
+  test('resetting (empty object) restores the built-in commands', async () => {
+    await put({})
+    const before = sim.received.length
+    await cmd(undefined, { kind: 'power', value: 'on' })
+    assert.deepEqual(sim.received.slice(before), ['(PWR 1)'])
+  })
+})

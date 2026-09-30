@@ -50,6 +50,8 @@ Cập nhật: 2026-09-29 (khuya, sau khi kiểm máy thật). Ký hiệu: ✅ xo
 | C15 | Đổi input Christie (ghi) | Trung bình | Cần bảng số `SIN` / `CHA` theo cấu hình cổng |
 | C16 | Lens Griffyn: **đọc vị trí** `LHO` `LVO` `ZOM` `FCS` ✅ trên máy thật. Di chuyển (`LHO n`… / `LMV+*`) và preset (app tự lưu vị trí) | Trung bình | Chưa gửi lệnh di chuyển; thử khi người dùng đứng cạnh máy và đồng ý từng lệnh. Chưa tìm thấy lệnh lens memory của máy |
 | C18 | **License phần mềm** (khoá ký số, dùng thử 30 ngày, giới hạn số máy) | ✅ | Chính sách mặc định (30 ngày / 3 máy khi hết hạn) chỉnh ở `server/src/license.ts` |
+| C19 | Trang **Nâng cao** (tài liệu lệnh + sửa lệnh theo hãng) | ✅ | Menu logo → Nâng cao… |
+| C20 | Christie: OSD `(OSD n)` + test pattern `(ITP n)` từ tài liệu 4K7-HS/4K10-HS | 🧪 | Chưa kiểm trên Griffyn (máy chưa bật); số mẫu ITP cần xác nhận khi bật thử |
 
 ## Cách chạy
 

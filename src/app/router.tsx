@@ -1,4 +1,5 @@
 import { createHashRouter } from 'react-router'
+import AdvancedPage from '@/pages/AdvancedPage'
 import DashboardPage from '@/pages/DashboardPage'
 import DetailPage from '@/pages/DetailPage'
 import StartPage from '@/pages/StartPage'
@@ -15,5 +16,6 @@ export const router = createHashRouter([
       { path: 'projectors/:projectorId', element: <DetailPage /> },
     ],
   },
+  { path: '/advanced', element: <AdvancedPage /> },
   { path: '*', element: <StartPage /> },
 ])

@@ -41,6 +41,27 @@ export interface LicenseStatusDto {
   releaseCode?: string
 }
 
+/** Nhóm lệnh sửa được ở trang Nâng cao: áp cho mọi máy chiếu cùng hãng / giao thức (lệnh riêng của từng máy vẫn được ưu tiên). */
+export const COMMAND_BRANDS = ['panasonic', 'christie', 'barco', 'pjlink'] as const
+export type CommandBrand = (typeof COMMAND_BRANDS)[number]
+export type CommandOverridesDto = Partial<Record<CommandBrand, CommandTemplates>>
+
+export function commandBrandOf(type: string): CommandBrand | null {
+  if (type === 'panasonic-nt-control') return 'panasonic'
+  if (type === 'christie-serial-ip') return 'christie'
+  if (type === 'barco-pulse') return 'barco'
+  if (type.startsWith('pjlink')) return 'pjlink'
+  return null
+}
+
+/** Lệnh hiệu lực của một máy: lệnh riêng của máy (không rỗng) ghi đè lệnh chung của hãng. */
+export function mergeCommands(brandLevel: CommandTemplates | undefined, own: CommandTemplates | undefined): CommandTemplates | undefined {
+  if (!brandLevel && !own) return undefined
+  const out: CommandTemplates = { ...brandLevel }
+  for (const k of TEMPLATE_KEYS) if (own?.[k]?.trim()) out[k] = own[k]
+  return out
+}
+
 /** Hãng có "đăng nhập nhanh": một tài khoản người dùng tự lưu cho mỗi hãng / dòng máy. */
 export const QUICK_LOGIN_BRANDS = ['panasonic', 'christie', 'barco'] as const
 export type QuickLoginBrand = (typeof QUICK_LOGIN_BRANDS)[number]
