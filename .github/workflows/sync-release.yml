@@ -1,7 +1,9 @@
 name: Sync release to public repo
 # Chép một bản phát hành (file cài + ghi chú + SHA256SUMS.txt) từ repo private này sang repo CÔNG KHAI để trang Store liên kết tải về.
-# Chạy tay sau khi "Build executables" xong VÀ đã chỉnh ghi chú phát hành:
-#   Actions → Sync release to public repo → Run workflow → nhập tag (vd. v0.5.7).
+# Chạy TỰ ĐỘNG:
+#   - cuối workflow "Build executables" khi đẩy tag v* (file cài mới lên repo công khai);
+#   - mỗi khi ghi chú của bản phát hành được sửa (release: edited) → ghi chú công khai được cập nhật theo.
+# Vẫn chạy tay được: Actions → Sync release to public repo → Run workflow → nhập tag (vd. v0.5.7).
 # Cần cấu hình một lần (xem docs/prompts/store-downloads.md):
 #   - biến (Settings → Secrets and variables → Actions → Variables): RELEASES_REPO = duyminh-bostrap/MikMaster-releases
 #   - secret: RELEASES_REPO_TOKEN = token GitHub (fine-grained) chỉ có quyền Contents: read & write trên repo công khai đó.
@@ -11,15 +13,29 @@ on:
       tag:
         description: 'Tag của bản phát hành, ví dụ v0.5.7'
         required: true
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  release:
+    types: [edited]
+
+# Cùng một bản phát hành không chạy chồng lên nhau.
+concurrency:
+  group: sync-release-${{ inputs.tag || github.event.release.tag_name }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
 
 jobs:
   sync:
+    # Sự kiện sửa ghi chú chỉ chạy khi đã cấu hình repo công khai (tránh lượt chạy đỏ vô ích).
+    if: github.event_name != 'release' || vars.RELEASES_REPO != ''
     runs-on: ubuntu-latest
     env:
-      TAG: ${{ inputs.tag }}
+      TAG: ${{ inputs.tag || github.event.release.tag_name }}
       MIRROR_REPO: ${{ vars.RELEASES_REPO }}
       MIRROR_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
     steps:
