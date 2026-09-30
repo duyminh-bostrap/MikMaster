@@ -178,7 +178,23 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
   ].join('\n'), { mode: 0o755 })
   const setupPkg = path.join(out, 'MikMaster-Setup.pkg')
   fs.rmSync(setupPkg, { force: true })
-  run('pkgbuild', ['--component', app, '--install-location', '/Applications', '--scripts', scripts,
+  // Không cho Installer "relocate": mặc định gói .pkg tìm bản .app cùng bundle id ở BẤT KỲ đâu trên máy (vd. release/MikMaster.app
+  // của lần build cũ) và cập nhật bản đó thay vì cài vào /Applications.
+  const root = path.join(work, 'pkg-root')
+  fs.mkdirSync(root, { recursive: true })
+  run('ditto', [app, path.join(root, 'MikMaster.app')])
+  const componentPlist = path.join(work, 'component.plist')
+  fs.writeFileSync(componentPlist, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><array><dict>
+  <key>RootRelativeBundlePath</key><string>MikMaster.app</string>
+  <key>BundleIsRelocatable</key><false/>
+  <key>BundleIsVersionChecked</key><false/>
+  <key>BundleHasStrictIdentifier</key><false/>
+  <key>BundleOverwriteAction</key><string>upgrade</string>
+</dict></array></plist>
+`)
+  run('pkgbuild', ['--root', root, '--component-plist', componentPlist, '--install-location', '/Applications', '--scripts', scripts,
     '--identifier', 'com.mikmaster.app.pkg', '--version', pkg.version, setupPkg])
   return dmg
 }
