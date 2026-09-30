@@ -325,10 +325,10 @@ test('All tab: collapse groups, switch to the 2D map, drag a projector (position
   const before = await node.boundingBox()
   await node.hover()
   await page.mouse.down()
-  await page.mouse.move(before!.x + 40, before!.y + 200, { steps: 8 })
+  await page.mouse.move(before!.x + before!.width / 2 + 40, before!.y + before!.height / 2 + 96, { steps: 8 }) // từ tâm ô
   await page.mouse.up()
   const after = await node.boundingBox()
-  expect(after!.y - before!.y).toBeGreaterThan(150)
+  expect(after!.y - before!.y).toBeGreaterThan(80)
   await expect(page).toHaveURL(/#\/project(\?|$)/) // kéo không mở máy
   await page.screenshot({ path: 'test-results/map-2d.png' })
   await page.getByRole('radio', { name: 'Groups' }).click()
@@ -345,4 +345,20 @@ test('All tab: collapse groups, switch to the 2D map, drag a projector (position
   // Bấm (không kéo) thì mở trang máy.
   await map.locator('[data-projector="PJ-03"]').click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
+})
+
+test('2D map nodes show the IP, the temperature and the live preview (gateway mocked, no real device)', async ({ page }) => {
+  await createProject(page, 'Map Show')
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'on', temperatureC: 27, errors: [] } }))
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'image', image: PNG } }))
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  await page.getByRole('radio', { name: '2D map' }).click()
+  const node = page.getByTestId('projector-map').locator('[data-projector="PJ-03"]')
+  await expect(node).toContainText('192.168.1.102')
+  await expect(node).toContainText('27°C', { timeout: 10_000 })
+  await expect(node.locator('img')).toBeVisible({ timeout: 10_000 })
+  await page.screenshot({ path: 'test-results/map-2d-live.png' })
 })

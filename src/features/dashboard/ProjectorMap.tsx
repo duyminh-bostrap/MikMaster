@@ -1,5 +1,7 @@
 import { LayoutGrid } from 'lucide-react'
 import { useMemo, useRef, useState } from 'react'
+import { CARD_PREVIEW_MS } from '@/components/projector/ProjectorCard'
+import { ProjectorThumb } from '@/components/projector/ProjectorThumb'
 import { PowerDot } from '@/components/ui/StatusDot'
 import { useT } from '@/i18n'
 import { useProjectActions } from '@/store/hooks'
@@ -103,13 +105,22 @@ export function ProjectorMap({ projectors, booths, emptyText, onOpen, onContextM
                 onPointerDown={e => onPointerDown(e, p)} onPointerMove={onPointerMove} onPointerUp={e => onPointerUp(e, p)}
                 onPointerCancel={() => { gesture.current = null; setDrag(null) }}
                 onContextMenu={e => onContextMenu(e, p.id)} onKeyDown={e => onKeyDown(e, p)}
-                className={cn('absolute flex touch-none flex-col justify-center gap-0.5 overflow-hidden rounded-sm border bg-card py-1 pr-2 pl-3 font-mono select-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none',
+                className={cn('absolute flex touch-none flex-col overflow-hidden rounded-sm border bg-card font-mono select-none focus-visible:ring-2 focus-visible:ring-primary/60 focus-visible:outline-none',
                   STATUS_BORDER[st], p.errors.length > 0 && 'ring-1 ring-danger/60', dragging ? 'z-10 cursor-grabbing shadow-lg' : 'cursor-grab transition-shadow hover:shadow-md')}
                 style={{ left: pos.x, top: pos.y, width: MAP.nodeW, height: MAP.nodeH }}>
-                <span className="absolute inset-y-0 left-0 w-1.5" style={{ background: colorOf(p) }} aria-hidden />
-                <span className="flex items-center gap-1.5 text-xs font-semibold text-foreground"><PowerDot power={st === 'on' ? 'on' : 'off'} /><span className="truncate">{p.name}</span></span>
-                <span className="truncate text-[10px] text-muted-foreground">{p.id} · {p.network.ip}</span>
-                <span className={cn('text-[10px]', temp > 0 ? TONE_TEXT[temperatureTone(temp)] : 'text-muted-foreground')}>{temp > 0 ? `${temp}°C` : '—'}{st === 'offline' ? ` · ${t('Offline')}` : st === 'login' ? ` · ${t('LOGIN')}` : ''}</span>
+                <span className="absolute inset-y-0 left-0 z-10 w-1.5" style={{ background: colorOf(p) }} aria-hidden />
+                <div className="pointer-events-none"><ProjectorThumb projector={p} intervalMs={CARD_PREVIEW_MS} /></div>
+                <div className="flex flex-1 flex-col justify-center gap-0.5 pr-2 pl-3">
+                  <span className="flex items-center justify-between gap-2 text-xs font-semibold text-foreground">
+                    <span className="flex min-w-0 items-center gap-1.5"><PowerDot power={st === 'on' ? 'on' : 'off'} /><span className="truncate">{p.name}</span></span>
+                    <span className={cn('shrink-0 text-[11px] font-medium', temp > 0 ? TONE_TEXT[temperatureTone(temp)] : 'text-muted-foreground')}>{temp > 0 ? `${temp}°C` : '—'}</span>
+                  </span>
+                  <span className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                    <span className="truncate"><span className="text-accent/70">{p.network.ip}</span> · {p.id}</span>
+                    {st === 'offline' && <span className="shrink-0 text-danger">{t('Offline')}</span>}
+                    {st === 'login' && <span className="shrink-0 text-warn">{t('LOGIN')}</span>}
+                  </span>
+                </div>
               </div>
             )
           })}

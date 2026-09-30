@@ -6,9 +6,7 @@ import { PowerDot } from '@/components/ui/StatusDot'
 import { cn } from '@/utils/cn'
 import { formatHours } from '@/utils/format'
 import type { Projector } from '@/types'
-import { useLivePreview } from '@/hooks/useLivePreview'
-import { PreviewNotice } from './PreviewNotice'
-import { PreviewScreen } from './PreviewScreen'
+import { ProjectorThumb } from './ProjectorThumb'
 import { TempBar } from './TempBar'
 
 interface ProjectorCardProps {
@@ -38,7 +36,7 @@ function CardButton({ label, active, activeClass, hoverClass, onClick, last, chi
   )
 }
 
-const CARD_PREVIEW_MS = 3000
+export const CARD_PREVIEW_MS = 3000
 
 type BarState = 'on' | 'off' | 'offline' | 'login'
 
@@ -58,10 +56,6 @@ const STATUS_BAR: Record<BarState, string> = {
 export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onToggleShutter, onContextMenu, dragProps }: ProjectorCardProps) {
   const t = useT()
   const hasError = p.errors.length > 0
-  // Thumbnail thật (Christie qua web của máy); chậm hơn trang máy để nhiều thẻ không hỏi dồn dập.
-  const { live } = useLivePreview(p, CARD_PREVIEW_MS)
-  const image = live.kind === 'ok' && live.preview.state === 'image' ? live.preview.image : undefined
-  const hdcp = live.kind === 'ok' && live.preview.state === 'hdcp'
 
   function handleKey(e: KeyboardEvent) {
     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
@@ -100,10 +94,8 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
         </div>
       </div>
 
-      {image
-        ? <div className="relative h-[90px] overflow-hidden bg-black"><img src={image} alt="" className="size-full object-cover" /><span className="absolute top-1 left-1.5 size-1.5 animate-pulse rounded-full bg-ok" /></div>
-        : hdcp ? <PreviewNotice size="sm">{t('HDCP-protected content')}</PreviewNotice>
-        : <PreviewScreen projector={p} size="sm" />}
+      {/* Thumbnail thật; chậm hơn trang máy để nhiều thẻ không hỏi dồn dập. */}
+      <ProjectorThumb projector={p} intervalMs={CARD_PREVIEW_MS} />
 
       <div className="flex flex-col gap-1 border-t border-border px-3 py-2">
         <div className="flex items-baseline justify-between">

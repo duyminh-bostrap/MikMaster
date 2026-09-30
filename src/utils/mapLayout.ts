@@ -5,7 +5,7 @@ import type { Booth, Projector } from '@/types'
  * Vị trí (góc trên trái của ô) lưu trong `Projector.mapPos` và đi theo project. Máy chưa có vị trí được xếp tự động:
  * mỗi group một dải, các dải xếp từ trên xuống.
  */
-export const MAP = { width: 1200, nodeW: 164, nodeH: 64, gap: 16, pad: 24, minHeight: 480, snap: 8 } as const
+export const MAP = { width: 1200, nodeW: 184, nodeH: 148, gap: 16, pad: 24, minHeight: 480, snap: 8 } as const
 
 export interface Pos { x: number; y: number }
 
