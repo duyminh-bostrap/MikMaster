@@ -1,4 +1,4 @@
-import type { ApiErrorCode, CommandDto, HealthDto, IdentifyDto, PingDto, PreviewDto, ProjectSnapshotDto, ProjectSummaryDto, QuickLoginsDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
+import type { ApiErrorCode, CommandDto, HealthDto, IdentifyDto, LicenseStatusDto, PingDto, PreviewDto, ProjectSnapshotDto, ProjectSummaryDto, QuickLoginsDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
@@ -20,6 +20,10 @@ export interface Gateway {
   /** Tài khoản đăng nhập nhanh theo hãng (lưu mã hoá ở gateway). */
   getQuickLogins(): Promise<GatewayResult<QuickLoginsDto>>
   saveQuickLogins(logins: QuickLoginsDto): Promise<GatewayResult<unknown>>
+  /** Bản quyền phần mềm. */
+  getLicense(): Promise<GatewayResult<LicenseStatusDto>>
+  installLicense(key: string): Promise<GatewayResult<LicenseStatusDto>>
+  removeLicense(): Promise<GatewayResult<LicenseStatusDto>>
   /** Tắt gateway (và MikMaster). */
   quit(): Promise<GatewayResult<unknown>>
   /** Nhận diện máy ở một IP: giao thức, cổng, hãng, model. */
@@ -86,6 +90,9 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
     preview: p => call<PreviewDto>(base, token, '/api/devices/preview', { target: toTarget(p) }),
     getQuickLogins: () => call<QuickLoginsDto>(base, token, '/api/quick-logins', undefined, 'GET'),
     saveQuickLogins: logins => call<unknown>(base, token, '/api/quick-logins', logins, 'PUT'),
+    getLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'GET'),
+    installLicense: key => call<LicenseStatusDto>(base, token, '/api/license', { key }, 'PUT'),
+    removeLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'DELETE'),
     quit: () => call<unknown>(base, token, '/api/app/quit', {}),
     identify: (ip, creds) => call<IdentifyDto>(base, token, '/api/devices/identify', { ip, ...creds }),
     ping: p => call<PingDto>(base, token, '/api/devices/ping', { target: toTarget(p) }),

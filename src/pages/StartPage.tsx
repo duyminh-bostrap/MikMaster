@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useLocation } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { GatewayBadge } from '@/components/layout/GatewayBadge'
+import { LicenseBadge } from '@/components/layout/LicenseBadge'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { GatewayTokenDialog } from '@/features/gateway/GatewayTokenDialog'
@@ -93,7 +94,7 @@ export default function StartPage() {
         {mode === 'new' && <NewProjectWizard key={location.key} onBack={() => setMode('choose')} onLaunch={cmd.launch} />}
       </main>
 
-      <AppFooter left="MikMaster — Professional AV Control" right={<><GatewayBadge /><StatusDot tone="ok" className="size-1.5" />{t('Network ready')}</>} />
+      <AppFooter left="MikMaster — Professional AV Control" right={<><LicenseBadge /><GatewayBadge /><StatusDot tone="ok" className="size-1.5" />{t('Network ready')}</>} />
     </div>
   )
 }

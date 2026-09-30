@@ -2,6 +2,7 @@ import { useCallback, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { GatewayBadge } from '@/components/layout/GatewayBadge'
+import { LicenseBadge } from '@/components/layout/LicenseBadge'
 import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
@@ -96,7 +97,7 @@ export default function DashboardPage() {
       )}
       {editing && <EditDialog target={editing} onClose={closeEdit} />}
       {confirmDialog}
-      <AppFooter left={`MikMaster v${__APP_VERSION__}`} right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
+      <AppFooter left={`MikMaster v${__APP_VERSION__}`} right={<><LicenseBadge /><GatewayBadge />{formatLongDate(new Date())}</>} />
     </AppShell>
   )
 }

@@ -7,6 +7,7 @@ import { DRIVERS } from './drivers/index.ts'
 import { christiePreview } from './drivers/christieWeb.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
+import type { LicenseManager } from './license.ts'
 import { addReadings } from './readings.ts'
 import { identifyDevice } from './identify.ts'
 import { pingDevice } from './ping.ts'
@@ -22,7 +23,7 @@ const DEFAULT_TIMEOUT_MS = 3000
 
 const STATUS: Record<ApiErrorCode, number> = {
   'bad-request': 400, 'forbidden-host': 403, unsupported: 501,
-  unauthorized: 401, 'not-found': 404, connect: 502, timeout: 504, auth: 502, protocol: 502, device: 502,
+  unauthorized: 401, 'not-found': 404, license: 402, connect: 502, timeout: 504, auth: 502, protocol: 502, device: 502,
 }
 
 function sendJson(res: http.ServerResponse, status: number, body: unknown): void {
@@ -85,7 +86,7 @@ function requireCapability(protocol: DriverProtocol, cap: 'raw' | 'preview' | Co
   if (!effectiveCapabilities(protocol, target.commands).includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"${TEMPLATE_PROTOCOLS.includes(protocol) ? ' (no command template configured)' : ''}`)
 }
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore, onQuit?: () => void): Promise<void> {
+async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore, onQuit?: () => void, license?: LicenseManager): Promise<void> {
   const route = `${req.method} ${url.pathname}`
   const authorized = token === undefined || tokenMatches(token, extractToken(req.headers.authorization, url))
 
@@ -117,6 +118,17 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         if (!store.remove(id)) throw new DeviceError('not-found', `No project "${id}"`)
         return sendJson(res, 200, { ok: true })
       }
+    }
+  }
+
+  if (url.pathname === '/api/license') {
+    if (!license) throw new DeviceError('unsupported', 'Licensing is not enabled on this gateway')
+    if (req.method === 'GET') return sendJson(res, 200, license.status())
+    if (req.method === 'DELETE') return sendJson(res, 200, license.remove())
+    if (req.method === 'PUT') {
+      const body = await readJson(req)
+      if (!isObject(body) || typeof body.key !== 'string' || body.key.length > 2048) throw new DeviceError('bad-request', 'Missing license key')
+      return sendJson(res, 200, license.install(body.key))
     }
   }
 
@@ -194,6 +206,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     if (!isObject(body)) throw new DeviceError('bad-request', 'Body must be an object')
     const { protocol, target } = parseTarget(body.target)
     requireCapability(protocol, 'preview', target)
+    license?.check(target.host, 'status')
     try {
       const preview = await christiePreview(target)
       logPreview(target.host, `ok: ${preview.state}${preview.input ? ` (${preview.input})` : ''}`)
@@ -210,6 +223,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     const { protocol, target } = parseTarget(body.target)
     const driver = DRIVERS[protocol]
 
+    license?.check(target.host, url.pathname === '/api/devices/status' ? 'status' : 'control')
     if (url.pathname === '/api/devices/status') return sendJson(res, 200, await addReadings(driver, target, await driver.status(target)))
 
     if (url.pathname === '/api/devices/command') {
@@ -240,7 +254,7 @@ function serveStatic(source: StaticSource, url: URL, res: http.ServerResponse): 
   res.end(file.body)
 }
 
-export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore; onQuit?: () => void } = {}): http.Server {
+export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore; license?: LicenseManager; onQuit?: () => void } = {}): http.Server {
   const staticSource = options.staticSource ?? (options.staticDir ? fsStatic(options.staticDir) : undefined)
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
@@ -249,7 +263,7 @@ export function createServer(options: { staticDir?: string; staticSource?: Stati
       if (options.token === undefined && !isLocalHostHeader(req.headers.host)) {
         return sendJson(res, 403, { error: { code: 'forbidden-host', message: 'Requests must be addressed to localhost' } })
       }
-      handleApi(req, res, url, options.token, options.store, options.onQuit).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
+      handleApi(req, res, url, options.token, options.store, options.onQuit, options.license).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
     } else if (staticSource) {
       serveStatic(staticSource, url, res)
     } else {

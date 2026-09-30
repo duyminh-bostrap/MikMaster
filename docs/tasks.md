@@ -49,6 +49,7 @@ Cập nhật: 2026-09-29 (khuya, sau khi kiểm máy thật). Ký hiệu: ✅ xo
 | C14 | Độ sáng laser | Trung bình | Griffyn không có LPP/LOP/BRT; RQ35K không có qua PJLink. Cần tài liệu hãng |
 | C15 | Đổi input Christie (ghi) | Trung bình | Cần bảng số `SIN` / `CHA` theo cấu hình cổng |
 | C16 | Lens Griffyn: **đọc vị trí** `LHO` `LVO` `ZOM` `FCS` ✅ trên máy thật. Di chuyển (`LHO n`… / `LMV+*`) và preset (app tự lưu vị trí) | Trung bình | Chưa gửi lệnh di chuyển; thử khi người dùng đứng cạnh máy và đồng ý từng lệnh. Chưa tìm thấy lệnh lens memory của máy |
+| C18 | **License phần mềm** (khoá ký số, dùng thử 30 ngày, giới hạn số máy) | ✅ | Chính sách mặc định (30 ngày / 3 máy khi hết hạn) chỉnh ở `server/src/license.ts` |
 
 ## Cách chạy
 

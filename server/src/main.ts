@@ -3,6 +3,7 @@ import { randomBytes } from 'node:crypto'
 import { createServer } from './http.ts'
 import { isLoopbackBind } from './security.ts'
 import type { StaticSource } from './static.ts'
+import { createLicenseManager } from './license.ts'
 import { createProjectStore } from './store.ts'
 
 /** Khởi động gateway + giao diện; dùng chung cho `pnpm serve` (mã nguồn) và file chạy đóng gói (.exe). */
@@ -20,8 +21,9 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
   const appUrl = loopback ? `http://mikmaster.localhost${port === 80 ? '' : `:${port}`}` : `http://${host}:${port}`
 
   const store = createProjectStore(opts.dataDir)
+  const license = createLicenseManager(opts.dataDir)
   const server = createServer({
-    staticSource: opts.staticSource, token, store,
+    staticSource: opts.staticSource, token, store, license,
     onQuit: () => {
       console.log('Stopped from the web app.')
       server.close()
@@ -44,6 +46,8 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
     console.log(`MikMaster is running:  ${appUrl}`)
     if (loopback) console.log(`                  also: http://127.0.0.1:${port}  (Safari)`)
     console.log(`Projects stored in ${opts.dataDir} (passwords encrypted)`)
+    const lic = license.status()
+    console.log(`License: ${lic.state === 'licensed' ? `licensed to ${lic.licensee}` : lic.state === 'trial' ? `trial, ${lic.trialDaysLeft} day(s) left` : `${lic.state} — limited to ${lic.freeLimit} projectors, no control`}`)
     if (token) {
       console.log(generated ? `Token (generated): ${token}` : 'Token authentication enabled (MIKMASTER_TOKEN).')
       console.log(`Open: ${appUrl}/?token=<token>   (the browser remembers it)`)

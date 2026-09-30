@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/Button'
 import { Modal } from '@/components/ui/Modal'
 import { useT } from '@/i18n'
+import { LicenseSection } from './LicenseSection'
 import { POWER_ON_DELAY_LIMITS, updateSettings, useSettings, type Language, type ThemeSetting } from '@/services/settings'
 
 function Segmented<T extends string>({ label, value, options, onChange }: {
@@ -51,6 +52,7 @@ export function SettingsDialog({ onClose }: { onClose: () => void }) {
             : t('ALL ON turns every projector on at the same time.')}
         </p>
       </div>
+      <LicenseSection />
       <p className="font-mono text-[10px] text-muted-foreground/70">{t('Settings are stored in this browser.')}</p>
     </Modal>
   )

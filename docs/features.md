@@ -89,6 +89,16 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Chạy từ VS Code (F5) | ✅ | Dev: Gateway + Web, Build, Test |
 | Bộ cài `MikMaster-Setup.exe` (Windows, không cần admin) · `MikMaster.dmg` (Mac) · Quit từ menu logo | ✅ | Không cần cài Node; tự mở trình duyệt. Chưa ký số; .exe chưa thử trên Windows thật |
 
+## Bản quyền (license)
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Khoá ký số Ed25519 (`MIKM1.…`), kiểm ngoại tuyến bằng khoá công khai nhúng trong app; khoá chứa tên người dùng, số máy tối đa, ngày hết hạn (tuỳ chọn) | ✅ | Cấp bằng `node scripts/license.mjs issue --licensee "Tên" [--max N] [--days N]`; khoá bí mật ở `~/.mikmaster-license/private.pem`, **không nằm trong repo** — sao lưu cẩn thận |
+| Dùng thử 30 ngày đủ tính năng, tính từ lần chạy đầu | ✅ | Ghi ở thư mục dữ liệu của gateway |
+| Hết dùng thử / hết hạn: chỉ xem trạng thái tối đa 3 máy, không gửi lệnh (API trả 402 `license`) | ✅ | Rào chắn cho người dùng bình thường, không phải chống bẻ khoá |
+| Có khoá: giới hạn số máy chiếu đang làm việc (10 phút gần nhất) theo `max` | ✅ | `max = 0` là không giới hạn |
+| Cài đặt → mục Bản quyền: xem trạng thái, nhập / gỡ khoá; huy hiệu ở chân trang khi còn ≤ 7 ngày dùng thử hoặc hết hạn | ✅ | Cần gateway; ở chế độ mô phỏng không có |
+
 ## Bảo mật
 
 - Gateway mặc định chỉ nghe `127.0.0.1`. Mở ra mạng (`HOST=0.0.0.0`) thì **bắt buộc token** (tự sinh nếu chưa đặt `MIKMASTER_TOKEN`).

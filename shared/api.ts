@@ -12,6 +12,22 @@ export const WEB_LOGIN_PROTOCOLS: readonly string[] = ['christie-serial-ip']
 
 export interface LensReadingDto { shiftH?: number; shiftV?: number; zoom?: number; focus?: number }
 
+/** Bản quyền phần mềm MikMaster (khoá ký số Ed25519, kiểm ngoại tuyến). */
+export interface LicenseStatusDto {
+  /** licensed = khoá hợp lệ · trial = đang dùng thử · expired = khoá đã hết hạn · unlicensed = hết dùng thử, chưa có khoá */
+  state: 'licensed' | 'trial' | 'expired' | 'unlicensed'
+  licensee?: string
+  id?: string
+  /** Số máy chiếu tối đa; 0 = không giới hạn. */
+  maxProjectors?: number
+  expiresAt?: string
+  trialDaysLeft?: number
+  /** Số máy được xem trạng thái khi không có bản quyền (không điều khiển được). */
+  freeLimit: number
+  /** Đang bị giới hạn: chỉ xem trạng thái tối đa `freeLimit` máy, không gửi lệnh. */
+  restricted: boolean
+}
+
 /** Hãng có "đăng nhập nhanh": một tài khoản người dùng tự lưu cho mỗi hãng / dòng máy. */
 export const QUICK_LOGIN_BRANDS = ['panasonic', 'christie', 'barco'] as const
 export type QuickLoginBrand = (typeof QUICK_LOGIN_BRANDS)[number]
@@ -140,7 +156,7 @@ export interface StatusDto {
 }
 
 export type ApiErrorCode =
-  | 'connect' | 'timeout' | 'auth' | 'protocol' | 'device' | 'unsupported' | 'bad-request' | 'forbidden-host' | 'unauthorized' | 'not-found'
+  | 'connect' | 'timeout' | 'auth' | 'protocol' | 'device' | 'unsupported' | 'bad-request' | 'forbidden-host' | 'unauthorized' | 'not-found' | 'license'
 
 export interface ApiErrorDto {
   error: { code: ApiErrorCode; message: string }
