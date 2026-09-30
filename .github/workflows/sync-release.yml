@@ -1,0 +1,53 @@
+name: Sync release to public repo
+# Chép một bản phát hành (file cài + ghi chú + SHA256SUMS.txt) từ repo private này sang repo CÔNG KHAI để trang Store liên kết tải về.
+# Chạy tay sau khi "Build executables" xong VÀ đã chỉnh ghi chú phát hành:
+#   Actions → Sync release to public repo → Run workflow → nhập tag (vd. v0.5.7).
+# Cần cấu hình một lần (xem docs/prompts/store-downloads.md):
+#   - biến (Settings → Secrets and variables → Actions → Variables): RELEASES_REPO = duyminh-bostrap/MikMaster-releases
+#   - secret: RELEASES_REPO_TOKEN = token GitHub (fine-grained) chỉ có quyền Contents: read & write trên repo công khai đó.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Tag của bản phát hành, ví dụ v0.5.7'
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    env:
+      TAG: ${{ inputs.tag }}
+      MIRROR_REPO: ${{ vars.RELEASES_REPO }}
+      MIRROR_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+    steps:
+      - name: Check configuration
+        run: |
+          case "$TAG" in v[0-9]*.[0-9]*.[0-9]*) ;; *) echo "::error::Tag must look like v1.2.3"; exit 1 ;; esac
+          if [ -z "$MIRROR_REPO" ] || [ -z "$MIRROR_TOKEN" ]; then
+            echo "::error::Set the variable RELEASES_REPO and the secret RELEASES_REPO_TOKEN first"; exit 1
+          fi
+
+      - name: Download the release from this (private) repo
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir dl
+          gh release download "$TAG" --repo "$GITHUB_REPOSITORY" --dir dl
+          ls -la dl
+          (cd dl && sha256sum * > ../SHA256SUMS.txt) && mv SHA256SUMS.txt dl/
+          gh release view "$TAG" --repo "$GITHUB_REPOSITORY" --json body --jq .body > notes.md
+
+      - name: Publish to the public repo
+        env:
+          GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
+        run: |
+          if gh release view "$TAG" --repo "$MIRROR_REPO" > /dev/null 2>&1; then
+            gh release edit "$TAG" --repo "$MIRROR_REPO" --title "MikMaster $TAG" --notes-file notes.md
+          else
+            gh release create "$TAG" --repo "$MIRROR_REPO" --title "MikMaster $TAG" --notes-file notes.md --latest
+          fi
+          gh release upload "$TAG" dl/* --repo "$MIRROR_REPO" --clobber
+          echo "Published: https://github.com/$MIRROR_REPO/releases/tag/$TAG"
