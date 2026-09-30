@@ -1,8 +1,11 @@
 import { ProjectorCard } from '@/components/projector/ProjectorCard'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { ChevronDown, ChevronRight } from 'lucide-react'
 import { useT } from '@/i18n'
+import { toggleGroupCollapsed, useDashboardView } from '@/services/dashboardView'
 import { useProjectActions } from '@/store/hooks'
 import type { Booth, Projector } from '@/types'
+import { cn } from '@/utils/cn'
 import { projectorDragProps } from './moveProjector'
 
 export function ProjectorGrid({ projectors, groups, emptyText, onOpen, onContextMenu }: {
@@ -14,6 +17,7 @@ export function ProjectorGrid({ projectors, groups, emptyText, onOpen, onContext
   onContextMenu: (e: React.MouseEvent, id: string) => void
 }) {
   const t = useT()
+  const { collapsed } = useDashboardView()
   const { setPower, setShutter } = useProjectActions()
   const [confirmDialog, confirm] = useConfirm()
 
@@ -56,15 +60,23 @@ export function ProjectorGrid({ projectors, groups, emptyText, onOpen, onContext
   const orphans = projectors.filter(p => !known.has(p.boothId))
   return (
     <div className="flex flex-col gap-6">
-      {sections.map(s => (
-        <section key={s.id} aria-label={s.name} data-testid={`group-${s.id}`}>
-          <h3 className="mb-3 flex items-baseline gap-3 border-b border-border pb-1.5 font-mono text-xs tracking-[0.08em] text-foreground">
-            <span className="font-semibold uppercase">{s.name}</span>
-            <span className="text-muted-foreground">{t('{n} device(s)', { n: s.items.length })} · {t('{n} on', { n: s.items.filter(p => p.power === 'on').length })}</span>
-          </h3>
-          <div className={GRID}>{s.items.map(card)}</div>
-        </section>
-      ))}
+      {sections.map(s => {
+        const closed = collapsed.includes(s.id)
+        const Chevron = closed ? ChevronRight : ChevronDown
+        return (
+          <section key={s.id} aria-label={s.name} data-testid={`group-${s.id}`}>
+            <h3 className={cn('border-b border-border font-mono text-xs tracking-[0.08em] text-foreground', !closed && 'mb-3')}>
+              <button type="button" aria-expanded={!closed} onClick={() => toggleGroupCollapsed(s.id)}
+                className="flex w-full items-baseline gap-3 py-1.5 text-left transition-colors hover:text-primary">
+                <Chevron size={12} className="self-center text-muted-foreground" aria-hidden />
+                <span className="font-semibold uppercase">{s.name}</span>
+                <span className="text-muted-foreground">{t('{n} device(s)', { n: s.items.length })} · {t('{n} on', { n: s.items.filter(p => p.power === 'on').length })}</span>
+              </button>
+            </h3>
+            {!closed && <div className={GRID}>{s.items.map(card)}</div>}
+          </section>
+        )
+      })}
       {orphans.length > 0 && <div className={GRID}>{orphans.map(card)}</div>}
       {confirmDialog}
     </div>

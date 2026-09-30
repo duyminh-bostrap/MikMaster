@@ -298,3 +298,51 @@ test('the All tab groups the cards under their group; a single group tab shows n
   await expect(main.getByRole('region')).toHaveCount(0)
   await expect(main.locator('article')).toHaveCount(1)
 })
+
+test('All tab: collapse groups, switch to the 2D map, drag a projector (position is kept), click opens it', async ({ page }) => {
+  await createProject(page)
+  await card(page, 'PJ-01').click({ button: 'right' })
+  await page.getByRole('menu').getByRole('menuitem', { name: 'Balcony' }).click()
+  const main = page.locator('main')
+
+  // Thu gọn / mở từng group; thu gọn / mở tất cả.
+  const first = main.getByRole('region', { name: 'Group 1' })
+  await first.getByRole("button", { name: /Group 1/ }).click()
+  await expect(first.locator('article')).toHaveCount(0)
+  await expect(first).toContainText('5 device') // vẫn thấy số máy khi thu gọn
+  await first.getByRole("button", { name: /Group 1/ }).click()
+  await expect(first.locator('article')).toHaveCount(5)
+  await page.getByRole('button', { name: 'Collapse all groups' }).click()
+  await expect(main.locator('article')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Expand all groups' }).click()
+  await expect(main.locator('article')).toHaveCount(6)
+
+  // Sơ đồ 2D: đủ 6 ô; kéo một ô sang chỗ khác; đổi view rồi quay lại vẫn giữ vị trí.
+  await page.getByRole('radio', { name: '2D map' }).click()
+  const map = page.getByTestId('projector-map')
+  await expect(map.locator('[data-projector]')).toHaveCount(6)
+  const node = map.locator('[data-projector="PJ-02"]')
+  const before = await node.boundingBox()
+  await node.hover()
+  await page.mouse.down()
+  await page.mouse.move(before!.x + 40, before!.y + 200, { steps: 8 })
+  await page.mouse.up()
+  const after = await node.boundingBox()
+  expect(after!.y - before!.y).toBeGreaterThan(150)
+  await expect(page).toHaveURL(/#\/project(\?|$)/) // kéo không mở máy
+  await page.screenshot({ path: 'test-results/map-2d.png' })
+  await page.getByRole('radio', { name: 'Groups' }).click()
+  await page.getByRole('radio', { name: '2D map' }).click()
+  const kept = await map.locator('[data-projector="PJ-02"]').boundingBox()
+  expect(Math.abs(kept!.y - after!.y)).toBeLessThan(2)
+  await expect(sidebar(page).getByText('UNSAVED')).toBeVisible() // đặt vị trí là sửa project
+
+  // AUTO ARRANGE trả về vị trí tự động.
+  await page.getByRole('button', { name: 'AUTO ARRANGE' }).click()
+  const reset = await map.locator('[data-projector="PJ-02"]').boundingBox()
+  expect(Math.abs(reset!.y - before!.y)).toBeLessThan(2)
+
+  // Bấm (không kéo) thì mở trang máy.
+  await map.locator('[data-projector="PJ-03"]').click()
+  await expect(page).toHaveURL(/projectors\/PJ-03/)
+})

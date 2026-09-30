@@ -7,6 +7,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
+import { ProjectorMap } from '@/features/dashboard/ProjectorMap'
+import { setAllView, setCollapsedGroups, useDashboardView } from '@/services/dashboardView'
 import { PowerControls, QuickControls } from '@/features/dashboard/QuickControls'
 import { Sidebar } from '@/features/dashboard/Sidebar'
 import { TopBar } from '@/features/dashboard/TopBar'
@@ -33,6 +35,7 @@ export default function DashboardPage() {
     () => (activeBooth === ALL_BOOTHS ? projectors : projectors.filter(p => p.boothId === activeBooth)),
     [activeBooth, projectors],
   )
+  const { view } = useDashboardView()
   const [query, setQuery] = useState('')
   const [status, setStatus] = useState<StatusFilter>('all')
   const boothName = useCallback((id: string) => booths.find(b => b.id === id)?.name ?? '', [booths])
@@ -43,6 +46,7 @@ export default function DashboardPage() {
   const inBooth = activeBooth !== ALL_BOOTHS
   const scopeLabel = inBooth ? boothName(activeBooth) : t('All Projectors')
   const scopeIds = scope.map(p => p.id)
+  const emptyText = scope.length === 0 ? (inBooth ? t('No projectors in this group') : t('No projectors yet')) : t('No projector matches the filter')
   const openProjector = (id: string) => navigate(`/project/projectors/${id}`)
   const { moveToBooth, removeProjector } = useProjectActions()
   const [confirmDialog, confirm] = useConfirm()
@@ -84,10 +88,12 @@ export default function DashboardPage() {
         power={<PowerControls projectorIds={scopeIds} scopeLabel={scopeLabel} />}
         actions={<QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
-      <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts} />
+      <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
+        {...(inBooth ? {} : { view, onView: setAllView, onCollapseAll: () => setCollapsedGroups(booths.map(b => b.id)), onExpandAll: () => setCollapsedGroups([]) })} />
       <main className="flex-1 overflow-y-auto p-5">
-        <ProjectorGrid projectors={visible} groups={inBooth ? undefined : booths} onOpen={openProjector} onContextMenu={openMenu}
-          emptyText={scope.length === 0 ? (inBooth ? t('No projectors in this group') : t('No projectors yet')) : t('No projector matches the filter')} />
+        {!inBooth && view === 'map'
+          ? <ProjectorMap projectors={visible} booths={booths} onOpen={openProjector} onContextMenu={openMenu} emptyText={emptyText} />
+          : <ProjectorGrid projectors={visible} groups={inBooth ? undefined : booths} onOpen={openProjector} onContextMenu={openMenu} emptyText={emptyText} />}
       </main>
       {menu && menuProjector && (
         <ProjectorContextMenu anchor={menu} projector={menuProjector} booths={booths}

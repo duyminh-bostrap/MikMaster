@@ -1,3 +1,4 @@
+import { sanitizeMapPos } from '@/utils/mapLayout'
 import { createProjector } from '@/utils/projector'
 import type { Booth, Projector } from '@/types'
 import type { ProjectSnapshot } from './projectRepository'
@@ -58,6 +59,7 @@ export function parseProjectFile(text: string): ProjectSnapshot {
     return {
       ...merged,
       boothId: boothIds.has(merged.boothId) ? merged.boothId : boothList[0]!.id,
+      mapPos: sanitizeMapPos(merged.mapPos),
       network: { ip, protocol: { ...base.network.protocol, ...(protocol as object), password: undefined } },
       // Trạng thái kết nối lưu trong file đã cũ; đọc lại từ thiết bị khi mở.
       connection: 'connected',
