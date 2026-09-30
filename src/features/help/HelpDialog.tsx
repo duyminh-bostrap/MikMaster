@@ -10,16 +10,16 @@ export function HelpDialog({ onClose }: { onClose: () => void }) {
   const t = useT()
   const sections: Array<[string, string[]]> = [
     [t('Start'), [
-      t('New project: enter a name and booths (optional), then scan an IP range.'),
+      t('New project: enter a name and groups (optional), then scan an IP range.'),
       t('LOGIN & LAUNCH uses one login (default admin/admin) for every projector that needs it.'),
       t('Open a saved project from the Start screen, or a .mikmaster.json file.'),
     ]],
     [t('Dashboard'), [
-      t('Open a booth (sidebar or tabs) to switch all its projectors on or off. ALL ON starts them one by one (Settings → delay).'),
+      t('Open a group (sidebar or tabs) to switch all its projectors on or off. ALL ON starts them one by one (Settings → delay).'),
       t('Turning projectors off and closing shutters in bulk asks for confirmation.'),
       t('Search with / and filter by status; ADD PROJECTOR adds one by IP.'),
-      t('Drag a projector card onto a booth, or right-click it, to move it. Hover a card to edit or remove it.'),
-      t('Double-click a project or booth name to rename it.'),
+      t('Drag a projector card onto a group, or right-click it, to move it. Hover a card to edit or remove it.'),
+      t('Double-click a project or group name to rename it.'),
     ]],
     [t('Projector page'), [
       t('Power, shutter, input and the status of one projector. PING checks the network and the control port.'),

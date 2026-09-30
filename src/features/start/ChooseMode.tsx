@@ -37,10 +37,10 @@ export function ChooseMode({ savedCount, onNew, onLoad, onOpenFile }: { savedCou
       </div>
       <div className="grid w-full grid-cols-2 gap-4">
         <ModeCard tone="primary" icon={<Plus size={18} />} kicker={t('NEW PROJECT')} title={t('Create & Scan')}
-          description={t('Set up a fresh project, scan your network for projectors, and assign them to booths.')}
+          description={t('Set up a fresh project, scan your network for projectors, and assign them to groups.')}
           cta={t('Start from scratch →')} onClick={onNew} />
         <ModeCard tone="accent" icon={<FolderOpen size={18} />} kicker={t('LOAD PROJECT')} title={t('Resume Session')}
-          description={t('Restore a previously saved project including IP list, booth configuration, and all lens presets.')}
+          description={t('Restore a previously saved project including IP list, group configuration, and all lens presets.')}
           cta={t('{n} saved projects →', { n: savedCount })} onClick={onLoad} />
       </div>
       <button type="button" onClick={onOpenFile} className="flex items-center gap-2 font-mono text-xs text-muted-foreground transition-colors hover:text-foreground">

@@ -7,13 +7,14 @@ async function createProject(page: Page, name = 'E2E Show', login = true) {
   await page.goto('/')
   await page.getByRole('button', { name: /Create & Scan/ }).click()
   await page.getByLabel('PROJECT NAME').fill(name)
-  await page.getByLabel('New booth name').fill('Balcony')
-  await page.getByLabel('New booth name').press('Enter')
+  await page.getByLabel('New group name').fill('Balcony')
+  await page.getByLabel('New group name').press('Enter')
   await expect(page.getByText('Balcony')).toBeVisible()
   await page.getByRole('button', { name: /NEXT: SCAN/ }).click()
   // Quét giả lập ~5 giây; đợi quét xong để có đủ 6 máy.
   await expect(page.getByText('Scan complete')).toBeVisible({ timeout: 15_000 })
-  await expect(page.getByLabel('USERNAME')).toHaveValue('admin')
+  // Máy quét được có nhiều loại → mỗi loại một ô đăng nhập (Panasonic bắt buộc, điền sẵn admin).
+  await expect(page.getByLabel('Panasonic USERNAME')).toHaveValue('admin')
   await page.getByRole('button', { name: login ? /LOGIN & LAUNCH/ : /LAUNCH WITHOUT LOGIN/ }).click()
   await expect(page).toHaveURL(/#\/project$/)
 }
@@ -71,7 +72,7 @@ test('detail page: power ON/OFF only, ping needs the gateway, breadcrumb back to
   await expect(page.locator('header')).toContainText('OFF')
   await expect(page.getByRole('button', { name: /PING/ })).toBeDisabled()
 
-  await page.locator('header').getByRole('button', { name: 'Booth 1' }).click()
+  await page.locator('header').getByRole('button', { name: 'Group 1' }).click()
   await expect(page).toHaveURL(/booth=booth-1/)
 })
 
@@ -121,19 +122,19 @@ test('saved projects can be deleted, samples cannot', async ({ page }) => {
 test('double-click a booth to rename it; add and delete booths from the sidebar', async ({ page }) => {
   await createProject(page)
   await sidebar(page).getByText('Balcony', { exact: true }).dblclick()
-  await page.getByLabel('Booth name').fill('Upper Balcony')
-  await page.getByLabel('Booth name').press('Enter')
+  await page.getByLabel('Group name').fill('Upper Balcony')
+  await page.getByLabel('Group name').press('Enter')
   await expect(page.getByRole('tab', { name: /^Upper Balcony/ })).toBeVisible()
 
-  // ADD BOOTH tạo "Booth N" và mở sẵn ô đổi tên.
-  await sidebar(page).getByRole('button', { name: /ADD BOOTH/ }).click()
-  await page.getByLabel('Booth name').fill('Truss')
-  await page.getByLabel('Booth name').press('Enter')
+  // ADD GROUP tạo "Booth N" và mở sẵn ô đổi tên.
+  await sidebar(page).getByRole('button', { name: /ADD GROUP/ }).click()
+  await page.getByLabel('Group name').fill('Truss')
+  await page.getByLabel('Group name').press('Enter')
   await expect(page.getByRole('tab', { name: /^Truss/ })).toBeVisible()
 
   await sidebar(page).getByText('Upper Balcony', { exact: true }).hover()
   await sidebar(page).getByRole('button', { name: 'Delete Upper Balcony' }).click()
-  await page.getByRole('dialog', { name: 'DELETE BOOTH' }).getByRole('button', { name: /DELETE/ }).click()
+  await page.getByRole('dialog', { name: 'DELETE GROUP' }).getByRole('button', { name: /DELETE/ }).click()
   await expect(page.getByRole('tab', { name: /^Upper Balcony/ })).toHaveCount(0)
 })
 
@@ -185,7 +186,7 @@ test('booth page: ALL ON one by one, ALL OFF asks first; filter and add projecto
   await createProject(page, 'Booth Show')
   // Tab Tất cả cũng có điều khiển hàng loạt (nút icon, tên nằm ở aria-label).
   await expect(page.getByRole('button', { name: /^All on/ })).toBeVisible()
-  await page.getByRole('tab', { name: /^Booth 1/ }).click()
+  await page.getByRole('tab', { name: /^Group 1/ }).click()
   await page.getByRole('button', { name: 'All off' }).click()
   await page.getByRole('dialog', { name: 'TURN OFF PROJECTORS' }).getByRole('button', { name: 'CANCEL' }).click()
   // OSD và test pattern cho cả booth.
@@ -246,4 +247,36 @@ test('REFRESH reads the status of every projector right away (gateway mocked, no
   expect(calls - before).toBeGreaterThanOrEqual(6)
   await expect(page.getByRole('status').filter({ hasText: /\d\d:\d\d:\d\d/ })).toBeVisible()  // hiện giờ cập nhật
   await expect(refresh).toBeEnabled()
+})
+
+test('an HDCP-protected source shows "HDCP-protected content" (same text as the projector web page) instead of the placeholder', async ({ page }) => {
+  await createProject(page, 'HDCP Show')
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'on', errors: [] } }))
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'hdcp' } }))
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  // Thẻ Dashboard của máy Panasonic (PJ-03) hiện dòng chữ HDCP…
+  await expect(card(page, 'PJ-03').getByText('HDCP-protected content')).toBeVisible({ timeout: 10_000 })
+  // …và trang máy cũng vậy (thay cho chữ "HDMI 1 · 85% BRT" của khung mô phỏng).
+  await card(page, 'PJ-03').click()
+  await expect(page.getByText('HDCP-protected content').first()).toBeVisible()
+  await expect(page.getByText(/85% BRT/)).toHaveCount(0)
+})
+
+test('login panel detects the projector types and takes one account per type', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Create & Scan/ }).click()
+  await page.getByRole('button', { name: /NEXT: SCAN/ }).click()
+  await expect(page.getByText('Scan complete')).toBeVisible({ timeout: 15_000 })
+  const panasonic = page.getByLabel('Panasonic USERNAME')
+  await expect(panasonic).toHaveValue('admin')
+  const christie = page.getByLabel('Christie USERNAME')
+  await expect(christie).toHaveValue('') // tài khoản web của Christie: tuỳ chọn, để trống
+  await panasonic.fill('panauser')
+  await page.getByLabel('Christie PASSWORD').fill('c-pass')
+  await christie.fill('chr')
+  await page.screenshot({ path: 'test-results/login-per-type.png' })
+  await page.getByRole('button', { name: /LOGIN & LAUNCH/ }).click()
+  await expect(page).toHaveURL(/#\/project$/)
 })

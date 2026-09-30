@@ -93,7 +93,8 @@ export type QuickLoginsDto = Partial<Record<QuickLoginBrand, { username: string;
 
 /** Ảnh tín hiệu vào hiện tại của máy (live preview). */
 export interface PreviewDto {
-  state: 'image' | 'no-signal' | 'no-thumbnail'
+  /** hdcp = nội dung có bảo vệ HDCP: máy không cho xem trước (Panasonic báo 'HDCP') */
+  state: 'image' | 'no-signal' | 'no-thumbnail' | 'hdcp'
   /** data:image/png;base64,… khi state = 'image'. */
   image?: string
   /** Tên cổng / độ phân giải máy báo, vd. "One-Port HDMI0" · "1920x1080". */

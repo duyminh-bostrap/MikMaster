@@ -41,7 +41,7 @@ function DeleteBoothDialog({ id, onClose }: { id: string; onClose: () => void })
   const remove = () => { removeBooth(booth.id, moveTo); onClose() }
 
   return (
-    <Modal title={t('DELETE BOOTH')} onClose={onClose} onSubmit={remove}
+    <Modal title={t('DELETE GROUP')} onClose={onClose} onSubmit={remove}
       footer={<div className="ml-auto flex gap-2"><Button onClick={onClose}>{t('CANCEL')}</Button><Button type="submit" variant="danger"><Trash2 size={11} />{t('DELETE')}</Button></div>}>
       <p className="text-sm text-foreground">{t('Delete "{name}"?', { name: booth.name })}</p>
       {inBooth > 0 ? (
@@ -165,7 +165,7 @@ function ProjectorDialog({ id, boothId: initialBooth, onClose }: { id?: string; 
       <Field label={adding ? t('DISPLAY NAME (opt.)') : t('DISPLAY NAME')}>
         {fid => <TextInput id={fid} value={name} invalid={!adding && name.trim() === ''} placeholder={adding ? `Projector ${ip || '…'}` : ''} onChange={e => { touched.current.name = true; setName(e.target.value) }} />}
       </Field>
-      <Field label={t('BOOTH')}>
+      <Field label={t('GROUP')}>
         {fid => (
           <SelectInput id={fid} value={boothId} onChange={e => setBoothId(e.target.value)}>
             {booths.map(b => <option key={b.id} value={b.id}>{b.name}</option>)}

@@ -1,7 +1,7 @@
 import { FileJson } from 'lucide-react'
 import { Panel } from '@/components/ui/Panel'
 import type { ProjectSnapshot } from '@/services/projectRepository'
-import { countMissingLogins, type Credentials } from '@/utils/credentials'
+import { loginGroups, type Credentials } from '@/utils/credentials'
 import { LaunchPanel } from './LaunchPanel'
 import { StepHeader } from './LoadProjectList'
 import { t } from '@/i18n'
@@ -9,7 +9,7 @@ import { t } from '@/i18n'
 /** Sau khi mở file project: xem tóm tắt rồi LOGIN & LAUNCH (file không chứa mật khẩu) hoặc LAUNCH. */
 export function OpenFileStep({ snapshot, onLaunch, onBack }: {
   snapshot: ProjectSnapshot
-  onLaunch: (login?: Credentials) => void
+  onLaunch: (logins?: Record<string, Credentials>) => void
   onBack: () => void
 }) {
   const { project, booths, projectors } = snapshot
@@ -32,11 +32,11 @@ export function OpenFileStep({ snapshot, onLaunch, onBack }: {
           </div>
           <div>
             {row('DEVICES', String(projectors.length))}
-            {row('BOOTHS', booths.map(b => b.name).join(', '))}
+            {row('GROUPS', booths.map(b => b.name).join(', '))}
           </div>
           <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Project files never contain device passwords. Log in once for all devices, or launch and log in per device later.')}</p>
         </Panel>
-        <LaunchPanel selected={projectors.length} loginTargets={countMissingLogins(projectors)} onLaunch={onLaunch} />
+        <LaunchPanel selected={projectors.length} groups={loginGroups(projectors)} onLaunch={onLaunch} />
       </div>
     </div>
   )

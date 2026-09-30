@@ -92,6 +92,35 @@ async function optional<T>(task: Promise<T>): Promise<T | undefined> {
   }
 }
 
+/**
+ * Nhiệt độ: QTM:0 = khí vào, QTM:1 = khí thoát (bảng lệnh RS-232C, mục TEMPERATURE). Phản hồi là số nguyên (vd. "0030" = 30 °C)
+ * — CHƯA đối chiếu trên máy thật (RQ35K đòi đăng nhập). Giá trị ngoài -20..150 bị bỏ.
+ */
+export function parseTemperature(reply: string): number | undefined {
+  const m = /^[-+]?\d{1,4}$/.exec(reply.trim())
+  if (!m) return undefined
+  const n = Number(m[0])
+  return n >= -20 && n <= 150 ? n : undefined
+}
+
+/** Hỏi nhiệt độ tốn 2 lệnh (mỗi lệnh ≥ 0,5 s) nên chỉ hỏi lại sau chừng này thời gian; giữa hai lần app giữ số cũ. */
+const TEMP_EVERY_MS = 30_000
+const lastTempAt = new Map<string, number>()
+
+async function readTemperatures(t: DriverTarget, status: StatusDto): Promise<void> {
+  const key = `${t.host}:${t.port}`
+  if (Date.now() - (lastTempAt.get(key) ?? 0) < TEMP_EVERY_MS) return
+  const sensors: { name: string; c: number }[] = []
+  for (const [code, name] of [['QTM:0', 'Intake air'], ['QTM:1', 'Exhaust air']] as const) {
+    const c = parseTemperature((await optional(exchange(t, code))) ?? '')
+    if (c !== undefined) sensors.push({ name, c })
+  }
+  lastTempAt.set(key, Date.now())
+  if (!sensors.length) return
+  status.temperatures = sensors
+  status.temperatureC = sensors[0]!.c // nhiệt độ chính = khí vào (giống Christie)
+}
+
 export const panasonicDriver: Driver = {
   async status(t) {
     // Power trước: nếu máy không trả lời hoặc sai mật khẩu thì dừng ngay, không gửi thêm lần thử nào.
@@ -102,6 +131,7 @@ export const panasonicDriver: Driver = {
       if (qsh !== undefined) status.shutter = qsh.endsWith('1')
       const qin = await optional(exchange(t, 'QIN'))
       if (qin) status.input = CODE_TO_INPUT[qin.replace(/^IIS:/, '')]
+      await readTemperatures(t, status)
     }
     return status
   },

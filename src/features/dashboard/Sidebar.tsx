@@ -41,8 +41,8 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
   function newBooth() {
     const taken = new Set(booths.map(b => b.name))
     let n = booths.length + 1
-    while (taken.has(`Booth ${n}`)) n++
-    setRenaming(addBooth(`Booth ${n}`).id)
+    while (taken.has(`Group ${n}`)) n++
+    setRenaming(addBooth(`Group ${n}`).id)
   }
 
   function toggle(id: string) {
@@ -76,7 +76,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
           className="mb-0.5 block text-sm font-semibold leading-tight text-foreground" />
       </div>
 
-      <nav aria-label={t('Booths')} className="flex-1 overflow-y-auto py-2">
+      <nav aria-label={t('Groups')} className="flex-1 overflow-y-auto py-2">
         <button
           type="button"
           onClick={() => onSelectBooth(ALL_BOOTHS)}
@@ -117,14 +117,14 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
                 </button>
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center gap-1.5">
-                    <InlineEdit label={t('Booth name')} value={booth.name} onSave={name => updateBooth(booth.id, { name })}
+                    <InlineEdit label={t('Group name')} value={booth.name} onSave={name => updateBooth(booth.id, { name })}
                       editRequest={renaming === booth.id ? 1 : 0}
                       className={cn('truncate text-xs font-semibold', isActive ? 'text-primary' : 'text-foreground')} />
                     {hasAlert && <StatusDot tone="danger" className="size-1.5" />}
                   </div>
                 </div>
                 {booths.length > 1 && (
-                  <button type="button" aria-label={`Delete ${booth.name}`} title={t('Delete booth')} className={cn(DELETE_BUTTON, 'mr-1')}
+                  <button type="button" aria-label={`Delete ${booth.name}`} title={t('Delete group')} className={cn(DELETE_BUTTON, 'mr-1')}
                     onClick={e => { e.stopPropagation(); onEdit({ kind: 'deleteBooth', id: booth.id }) }}><Trash2 size={10} /></button>
                 )}
                 <div className="flex flex-col items-end gap-0.5 font-mono">
@@ -163,7 +163,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
       <div className="flex flex-col gap-2 border-t border-border px-4 py-3">
         <button type="button" onClick={newBooth}
           className="flex items-center justify-center gap-1.5 rounded-sm border border-dashed border-border py-1.5 font-mono text-[10px] text-muted-foreground transition-colors hover:border-primary/40 hover:text-foreground">
-          <Plus size={10} />{t('ADD BOOTH')}
+          <Plus size={10} />{t('ADD GROUP')}
         </button>
         <button type="button" onClick={onAddProjector}
           className="flex items-center justify-center gap-1.5 rounded-sm border border-accent/30 bg-accent/10 py-1.5 font-mono text-[10px] text-accent transition-colors hover:bg-accent/20">

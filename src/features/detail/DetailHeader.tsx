@@ -26,7 +26,7 @@ export function DetailHeader({ project, booth, projector, onEdit, account }: { p
           ? <button type="button" onClick={() => navigate(`/project?booth=${encodeURIComponent(booth.id)}`)} title={`Projectors in ${booth.name}`} className={crumb}>{booth.name}</button>
           : <span className="text-muted-foreground">{projector.boothId}</span>}
         <span className="text-border">/</span>
-        <button type="button" onClick={onEdit} title={t('Edit name, booth, IP')} className="group flex items-center gap-1.5 font-medium text-foreground">
+        <button type="button" onClick={onEdit} title={t('Edit name, group, IP')} className="group flex items-center gap-1.5 font-medium text-foreground">
           {projector.name}
           <Pencil size={10} className="text-muted-foreground transition-colors group-hover:text-foreground" />
         </button>

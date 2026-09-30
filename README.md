@@ -1,6 +1,6 @@
 # MikMaster
 
-Web app desktop điều khiển và quản lý nhiều máy chiếu AV. Phân cấp: **Project → Booth → Projector**.
+Web app desktop điều khiển và quản lý nhiều máy chiếu AV. Phân cấp: **Project → Group → Projector**.
 
 Stack: React 19 · TypeScript · Vite · Tailwind CSS v4 · React Router (hash) · pnpm.
 

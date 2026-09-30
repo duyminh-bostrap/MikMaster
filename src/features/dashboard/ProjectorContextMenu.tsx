@@ -26,7 +26,7 @@ export function ProjectorContextMenu({ anchor, projector, booths, onMove, onOpen
       <MenuSeparator />
       <div className="px-3 py-1"><PingCheck projector={projector} compact /></div>
       <MenuSeparator />
-      <MenuHeading><MoveRight size={10} />{t('MOVE TO BOOTH')}</MenuHeading>
+      <MenuHeading><MoveRight size={10} />{t('MOVE TO GROUP')}</MenuHeading>
       {booths.map(b => {
         const current = b.id === projector.boothId
         return (

@@ -7,7 +7,6 @@ export interface FleetStats {
   /** Nhiệt độ trung bình của các máy đang không tắt; 0 nếu không có máy nào. */
   avgTemp: number
   hottest: Projector | null
-  totalLampHours: number
 }
 
 export function computeFleetStats(projectors: Projector[]): FleetStats {
@@ -26,6 +25,10 @@ export function computeFleetStats(projectors: Projector[]): FleetStats {
     alerts: projectors.filter(p => p.errors.length > 0).length,
     avgTemp,
     hottest,
-    totalLampHours: projectors.reduce((sum, p) => sum + p.telemetry.lampHours, 0),
   }
+}
+
+/** Thời gian (ms) của máy đang bật lâu nhất kể từ lúc bật; 0 nếu không máy nào đang bật. Tách riêng vì phụ thuộc đồng hồ. */
+export function longestOnMs(projectors: Projector[], now: number): number {
+  return projectors.reduce((max, p) => (p.power === 'on' && p.poweredOnAt !== undefined ? Math.max(max, now - p.poweredOnAt) : max), 0)
 }

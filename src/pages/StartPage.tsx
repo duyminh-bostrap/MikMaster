@@ -15,7 +15,7 @@ import { NewProjectWizard } from '@/features/start/NewProjectWizard'
 import { OpenFileStep } from '@/features/start/OpenFileStep'
 import { useClock } from '@/hooks/useClock'
 import { formatClock } from '@/utils/format'
-import { applyLoginToMissing, type Credentials } from '@/utils/credentials'
+import { applyLogins, type Credentials } from '@/utils/credentials'
 import { saveSharedCredentials } from '@/services/credentialCache'
 import { ProjectFileError } from '@/services/projectFile'
 import type { ProjectSnapshot } from '@/services/projectRepository'
@@ -62,10 +62,11 @@ export default function StartPage() {
     }
   }
 
-  function launchOpened(login?: Credentials) {
+  function launchOpened(logins?: Record<string, Credentials>) {
     if (!opened) return
-    if (login) saveSharedCredentials(login)
-    cmd.launch({ ...opened, projectors: login ? applyLoginToMissing(opened.projectors, login) : opened.projectors })
+    const given = Object.values(logins ?? {}).filter(c => c.username || c.password)
+    if (given.length === 1) saveSharedCredentials(given[0]!)
+    cmd.launch({ ...opened, projectors: logins ? applyLogins(opened.projectors, logins) : opened.projectors })
   }
 
   return (

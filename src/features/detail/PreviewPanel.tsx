@@ -1,3 +1,4 @@
+import { PreviewNotice } from '@/components/projector/PreviewNotice'
 import { PreviewScreen } from '@/components/projector/PreviewScreen'
 import { useLivePreview } from '@/hooks/useLivePreview'
 import type { Projector } from '@/types'
@@ -9,6 +10,7 @@ const PREVIEW_MS = 1000
 export function PreviewPanel({ projector }: { projector: Projector }) {
   const { live, supported, hasAccount } = useLivePreview(projector, PREVIEW_MS)
   const image = live.kind === 'ok' && live.preview.state === 'image' ? live.preview.image : undefined
+  const hdcp = live.kind === 'ok' && live.preview.state === 'hdcp'
 
   let note: string | null = null
   if (supported && projector.power === 'on') {
@@ -31,7 +33,8 @@ export function PreviewPanel({ projector }: { projector: Projector }) {
               <span className="absolute top-2 right-2 rounded-sm bg-black/60 px-1.5 py-0.5 font-mono text-[10px] text-white/70">{live.preview.resolution}</span>
             )}
           </div>
-        ) : <PreviewScreen projector={projector} size="lg" />}
+        ) : hdcp ? <PreviewNotice size="lg">{t('HDCP-protected content')}</PreviewNotice>
+        : <PreviewScreen projector={projector} size="lg" />}
         {note && <p className="mt-2 px-1 font-mono text-[10px] text-muted-foreground">{note}</p>}
         <div className="mt-2 flex items-center justify-between px-1 font-mono text-xs text-muted-foreground">
           <span>{projector.name} · {projector.model}</span>

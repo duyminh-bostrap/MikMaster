@@ -1,6 +1,6 @@
 # MikMaster — Danh sách tính năng
 
-Kiến trúc dữ liệu: **Project → Booth → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32 / 4K50-RGB** (ngoài ra PJLink và các giao thức chung).
+Kiến trúc dữ liệu: **Project → Group → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32 / 4K50-RGB** (ngoài ra PJLink và các giao thức chung).
 
 ## Cách đọc trạng thái
 
@@ -21,7 +21,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Tạo project: tên + Booth trên một trang → quét | ✅ | Booth tuỳ chọn; mặc định "Booth 1" |
+| Tạo project: tên + Group trên một trang → quét | ✅ | Group tuỳ chọn; mặc định "Group 1" |
 | Sau quét: **LOGIN & LAUNCH** (một tài khoản cho mọi máy, mặc định `admin`/`admin`) hoặc **LAUNCH WITHOUT LOGIN** | ✅ | |
 | Mở project đã lưu, xoá project đã lưu | ✅ | Project mẫu không xoá được |
 | Lưu project: trên gateway (mật khẩu mã hoá AES-256-GCM) hoặc trong trình duyệt (không lưu mật khẩu) | ✅ | |
@@ -53,7 +53,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
 | Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
-| **Chuyển máy sang booth khác**: kéo thả hoặc chuột phải | ✅ | |
+| **Chuyển máy sang group khác**: kéo thả hoặc chuột phải | ✅ | |
 | Điều khiển hàng loạt (tab Tất cả hoặc từng booth), nút icon: nguồn (bật lần lượt, mặc định cách 5 giây), shutter, OSD, test pattern; tắt máy / đóng shutter / hiện pattern hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
 | Tìm máy (tên, IP, model, booth; phím /) và lọc theo trạng thái | ✅ | |
 | Thêm / sửa / gỡ máy chiếu trên Dashboard (nút ở cuối sidebar, chuột phải vào thẻ) | ✅ | |

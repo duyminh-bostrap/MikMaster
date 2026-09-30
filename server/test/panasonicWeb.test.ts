@@ -73,11 +73,11 @@ describe('Panasonic Remote preview over WebSocket (pj-cast-protocol on port 8080
     assert.equal(fp.connections, 1)
   })
 
-  test("'BLANK' → no signal, 'HDCP' → cannot be previewed", async () => {
+  test("'BLANK' → no signal, 'HDCP' → its own state (protected content)", async () => {
     const a = await start('blank')
     assert.equal((await panasonicPreview(target, a.port)).state, 'no-signal')
     const b = await start('hdcp')
-    assert.equal((await panasonicPreview(target, b.port)).state, 'no-thumbnail')
+    assert.equal((await panasonicPreview(target, b.port)).state, 'hdcp')
   })
 
   test('a projector that never sends an image → clear timeout error; nothing listening → connect error', async () => {

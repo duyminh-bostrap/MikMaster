@@ -77,7 +77,7 @@ function open(key: string, host: string, port: number): Promise<Stream> {
 const toResult = (s: Stream): PreviewDto | null =>
   s.frame ? { state: 'image', image: `data:image/jpeg;base64,${s.frame.data.toString('base64')}`, resolution: '480x304' }
   : s.status === 'blank' ? { state: 'no-signal' }
-  : s.status === 'hdcp' ? { state: 'no-thumbnail' }
+  : s.status === 'hdcp' ? { state: 'hdcp' }
   : null
 
 /** Ảnh xem trước hiện tại của máy Panasonic. Không cần tài khoản (cổng 8080 của máy không đòi đăng nhập). */

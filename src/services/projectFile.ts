@@ -39,7 +39,7 @@ export function parseProjectFile(text: string): ProjectSnapshot {
 
   const boothList: Booth[] = booths.filter(isObject).filter(b => typeof b.id === 'string' && typeof b.name === 'string')
     .map(b => ({ id: b.id as string, name: b.name as string }))
-  if (boothList.length === 0) boothList.push({ id: 'booth-1', name: 'Booth 1' })
+  if (boothList.length === 0) boothList.push({ id: 'booth-1', name: 'Group 1' })
   const boothIds = new Set(boothList.map(b => b.id))
 
   const seen = new Set<string>()

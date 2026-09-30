@@ -49,6 +49,8 @@ export interface Projector {
   model: string
   network: NetworkConfig
   power: PowerState
+  /** Lúc app thấy máy chuyển sang bật (ms epoch); xoá khi máy tắt / standby. Chỉ là trạng thái sống, không tính vào "sửa project". */
+  poweredOnAt?: number
   shutter: boolean
   /** Hiển thị OSD (menu trên màn hình). Thiếu = bật (project lưu từ bản cũ). */
   osd?: boolean

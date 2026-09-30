@@ -50,7 +50,7 @@ describe('projectReducer', () => {
     const s = launched()
     const moved = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: 'booth-c', boothName: 'Rear Screen' })
     expect(find(moved, 'PJ-01').boothId).toBe('booth-c')
-    expect(find(moved, 'PJ-01').log[0]?.message).toBe('Moved to booth Rear Screen')
+    expect(find(moved, 'PJ-01').log[0]?.message).toBe('Moved to group Rear Screen')
     const same = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: find(s, 'PJ-01').boothId, boothName: 'x' })
     expect(find(same, 'PJ-01')).toBe(find(s, 'PJ-01'))
   })

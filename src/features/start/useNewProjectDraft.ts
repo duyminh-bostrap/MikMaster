@@ -1,7 +1,7 @@
 import { useCallback, useMemo, useState } from 'react'
 import { defaultProtocolConfig } from '@/constants/protocols'
 import { isValidIPv4 } from '@/utils/network'
-import { hasCredentials, needsAuth, withCredentials, type Credentials } from '@/utils/credentials'
+import { applyLogins, needsAuth, type Credentials } from '@/utils/credentials'
 import { createProjector } from '@/utils/projector'
 import type { Booth, DiscoveredDevice, Project, Projector, ProtocolType } from '@/types'
 
@@ -20,7 +20,7 @@ export interface ManualDeviceInput {
   model?: string
 }
 
-export const DEFAULT_BOOTH: Booth = { id: 'booth-1', name: 'Booth 1' }
+export const DEFAULT_BOOTH: Booth = { id: 'booth-1', name: 'Group 1' }
 
 /** Trạng thái của quy trình "New Project": thông tin, Booth, thiết bị (quét + thêm tay) và việc phân bổ. */
 export function useNewProjectDraft() {
@@ -88,20 +88,17 @@ export function useNewProjectDraft() {
 
   const selectedCount = devices.filter(d => d.selected).length
 
-  /** `login`: áp cho mọi máy cần đăng nhập mà chưa có tài khoản (LOGIN & LAUNCH). */
-  const buildLaunchPayload = useMemo(() => (login?: Credentials) => {
+  /** `logins`: tài khoản theo loại máy (khoá = `loginGroupKey`), áp cho máy chưa có tài khoản (LOGIN & LAUNCH). */
+  const buildLaunchPayload = useMemo(() => (logins?: Record<string, Credentials>) => {
     const project: Project = {
       id: `proj-${Date.now()}`,
       name: name.trim() || 'New Project',
       createdAt: new Date().toISOString(),
     }
-    const projectors = devices
+    const picked = devices
       .filter(d => d.selected)
-      .map((d, i) => {
-        const p = { ...d.projector, id: `PJ-${String(i + 1).padStart(2, '0')}` }
-        return login && needsAuth(p.network.protocol.type) && !hasCredentials(p) ? withCredentials(p, login) : p
-      })
-    return { project, booths, projectors }
+      .map((d, i) => ({ ...d.projector, id: `PJ-${String(i + 1).padStart(2, '0')}` }))
+    return { project, booths, projectors: logins ? applyLogins(picked, logins) : picked }
   }, [name, booths, devices])
 
   return { name, setName, booths, addBooth, removeBooth, devices, addDiscovered, clearScanned, addManual, setSelected, setBoothOf, setProtocolOf, selectedCount, buildLaunchPayload }

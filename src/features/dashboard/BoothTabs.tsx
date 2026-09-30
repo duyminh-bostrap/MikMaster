@@ -13,7 +13,7 @@ export function BoothTabs({ booths, projectors, active, onSelect, onMoveProjecto
 }) {
   const tabs = [{ id: ALL_BOOTHS, name: t('All'), count: projectors.length }, ...booths.map(b => ({ id: b.id, name: b.name, count: projectors.filter(p => p.boothId === b.id).length }))]
   return (
-    <div role="tablist" aria-label={t('Filter by booth')} className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-5 py-2">
+    <div role="tablist" aria-label={t('Filter by group')} className="flex shrink-0 items-center gap-1 overflow-x-auto border-b border-border px-5 py-2">
       {tabs.map(tab => (
         <BoothDropZone key={tab.id} className="shrink-0" disabled={tab.id === ALL_BOOTHS} onDrop={id => onMoveProjector(id, tab.id)}>
         {over => (

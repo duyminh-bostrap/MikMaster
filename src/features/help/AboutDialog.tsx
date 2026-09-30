@@ -22,7 +22,7 @@ export function AboutDialog({ onClose }: { onClose: () => void }) {
         <AppLogo size="lg" />
         <span className="font-mono text-xs text-muted-foreground">v{__APP_VERSION__}</span>
       </div>
-      <p className="text-sm text-foreground">{t('Control and monitor AV projectors by project and booth.')}</p>
+      <p className="text-sm text-foreground">{t('Control and monitor AV projectors by project and group.')}</p>
       <div>
         {row(t('Version'), __APP_VERSION__)}
         {row(t('Mode'), modeText)}

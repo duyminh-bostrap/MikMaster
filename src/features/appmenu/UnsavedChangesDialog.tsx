@@ -37,7 +37,7 @@ export function UnsavedChangesDialog({ projectName, actionLabel, onSave, onDisca
         </>
       }>
       <p className="text-sm text-foreground">{t('Save changes to "{name}" before {action}?', { name: projectName, action: actionLabel })}</p>
-      <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t("Changes to the project name, booths and projector settings will be lost if you don't save.")}</p>
+      <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t("Changes to the project name, groups and projector settings will be lost if you don't save.")}</p>
       {failed && <p role="alert" className="font-mono text-[10px] text-danger">{t("Could not save. Try again, or choose Don't save.")}</p>}
     </Modal>
   )

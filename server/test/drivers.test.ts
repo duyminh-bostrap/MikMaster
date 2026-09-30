@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import { christieDriver } from '../src/drivers/christie.ts'
-import { panasonicDriver } from '../src/drivers/panasonic.ts'
+import { panasonicDriver, parseTemperature } from '../src/drivers/panasonic.ts'
 import { pjlinkDriver } from '../src/drivers/pjlink.ts'
 import type { DriverTarget } from '../src/drivers/types.ts'
 import { DeviceError, splitParens } from '../src/net/tcp.ts'
@@ -113,6 +113,30 @@ describe('Panasonic NTCONTROL driver', () => {
     await panasonicDriver.command(target(open.port), { kind: 'power', value: 'standby' })
     const s = await panasonicDriver.status(target(open.port))
     assert.deepEqual([s.power, s.shutter, s.input], ['standby', undefined, undefined])
+  })
+
+  test('temperature: QTM:0 (intake) is the main reading, QTM:1 (exhaust) in the sensor list; queries are throttled', async () => {
+    const sim = new PanasonicSimulator({ temps: [28, 51] })
+    await sim.start()
+    try {
+      await panasonicDriver.command(target(sim.port), { kind: 'power', value: 'on' })
+      const s = await panasonicDriver.status(target(sim.port))
+      assert.equal(s.temperatureC, 28)
+      assert.deepEqual(s.temperatures, [{ name: 'Intake air', c: 28 }, { name: 'Exhaust air', c: 51 }])
+      assert.deepEqual(sim.received.filter(c => c.startsWith('QTM')), ['QTM:0', 'QTM:1'])
+      const again = await panasonicDriver.status(target(sim.port)) // < 30 s: không hỏi lại nhiệt độ
+      assert.equal(again.temperatureC, undefined)
+      assert.equal(sim.received.filter(c => c.startsWith('QTM')).length, 2)
+    } finally { await sim.stop() }
+  })
+
+  test('parseTemperature accepts plain integers in range only', () => {
+    assert.equal(parseTemperature('0030'), 30)
+    assert.equal(parseTemperature('+0045'), 45)
+    assert.equal(parseTemperature('-0005'), -5)
+    assert.equal(parseTemperature('9999'), undefined)
+    assert.equal(parseTemperature('abc'), undefined)
+    assert.equal(parseTemperature(''), undefined)
   })
 
   test('MD5 challenge auth with default and explicit credentials', async () => {

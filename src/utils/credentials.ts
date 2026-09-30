@@ -1,4 +1,4 @@
-import { WEB_LOGIN_PROTOCOLS } from '../../shared/api.ts'
+import { WEB_LOGIN_PROTOCOLS, commandBrandOf } from '../../shared/api.ts'
 import { getProtocolOption } from '@/constants/protocols'
 import type { Projector, ProtocolType } from '@/types'
 
@@ -36,9 +36,48 @@ export function fillMissingCredentials(
   })
 }
 
-/** LOGIN & LAUNCH: áp một tài khoản cho mọi máy cần đăng nhập mà chưa có mật khẩu. */
-export function applyLoginToMissing(projectors: Projector[], login: Credentials): Projector[] {
-  return projectors.map(p => (lacksPassword(p) ? withCredentials(p, login) : p))
+/** Một loại máy chiếu (theo hãng) trong bước đăng nhập: mỗi loại có thể dùng tài khoản riêng. */
+export interface LoginGroup {
+  key: string
+  /** Tên hiển thị (Panasonic, Christie…) */
+  label: string
+  /** Số máy sẽ nhận tài khoản này. */
+  count: number
+  /** false = tài khoản tuỳ chọn (Christie: chỉ dùng cho live preview). */
+  required: boolean
+}
+
+const BRAND_LABEL: Record<string, string> = { panasonic: 'Panasonic', christie: 'Christie', barco: 'Barco', pjlink: 'PJLink' }
+
+/** Khoá nhóm đăng nhập: theo hãng khi biết, không thì theo giao thức. */
+export const loginGroupKey = (type: ProtocolType): string => commandBrandOf(type) ?? type
+
+/** Máy nào nhận tài khoản của nhóm: cần đăng nhập mà chưa có mật khẩu; hoặc có tài khoản web tuỳ chọn mà chưa nhập gì. */
+const takesLogin = (p: Projector): boolean => {
+  const type = p.network.protocol.type
+  return needsAuth(type) ? lacksPassword(p) : hasWebLogin(type) && !hasCredentials(p)
+}
+
+/** Các loại máy đang có trong danh sách (chỉ loại có máy nhận được tài khoản); loại bắt buộc xếp trước. */
+export function loginGroups(projectors: Projector[]): LoginGroup[] {
+  const groups = new Map<string, LoginGroup>()
+  for (const p of projectors) {
+    if (!takesLogin(p)) continue
+    const type = p.network.protocol.type
+    const key = loginGroupKey(type)
+    const g = groups.get(key)
+    if (g) g.count++
+    else groups.set(key, { key, label: BRAND_LABEL[key] ?? getProtocolOption(type).label, count: 1, required: needsAuth(type) })
+  }
+  return [...groups.values()].sort((a, b) => Number(b.required) - Number(a.required))
+}
+
+/** LOGIN & LAUNCH: mỗi loại máy nhận tài khoản của loại đó (ô để trống = bỏ qua). Không ghi đè mật khẩu đã có. */
+export function applyLogins(projectors: Projector[], logins: Record<string, Credentials>): Projector[] {
+  return projectors.map(p => {
+    const creds = logins[loginGroupKey(p.network.protocol.type)]
+    return creds && (creds.username || creds.password) && takesLogin(p) ? withCredentials(p, creds) : p
+  })
 }
 
 export const countMissingLogins = (projectors: Projector[]): number => projectors.filter(lacksPassword).length

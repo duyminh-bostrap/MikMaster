@@ -7,7 +7,7 @@ import { Panel } from '@/components/ui/Panel'
 import { saveDeviceCredentials, saveSharedCredentials } from '@/services/credentialCache'
 import type { ProjectSnapshot } from '@/services/projectRepository'
 import { cn } from '@/utils/cn'
-import { lacksPassword, type Credentials } from '@/utils/credentials'
+import { loginGroups, type Credentials } from '@/utils/credentials'
 import { BoothEditor } from './BoothEditor'
 import { DeviceList } from './DeviceList'
 import { LaunchPanel } from './LaunchPanel'
@@ -63,12 +63,13 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
   }
   const back = () => (step === 0 ? onBack() : setStep(0))
 
-  const loginTargets = draft.devices.filter(d => d.selected && lacksPassword(d.projector)).length
+  const groups = loginGroups(draft.devices.filter(d => d.selected).map(d => d.projector))
 
-  function launch(login?: Credentials) {
-    const payload = draft.buildLaunchPayload(login)
-    // Ghi cache để mở lại project trong phiên này không phải nhập lại.
-    if (login) saveSharedCredentials(login)
+  function launch(logins?: Record<string, Credentials>) {
+    const payload = draft.buildLaunchPayload(logins)
+    // Ghi cache để mở lại project trong phiên này không phải nhập lại. Tài khoản dùng chung (điền sẵn cho máy mới) chỉ khi có đúng một loại.
+    const given = Object.values(logins ?? {}).filter(c => c.username || c.password)
+    if (given.length === 1 && groups.filter(g => g.required).length <= 1) saveSharedCredentials(given[0]!)
     for (const p of payload.projectors) {
       const { username, password, port } = p.network.protocol
       if (username || password) saveDeviceCredentials(p.network.ip, port, { username, password })
@@ -88,7 +89,7 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
             <Field label={t('PROJECT NAME')}>{id => <TextInput id={id} autoFocus value={draft.name} placeholder={t('e.g. Grand Tech Summit 2026')} onChange={e => draft.setName(e.target.value)} />}</Field>
           </Panel>
           <BoothEditor booths={draft.booths} onAdd={draft.addBooth} onRemove={draft.removeBooth} />
-          <p className="-mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Booths are optional — every device starts in the first booth, and you can rename or move devices later on the dashboard.')}</p>
+          <p className="-mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Groups are optional — every device starts in the first group, and you can rename or move devices later on the dashboard.')}</p>
           <Button type="submit" size="md" variant="primary" className="self-end px-6">{t('NEXT: SCAN')}<ArrowRight size={13} strokeWidth={2.5} /></Button>
         </form>
       )}
@@ -103,7 +104,7 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
           </div>
           <div className="flex flex-col gap-4">
             {(scan.status === 'done' || draft.devices.length > 0) && (
-              <LaunchPanel selected={draft.selectedCount} loginTargets={loginTargets} onLaunch={launch} />
+              <LaunchPanel selected={draft.selectedCount} groups={groups} onLaunch={launch} />
             )}
             <ManualAddForm onAdd={draft.addManual} takenNames={draft.devices.map(d => d.projector.name)} />
           </div>

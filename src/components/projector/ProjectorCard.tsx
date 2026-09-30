@@ -7,6 +7,7 @@ import { cn } from '@/utils/cn'
 import { formatHours } from '@/utils/format'
 import type { Projector } from '@/types'
 import { useLivePreview } from '@/hooks/useLivePreview'
+import { PreviewNotice } from './PreviewNotice'
 import { PreviewScreen } from './PreviewScreen'
 import { TempBar } from './TempBar'
 
@@ -60,6 +61,7 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
   // Thumbnail thật (Christie qua web của máy); chậm hơn trang máy để nhiều thẻ không hỏi dồn dập.
   const { live } = useLivePreview(p, CARD_PREVIEW_MS)
   const image = live.kind === 'ok' && live.preview.state === 'image' ? live.preview.image : undefined
+  const hdcp = live.kind === 'ok' && live.preview.state === 'hdcp'
 
   function handleKey(e: KeyboardEvent) {
     if (e.target === e.currentTarget && (e.key === 'Enter' || e.key === ' ')) {
@@ -100,6 +102,7 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
 
       {image
         ? <div className="relative h-[90px] overflow-hidden bg-black"><img src={image} alt="" className="size-full object-cover" /><span className="absolute top-1 left-1.5 size-1.5 animate-pulse rounded-full bg-ok" /></div>
+        : hdcp ? <PreviewNotice size="sm">{t('HDCP-protected content')}</PreviewNotice>
         : <PreviewScreen projector={p} size="sm" />}
 
       <div className="flex flex-col gap-1 border-t border-border px-3 py-2">

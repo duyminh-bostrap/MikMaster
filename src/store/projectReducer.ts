@@ -59,7 +59,7 @@ function mapProjectors(
   return { ...state, projectors: state.projectors.map(p => (target.has(p.id) ? fn(p) : p)) }
 }
 
-export function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
+function reduce(state: ProjectState, action: ProjectAction): ProjectState {
   switch (action.type) {
     case 'project/launch':
       return { ...action.payload, baseline: documentFingerprint(action.payload) }
@@ -86,7 +86,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
       return {
         ...state,
         booths: state.booths.filter(b => b.id !== action.id),
-        projectors: state.projectors.map(p => (p.boothId === action.id ? { ...p, boothId: target.id, log: appendLog(p, 'info', `Moved to booth ${target.name}`) } : p)),
+        projectors: state.projectors.map(p => (p.boothId === action.id ? { ...p, boothId: target.id, log: appendLog(p, 'info', `Moved to group ${target.name}`) } : p)),
       }
     }
 
@@ -116,7 +116,7 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'projectors/move':
       return mapProjectors(state, action.ids, p =>
-        p.boothId === action.boothId ? p : { ...p, boothId: action.boothId, log: appendLog(p, 'info', `Moved to booth ${action.boothName}`) })
+        p.boothId === action.boothId ? p : { ...p, boothId: action.boothId, log: appendLog(p, 'info', `Moved to group ${action.boothName}`) })
 
     case 'projectors/setPower':
       return mapProjectors(state, action.ids, p => applyPower(p, action.power))
@@ -162,4 +162,24 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
     case 'lens/unloadPreset':
       return mapProjectors(state, [action.id], p => ({ ...p, lens: { ...p.lens, activePreset: null } }))
   }
+}
+
+/**
+ * Đồng hồ "đã bật bao lâu": ghi lúc máy chuyển sang bật (bằng lệnh của app hay do vòng poll thấy máy đã bật), xoá khi tắt / standby.
+ * Mở project → tính lại từ bây giờ (mốc lưu trong file cũ không còn đúng).
+ */
+export function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
+  const next = reduce(state, action)
+  if (next === state) return state
+  const now = Date.now()
+  const fresh = action.type === 'project/launch'
+  let changed = false
+  const projectors = next.projectors.map(p => {
+    const since = p.power === 'on' ? (fresh ? now : p.poweredOnAt ?? now) : undefined
+    if (since === p.poweredOnAt) return p
+    changed = true
+    const { poweredOnAt: _old, ...rest } = p
+    return since === undefined ? rest : { ...rest, poweredOnAt: since }
+  })
+  return changed ? { ...next, projectors } : next
 }

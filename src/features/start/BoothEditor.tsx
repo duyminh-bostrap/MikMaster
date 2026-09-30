@@ -11,7 +11,7 @@ export function BoothEditor({ booths, onAdd, onRemove }: { booths: Booth[]; onAd
   function submit() { onAdd(name); setName('') }
 
   return (
-    <Panel title={t('BOOTHS')} aside={<span className="font-mono text-xs text-muted-foreground">{booths.length}</span>} bodyClassName="flex flex-col gap-2">
+    <Panel title={t('GROUPS')} aside={<span className="font-mono text-xs text-muted-foreground">{booths.length}</span>} bodyClassName="flex flex-col gap-2">
       <ul className="flex flex-col gap-1">
         {booths.map(b => (
           <li key={b.id} className="flex items-center justify-between rounded-sm border border-border bg-muted px-3 py-1.5">
@@ -23,8 +23,8 @@ export function BoothEditor({ booths, onAdd, onRemove }: { booths: Booth[]; onAd
         ))}
       </ul>
       <div className="flex gap-1.5">
-        <TextInput aria-label={t('New booth name')} value={name} placeholder={t('New booth…')} className="px-2 py-1.5 text-xs" onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }} />
-        <Button aria-label={t('Add booth')} disabled={!name.trim()} onClick={submit}><Plus size={12} /></Button>
+        <TextInput aria-label={t('New group name')} value={name} placeholder={t('New group…')} className="px-2 py-1.5 text-xs" onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }} />
+        <Button aria-label={t('Add group')} disabled={!name.trim()} onClick={submit}><Plus size={12} /></Button>
       </div>
     </Panel>
   )

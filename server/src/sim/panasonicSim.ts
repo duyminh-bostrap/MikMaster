@@ -8,6 +8,8 @@ export interface PanasonicSimOptions {
   /** Có đặt → bật chế độ bảo vệ bằng mật khẩu (MD5). */
   credentials?: { username: string; password: string }
   model?: string
+  /** Nhiệt độ khí vào / khí thoát (°C) cho QTM:0 / QTM:1. */
+  temps?: [number, number]
 }
 
 /** Mô phỏng NTCONTROL theo ghi chú giao thức: banner, băm MD5, khung "00"+lệnh, đóng kết nối sau mỗi phản hồi. */
@@ -50,6 +52,11 @@ export class PanasonicSimulator extends SimServer {
     if (cmd === 'PON') { this.power = true; return '00PON' }
     if (cmd === 'POF') { this.power = false; return '00POF' }
     if (cmd === 'QPW') return `00${this.power ? '001' : '000'}`
+    if (/^QTM:[01]$/.test(cmd)) {
+      if (!this.power) return 'ERR3'
+      const [intake, exhaust] = this.opts.temps ?? [30, 45]
+      return `00${String(cmd.endsWith('0') ? intake : exhaust).padStart(4, '0')}`
+    }
     if (cmd === 'QID') return `00${this.opts.model ?? 'RQ35K'}`
     if (['QSH', 'QIN'].includes(cmd) || /^(OSH|IIS):/.test(cmd) || /^O(MN|EN|CU|CD|CL|CR)$/.test(cmd)) {
       if (!this.power) return 'ERR3'
