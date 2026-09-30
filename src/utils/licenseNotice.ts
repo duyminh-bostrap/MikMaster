@@ -12,6 +12,7 @@ export interface LicenseNotice { tone: 'warn' | 'danger'; text: string; vars?: R
  */
 export function licenseNotice(s: LicenseStatusDto): LicenseNotice | null {
   switch (s.state) {
+    case 'signin': return { tone: 'danger', text: 'SIGN IN OR ENTER A LICENSE KEY' }
     case 'unlicensed': return { tone: 'danger', text: 'TRIAL ENDED · ENTER LICENSE' }
     case 'expired': return { tone: 'danger', text: 'LICENSE EXPIRED' }
     case 'revoked': return { tone: 'danger', text: 'LICENSE REVOKED' }

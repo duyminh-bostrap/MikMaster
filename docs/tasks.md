@@ -52,6 +52,7 @@ Cập nhật: 2026-09-29 (khuya, sau khi kiểm máy thật). Ký hiệu: ✅ xo
 | C18 | **License phần mềm** (khoá ký số, dùng thử 30 ngày, giới hạn số máy) | ✅ | Chính sách mặc định (30 ngày / 3 máy khi hết hạn) chỉnh ở `server/src/license.ts` |
 | C19 | Trang **Nâng cao** (tài liệu lệnh + sửa lệnh theo hãng) | ✅ | Menu logo → Nâng cao… |
 | C20 | Christie: OSD `(OSD n)` + test pattern `(ITP n)` từ tài liệu 4K7-HS/4K10-HS | 🧪 | Chưa kiểm trên Griffyn (máy chưa bật); số mẫu ITP cần xác nhận khi bật thử |
+| C21 | **Tài khoản Supabase + Free 30 ngày** (đăng nhập bắt buộc hoặc key offline; trial theo tài khoản và theo máy) | 🧪 | Code + SQL + hướng dẫn xong, test với Supabase giả. **Việc còn lại của bạn:** tạo project Supabase, chạy `supabase/schema.sql`, điền URL + anon key (docs/accounts.md), bật Confirm email |
 
 ## Cách chạy
 

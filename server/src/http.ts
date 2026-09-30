@@ -7,6 +7,7 @@ import { DRIVERS } from './drivers/index.ts'
 import { christiePreview } from './drivers/christieWeb.ts'
 import type { DriverTarget } from './drivers/types.ts'
 import { DeviceError } from './net/tcp.ts'
+import type { AccountManager } from './account.ts'
 import type { LicenseManager } from './license.ts'
 import { addReadings } from './readings.ts'
 import { identifyDevice } from './identify.ts'
@@ -86,7 +87,7 @@ function requireCapability(protocol: DriverProtocol, cap: 'raw' | 'preview' | Co
   if (!effectiveCapabilities(protocol, target.commands).includes(cap)) throw new DeviceError('unsupported', `${protocol} does not support "${cap}"${TEMPLATE_PROTOCOLS.includes(protocol) ? ' (no command template configured)' : ''}`)
 }
 
-async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore, onQuit?: () => void, license?: LicenseManager): Promise<void> {
+async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, url: URL, token?: string, store?: ProjectStore, onQuit?: () => void, license?: LicenseManager, account?: AccountManager): Promise<void> {
   const route = `${req.method} ${url.pathname}`
   const authorized = token === undefined || tokenMatches(token, extractToken(req.headers.authorization, url))
 
@@ -119,6 +120,28 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
         return sendJson(res, 200, { ok: true })
       }
     }
+  }
+
+  // Tài khoản (Supabase). Mật khẩu chỉ đi qua đây tới máy chủ tài khoản, không lưu, không ghi log.
+  const accountRoute = /^\/api\/account(?:\/(signup|login|logout|refresh))?$/.exec(url.pathname)
+  if (accountRoute) {
+    if (!account?.configured || !license) throw new DeviceError('unsupported', 'Accounts are not configured on this gateway')
+    const action = accountRoute[1]
+    if (!action && req.method === 'GET') return sendJson(res, 200, { license: license.status() })
+    if (req.method !== 'POST') throw new DeviceError('bad-request', `Unknown route ${route}`)
+    if (action === 'logout') { account.signOut(); return sendJson(res, 200, { license: license.status() }) }
+    if (action === 'refresh') { await license.checkNow(); return sendJson(res, 200, { license: license.status() }) }
+    const body = await readJson(req)
+    const email = isObject(body) && typeof body.email === 'string' ? body.email.trim() : ''
+    const password = isObject(body) && typeof body.password === 'string' ? body.password : ''
+    if (!/^[^\s@]{1,64}@[^\s@]{1,190}\.[^\s@]{2,}$/.test(email) || email.length > 254) throw new DeviceError('bad-request', 'Enter a valid email address')
+    if (password.length < 6 || password.length > 128) throw new DeviceError('bad-request', 'The password must be 6–128 characters')
+    if (action === 'signup') {
+      const signedIn = await account.signUp(email, password)
+      return sendJson(res, 200, { confirmEmail: !signedIn, license: license.status() })
+    }
+    await account.signIn(email, password)
+    return sendJson(res, 200, { license: license.status() })
   }
 
   if (route === 'POST /api/license/check') {
@@ -275,7 +298,7 @@ function serveStatic(source: StaticSource, url: URL, res: http.ServerResponse): 
   res.end(file.body)
 }
 
-export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore; license?: LicenseManager; onQuit?: () => void } = {}): http.Server {
+export function createServer(options: { staticDir?: string; staticSource?: StaticSource; token?: string; store?: ProjectStore; license?: LicenseManager; account?: AccountManager; onQuit?: () => void } = {}): http.Server {
   const staticSource = options.staticSource ?? (options.staticDir ? fsStatic(options.staticDir) : undefined)
   return http.createServer((req, res) => {
     const url = new URL(req.url ?? '/', 'http://localhost')
@@ -284,7 +307,7 @@ export function createServer(options: { staticDir?: string; staticSource?: Stati
       if (options.token === undefined && !isLocalHostHeader(req.headers.host)) {
         return sendJson(res, 403, { error: { code: 'forbidden-host', message: 'Requests must be addressed to localhost' } })
       }
-      handleApi(req, res, url, options.token, options.store, options.onQuit, options.license).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
+      handleApi(req, res, url, options.token, options.store, options.onQuit, options.license, options.account).catch(err => (res.headersSent ? res.end() : sendError(res, err)))
     } else if (staticSource) {
       serveStatic(staticSource, url, res)
     } else {

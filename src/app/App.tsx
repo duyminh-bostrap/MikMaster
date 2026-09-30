@@ -6,6 +6,7 @@ import { UnloadGuard } from '@/store/UnloadGuard'
 import { ThemeSync } from '@/features/settings/ThemeSync'
 import { SettingsHost } from '@/features/settings/SettingsHost'
 import { PowerSequenceToast } from '@/features/dashboard/PowerSequenceToast'
+import { AuthGate } from '@/features/account/AuthGate'
 import { StoppedScreen } from '@/features/gateway/StoppedScreen'
 import { useSettings } from '@/services/settings'
 import { router } from './router'
@@ -23,6 +24,7 @@ export default function App() {
         <StoppedScreen key={`stop-${language}`} />
         <RouterProvider key={language} router={router} />
         <SettingsHost />
+        <AuthGate />
       </ProjectProvider>
     </GatewayProvider>
   )

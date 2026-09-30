@@ -10,3 +10,11 @@ export const LICENSE_PUBLIC_KEY = 'MCowBQYDK2VwAyEAGStFTv0djt5vW1LuRWPUvyMtUF1xF
  * (khoá vẫn kiểm chữ ký offline). Xem `node scripts/license.mjs status`.
  */
 export const DEFAULT_LICENSE_CHECK_URL = ''
+
+/**
+ * Máy chủ tài khoản (Supabase): URL project và khoá `anon` (công khai theo thiết kế của Supabase, bảo vệ bằng Row Level Security).
+ * Điền ở đây hoặc đặt biến môi trường MIKMASTER_SUPABASE_URL / MIKMASTER_SUPABASE_ANON_KEY. Để trống = tắt hệ thống tài khoản
+ * (app dùng dùng thử 30 ngày cục bộ + khoá license như trước). Xem docs/accounts.md.
+ */
+export const SUPABASE_URL = ''
+export const SUPABASE_ANON_KEY = ''

@@ -18,7 +18,7 @@ export interface LicenseStatusDto {
    * licensed = khoá hợp lệ · trial = đang dùng thử · expired = khoá đã hết hạn · unlicensed = hết dùng thử, chưa có khoá ·
    * unverified = quá 30 ngày chưa kiểm tra được với mạng · revoked = khoá đã bị thu hồi
    */
-  state: 'licensed' | 'trial' | 'expired' | 'unlicensed' | 'unverified' | 'revoked'
+  state: 'licensed' | 'trial' | 'expired' | 'unlicensed' | 'unverified' | 'revoked' | 'signin'
   licensee?: string
   id?: string
   /** Số máy chiếu tối đa; 0 = không giới hạn. */
@@ -33,12 +33,29 @@ export interface LicenseStatusDto {
   expiresInDays?: number
   /** Kiểm tra bản quyền qua mạng (bật khi có địa chỉ kiểm tra): phải kiểm được ít nhất 30 ngày một lần. */
   online?: { configured: boolean; lastCheckAt?: string; daysLeft?: number; lastError?: string }
+  /** Có hệ thống tài khoản (Supabase) và đang bị giới hạn: app hiện màn hình đăng nhập / tạo tài khoản / nhập key. */
+  gate?: boolean
+  account?: AccountStatusDto
   /** Mã của máy tính này (gửi cho người cấp khoá để nhận khoá gắn với máy). */
   machineCode: string
   /** Khoá đang dùng gắn với một máy (khác với khoá dùng chung mọi máy). */
   bound?: boolean
   /** Sau khi gỡ khoá khỏi máy: mã gửi người cấp để cấp lại khoá cho máy khác. */
   releaseCode?: string
+}
+
+/**
+ * Tài khoản (Supabase). kind = quyền dùng do máy chủ xác nhận cho máy này:
+ * trial = đang dùng thử 30 ngày · paid = đã trả phí · expired = hết hạn · other_machine = tài khoản này đã dùng thử ở máy khác ·
+ * machine_used = máy này đã dùng thử bằng tài khoản khác · none = chưa có.
+ */
+export type EntitlementKind = 'trial' | 'paid' | 'expired' | 'other_machine' | 'machine_used' | 'none'
+export interface AccountStatusDto {
+  configured: boolean
+  signedIn: boolean
+  email?: string
+  kind?: EntitlementKind
+  lastError?: string
 }
 
 /** Nhóm lệnh sửa được ở trang Nâng cao: áp cho mọi máy chiếu cùng hãng / giao thức (lệnh riêng của từng máy vẫn được ưu tiên). */

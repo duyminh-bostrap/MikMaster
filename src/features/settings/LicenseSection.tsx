@@ -1,4 +1,4 @@
-import { Check, Copy, KeyRound, RefreshCw, Unplug } from 'lucide-react'
+import { Check, Copy, KeyRound, LogOut, RefreshCw, Unplug } from 'lucide-react'
 import { useState } from 'react'
 import type { LicenseStatusDto } from '../../../shared/api.ts'
 import { Badge } from '@/components/ui/Badge'
@@ -49,6 +49,10 @@ export function LicenseSection() {
     setChecking(false)
     if (r.ok) setLicenseStatus(r.value)
   }
+  async function signOut() {
+    const r = await gateway!.accountSignOut()
+    if (r.ok) setLicenseStatus(r.value.license)
+  }
   async function release() {
     const ok = await confirm({
       title: t('RELEASE LICENSE FROM THIS COMPUTER'),
@@ -75,6 +79,15 @@ export function LicenseSection() {
         <span className="font-mono text-xs text-muted-foreground">{t('LICENSE')}</span>
         <StateBadge s={s} />
       </div>
+      {s.account?.configured && (
+        <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
+          <span className="text-muted-foreground">{t('Account')}</span>
+          <span className="flex items-center gap-2">
+            <span className="text-foreground">{s.account.signedIn ? s.account.email : t('not signed in')}</span>
+            {s.account.signedIn && <Button type="button" size="xs" onClick={() => void signOut()}><LogOut size={10} />{t('SIGN OUT')}</Button>}
+          </span>
+        </div>
+      )}
       {(s.state === 'licensed' || s.state === 'expired' || s.state === 'unverified' || s.state === 'revoked') && (
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 font-mono text-[11px]">
           <dt className="text-muted-foreground">{t('Licensed to')}</dt><dd className="text-foreground">{s.licensee}</dd>
@@ -83,7 +96,7 @@ export function LicenseSection() {
           {s.online?.configured && <><dt className="text-muted-foreground">{t('Last online check')}</dt><dd className="text-foreground">{s.online.lastCheckAt ? s.online.lastCheckAt.slice(0, 10) : '—'}</dd></>}
         </dl>
       )}
-      {s.online?.configured && s.state !== 'trial' && s.state !== 'unlicensed' && (
+      {s.online?.configured && (s.account?.signedIn || (s.state !== 'trial' && s.state !== 'unlicensed')) && (
         <div className="flex flex-col gap-1">
           <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-muted-foreground">
             <span>{s.state === 'unverified' ? t('The license was not verified online for 30 days. Connect to the internet and check again.') : t('The license must be verified online at least every 30 days — {n} day(s) left.', { n: s.online.daysLeft ?? 0 })}</span>
@@ -119,7 +132,7 @@ export function LicenseSection() {
         </Button>
       </div>
       {error && <p role="alert" className="font-mono text-[10px] text-danger">{error}</p>}
-      {(s.state === 'licensed' || s.state === 'expired') && (
+      {s.id && (s.state === 'licensed' || s.state === 'expired') && (
         <Button type="button" size="xs" className="self-start" onClick={() => void release()}><Unplug size={11} />{t('RELEASE LICENSE FROM THIS COMPUTER')}</Button>
       )}
       {confirmDialog}

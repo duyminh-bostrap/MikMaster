@@ -96,6 +96,17 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Tài liệu lệnh theo hãng (PJLink, Panasonic, Christie, Barco): lệnh, chức năng, hỏi / ghi, nguồn tài liệu, mức đã kiểm (đã kiểm trên máy / theo tài liệu / chưa kiểm); tìm kiếm, lọc hỏi / ghi | ✅ | Danh mục ở `src/constants/commandCatalog.ts` — bổ sung khi có lệnh mới. Không cần mở project |
 | **Sửa lệnh dùng chung cho mọi máy cùng hãng** (nguồn, shutter, test pattern, đọc nhiệt độ / giờ đèn); lệnh trống = giữ lệnh có sẵn của driver (hiện mờ làm gợi ý), nút Về mặc định | ✅ | Lưu ở gateway (`command-overrides.json`), gửi nguyên văn qua đường RAW thay cho lệnh có sẵn; lệnh riêng của từng máy (Nâng cao trên trang máy) được ưu tiên. Cần gateway |
 
+## Tài khoản (Supabase) và Free 30 ngày
+
+| Tính năng | Trạng thái | Ghi chú |
+|---|---|---|
+| Khi đã cấu hình Supabase: mở app hiện màn hình **Đăng nhập / Tạo tài khoản Free 30 ngày / Nhập key offline** cho tới khi có quyền dùng | ✅ (bằng Supabase giả) | Chưa cấu hình → chạy như trước (dùng thử cục bộ + key). Hướng dẫn: [docs/accounts.md](accounts.md); SQL: `supabase/schema.sql` |
+| Dùng thử 30 ngày do **máy chủ** quyết định: mỗi tài khoản một lần, mỗi máy một lần (tạo tài khoản khác trên cùng máy không được thêm) | ✅ (bằng Supabase giả) | Cần bạn tạo project Supabase, chạy `schema.sql` và điền URL + khoá anon; **chưa thử với Supabase thật** |
+| Key offline vẫn dùng được, gắn với máy | ✅ | Vào app không cần tài khoản |
+| Gói trả phí gắn với tài khoản (bảng `entitlements`) | 🧪 | Cấp bằng SQL |
+| Mất mạng: quyền đã xác nhận còn giá trị tối đa 30 ngày; kiểm tra lại mỗi 6 giờ, đăng nhập và nút "Kiểm tra ngay" | ✅ | |
+| Mật khẩu chỉ đi qua gateway tới Supabase, không lưu; ở máy lưu email + refresh token mã hoá (AES-256-GCM, khoá theo mã máy) | ✅ | |
+
 ## Bản quyền (license)
 
 | Tính năng | Trạng thái | Ghi chú |

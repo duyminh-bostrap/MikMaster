@@ -4,6 +4,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import type { LicenseStatusDto } from '../../shared/api.ts'
+import type { AccountManager } from './account.ts'
 import { DEFAULT_LICENSE_CHECK_URL, LICENSE_PUBLIC_KEY } from './licenseKey.ts'
 import { DeviceError } from './net/tcp.ts'
 
@@ -275,7 +276,10 @@ export function createLicenseManager(dir: string, opts: {
   now?: () => number; publicKey?: string; machineCode?: string; checkUrl?: string; fetch?: typeof fetch
   /** Nơi lưu bản sao trạng thái ngoài thư mục dữ liệu; mặc định ~/.mikmaster. `null` = không dùng (test). */
   mirrorDir?: string | null
+  /** Tài khoản Supabase: khi đã cấu hình, dùng thử 30 ngày do máy chủ quyết định theo tài khoản + máy (thay cho dùng thử cục bộ). */
+  account?: AccountManager
 } = {}): LicenseManager {
+  const account = opts.account?.configured ? opts.account : undefined
   const realNow = opts.now ?? Date.now
   const publicKey = opts.publicKey ?? LICENSE_PUBLIC_KEY
   const keyFile = path.join(dir, 'license.key')
@@ -310,7 +314,7 @@ export function createLicenseManager(dir: string, opts: {
     } catch { return null }
   }
 
-  function status(): LicenseStatusDto {
+  function compute(): LicenseStatusDto {
     const t = now()
     const lic = stored()
     if (lic) {
@@ -321,16 +325,45 @@ export function createLicenseManager(dir: string, opts: {
       const revoked = configured && state.revoked.includes(lic.id)
       const unverified = configured && (daysLeft as number) <= 0
       const st = revoked ? 'revoked' : expired ? 'expired' : unverified ? 'unverified' : 'licensed'
-      return {
+      const fromKey: LicenseStatusDto = {
         state: st, licensee: lic.licensee, id: lic.id, maxProjectors: lic.max, expiresAt: lic.exp, freeLimit: FREE_LIMIT,
         restricted: st !== 'licensed', machineCode, bound: lic.mc !== undefined,
         ...(expiresMs !== undefined && !expired ? { expiresInDays: Math.ceil((expiresMs - t) / DAY_MS) } : {}),
         online: { configured, ...(configured ? { lastCheckAt: new Date(state.lastOk).toISOString(), daysLeft: Math.max(0, daysLeft as number) } : {}), ...(lastError ? { lastError } : {}) },
       }
+      // Khoá hết hạn / bị thu hồi mà tài khoản còn quyền dùng → dùng quyền của tài khoản.
+      if (fromKey.restricted && account) { const a = fromAccount(t); if (!a.restricted) return a }
+      return fromKey
     }
+    if (account) return fromAccount(t)
     const left = Math.ceil((state.firstRun + TRIAL_DAYS * DAY_MS - t) / DAY_MS)
     if (left > 0) return { state: 'trial', trialDaysLeft: left, freeLimit: FREE_LIMIT, restricted: false, machineCode }
     return { state: 'unlicensed', trialDaysLeft: 0, freeLimit: FREE_LIMIT, restricted: true, machineCode }
+  }
+
+  /** Không có khoá hợp lệ + có hệ thống tài khoản: quyền dùng lấy từ máy chủ (đăng nhập → dùng thử 30 ngày / trả phí). */
+  function fromAccount(t: number): LicenseStatusDto {
+    const acc = account!.status()
+    const e = account!.entitlement()
+    const base = { freeLimit: FREE_LIMIT, machineCode }
+    if (!acc.signedIn || !e) return { ...base, state: 'signin', restricted: true }
+    const graceLeft = Math.ceil((e.checkedAt + ONLINE_GRACE_DAYS * DAY_MS - t) / DAY_MS)
+    const online = { configured: true, lastCheckAt: new Date(e.checkedAt).toISOString(), daysLeft: Math.max(0, graceLeft), ...(acc.lastError ? { lastError: acc.lastError } : {}) }
+    if (e.kind === 'trial' || e.kind === 'paid') {
+      const expiresMs = e.expiresAt ? Date.parse(e.expiresAt) : Infinity
+      if (expiresMs < t) return { ...base, state: 'expired', restricted: true, licensee: acc.email, expiresAt: e.expiresAt, online }
+      if (graceLeft <= 0) return { ...base, state: 'unverified', restricted: true, licensee: acc.email, online }
+      const days = Number.isFinite(expiresMs) ? Math.ceil((expiresMs - t) / DAY_MS) : undefined
+      return e.kind === 'trial'
+        ? { ...base, state: 'trial', trialDaysLeft: days ?? 0, restricted: false, licensee: acc.email, expiresAt: e.expiresAt, online }
+        : { ...base, state: 'licensed', maxProjectors: 0, restricted: false, licensee: acc.email, expiresAt: e.expiresAt, ...(days !== undefined ? { expiresInDays: days } : {}), online }
+    }
+    return { ...base, state: e.kind === 'expired' ? 'expired' : 'unlicensed', restricted: true, licensee: acc.email, online }
+  }
+
+  function status(): LicenseStatusDto {
+    const s = compute()
+    return account ? { ...s, gate: s.restricted, account: account.status() } : s
   }
 
   const active = new Map<string, number>()
@@ -340,6 +373,7 @@ export function createLicenseManager(dir: string, opts: {
       throw new DeviceError('license',
         s.state === 'expired' ? 'The MikMaster license has expired — enter a new license key in Settings'
         : s.state === 'revoked' ? 'This MikMaster license has been revoked — contact the license issuer'
+        : s.state === 'signin' ? 'Sign in to your MikMaster account or enter a license key to control projectors'
         : s.state === 'unverified' ? `The license has not been verified online for ${ONLINE_GRACE_DAYS} days — connect this computer to the internet (Settings → License → Check now)`
         : 'The 30-day trial has ended — enter a license key in Settings to control projectors')
     }
@@ -356,6 +390,7 @@ export function createLicenseManager(dir: string, opts: {
     status,
     check,
     async checkNow() {
+      await account?.refresh()
       if (checkUrl === '') return status()
       try {
         const res = await doFetch(checkUrl, { signal: AbortSignal.timeout(CHECK_TIMEOUT_MS), cache: 'no-store' })

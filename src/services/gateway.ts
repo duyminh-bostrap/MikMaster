@@ -3,6 +3,8 @@ import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
 
+export interface AccountResult { license: LicenseStatusDto; /** Đăng ký xong nhưng cần xác nhận email trước khi đăng nhập. */ confirmEmail?: boolean }
+
 export interface ScanHandlers {
   onProgress: (pct: number, ip: string) => void
   onFound: (found: ScanFoundDto) => void
@@ -20,6 +22,10 @@ export interface Gateway {
   /** Tài khoản đăng nhập nhanh theo hãng (lưu mã hoá ở gateway). */
   getQuickLogins(): Promise<GatewayResult<QuickLoginsDto>>
   saveQuickLogins(logins: QuickLoginsDto): Promise<GatewayResult<unknown>>
+  /** Tài khoản (Supabase, qua gateway). Kết quả luôn kèm trạng thái bản quyền mới. */
+  accountSignIn(email: string, password: string): Promise<GatewayResult<AccountResult>>
+  accountSignUp(email: string, password: string): Promise<GatewayResult<AccountResult>>
+  accountSignOut(): Promise<GatewayResult<AccountResult>>
   /** Lệnh sửa ở trang Nâng cao, theo hãng (lưu ở gateway). */
   getCommandOverrides(): Promise<GatewayResult<CommandOverridesDto>>
   saveCommandOverrides(o: CommandOverridesDto): Promise<GatewayResult<CommandOverridesDto>>
@@ -95,6 +101,9 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
     preview: p => call<PreviewDto>(base, token, '/api/devices/preview', { target: toTarget(p) }),
     getQuickLogins: () => call<QuickLoginsDto>(base, token, '/api/quick-logins', undefined, 'GET'),
     saveQuickLogins: logins => call<unknown>(base, token, '/api/quick-logins', logins, 'PUT'),
+    accountSignIn: (email, password) => call<AccountResult>(base, token, '/api/account/login', { email, password }),
+    accountSignUp: (email, password) => call<AccountResult>(base, token, '/api/account/signup', { email, password }),
+    accountSignOut: () => call<AccountResult>(base, token, '/api/account/logout', {}),
     getCommandOverrides: () => call<CommandOverridesDto>(base, token, '/api/command-overrides', undefined, 'GET'),
     saveCommandOverrides: o => call<CommandOverridesDto>(base, token, '/api/command-overrides', o, 'PUT'),
     getLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'GET'),
