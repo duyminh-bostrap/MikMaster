@@ -41,7 +41,8 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
   // Cần đăng nhập → ẩn các nút điều khiển, mở sẵn khung đăng nhập ở góc trên bên phải.
   const locked = loginRequired(projector, gateway !== null)
   const [accountOpen, setAccountOpen] = useState(locked)
-  useEffect(() => { if (locked) setAccountOpen(true) }, [locked, projector.id])
+  // Mở khung khi máy bị khóa, đóng khi hết khóa hoặc khi chuyển sang máy khác (không để khung của máy trước nằm lại).
+  useEffect(() => { setAccountOpen(locked) }, [locked, projector.id])
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-background max-lg:h-auto max-lg:min-h-screen max-lg:overflow-visible">

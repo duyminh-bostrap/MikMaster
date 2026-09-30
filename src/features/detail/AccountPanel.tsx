@@ -92,9 +92,26 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
 
   const onEnter = (e: React.KeyboardEvent) => { if (e.key === 'Enter' && canSubmit) void signIn() }
 
+  // Chỉ một trong hai trạng thái: đã đăng nhập → chỉ có Đăng xuất (muốn đổi tài khoản thì đăng xuất rồi đăng nhập lại);
+  // chưa đăng nhập → chỉ có form Đăng nhập. Đóng khung bằng bấm ra ngoài hoặc Esc, không cần nút Huỷ.
+  const signedIn = web ? hasCredentials(p) : !lacksPassword(p)
+  if (signedIn) {
+    return (
+      <div>
+        <SectionHeader label={web ? t('WEB ACCOUNT') : t('ACCOUNT')} />
+        <div className="flex flex-col gap-2.5">
+          <p className="font-mono text-[11px] text-muted-foreground">
+            {t('Signed in as {user}', { user: protocol.username || '••••' })}
+          </p>
+          <Button variant="secondary" size="md" onClick={signOut}><LogOut size={12} />{t('SIGN OUT')}</Button>
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div>
-      <SectionHeader label={web ? t('WEB ACCOUNT') : mode === 'required' ? t('LOGIN REQUIRED') : t('CHANGE LOGIN')} />
+      <SectionHeader label={web ? t('WEB ACCOUNT') : t('LOGIN REQUIRED')} />
       <div className="flex flex-col gap-2.5">
         {web && <p className="font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Used only for the live preview (projector web page). Control works without it.')}</p>}
         {mode === 'required' && (
@@ -127,12 +144,6 @@ export function AccountPanel({ projector: p, mode, onDone }: { projector: Projec
         <Button variant="primary" disabled={!canSubmit} onClick={() => void signIn()}>
           <LogIn size={12} />{busy ? t('CHECKING…') : t('SIGN IN')}
         </Button>
-        {mode === 'change' && (
-          <div className="flex gap-2">
-            <Button className="flex-1" onClick={onDone}>{t('CANCEL')}</Button>
-            {(web ? hasCredentials(p) : !lacksPassword(p)) && <Button className="flex-1" onClick={signOut}><LogOut size={10} />{t('SIGN OUT')}</Button>}
-          </div>
-        )}
       </div>
     </div>
   )

@@ -42,7 +42,7 @@ export function AccountMenu({ projector: p, locked, open, onOpenChange }: {
         <ChevronDown size={10} className={cn('transition-transform', open && 'rotate-180')} />
       </button>
       {open && (
-        <div role="dialog" aria-label={locked ? t('LOGIN REQUIRED') : t('CHANGE LOGIN')}
+        <div role="dialog" aria-label={locked ? t('LOGIN REQUIRED') : t('ACCOUNT')}
           className="absolute top-full right-0 z-50 mt-2 w-80 rounded-sm border border-border bg-card p-3 shadow-xl shadow-black/40">
           <AccountPanel key={`${p.id}:${locked}`} projector={p} mode={locked ? 'required' : 'change'} onDone={() => onOpenChange(false)} />
         </div>

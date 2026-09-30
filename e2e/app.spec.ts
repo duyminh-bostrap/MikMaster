@@ -157,11 +157,23 @@ test('login screen only while a projector needs a login; controls hidden until t
   await expect(left.getByText('POWER', { exact: true })).toBeVisible()
   await expect(page.getByText('LENS SHIFT')).toBeVisible()
 
-  // Đã đăng nhập: bấm tên tài khoản (góc phải) để đổi / đăng xuất; Cancel đóng.
+  // Đã đăng nhập: bấm tên tài khoản (góc phải) → chỉ có ĐĂNG XUẤT (không có form, không có Huỷ); Esc đóng.
   await page.locator('header').getByRole('button', { name: /admin/ }).click()
-  await expect(page.getByRole('dialog', { name: 'CHANGE LOGIN' })).toBeVisible()
-  await page.getByRole('dialog', { name: 'CHANGE LOGIN' }).getByRole('button', { name: 'CANCEL' }).click()
-  await expect(page.getByRole('dialog', { name: 'CHANGE LOGIN' })).toHaveCount(0)
+  const account = page.getByRole('dialog', { name: 'ACCOUNT' })
+  await expect(account).toBeVisible()
+  await expect(account.getByRole('button', { name: 'SIGN OUT' })).toBeVisible()
+  await expect(account.getByRole('button', { name: 'SIGN IN' })).toHaveCount(0)
+  await expect(account.getByRole('button', { name: 'CANCEL' })).toHaveCount(0)
+  await page.keyboard.press('Escape')
+  await expect(account).toHaveCount(0)
+
+  // Đăng xuất → quay về trạng thái chưa đăng nhập: chỉ có form Đăng nhập (không có Đăng xuất).
+  await page.locator('header').getByRole('button', { name: /admin/ }).click()
+  await page.getByRole('dialog', { name: 'ACCOUNT' }).getByRole('button', { name: 'SIGN OUT' }).click()
+  const again = page.getByRole('dialog', { name: 'LOGIN REQUIRED' })
+  await expect(again).toBeVisible()
+  await expect(again.getByRole('button', { name: 'SIGN IN' })).toBeVisible()
+  await expect(again.getByRole('button', { name: 'SIGN OUT' })).toHaveCount(0)
 
   // Máy không cần đăng nhập (Christie) không bao giờ hiện ô đăng nhập.
   await page.goto('/#/project/projectors/PJ-01')

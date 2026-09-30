@@ -326,6 +326,8 @@ export const VI: Record<string, string> = {
   'TEMPERATURE QUERY': 'LỆNH HỎI NHIỆT ĐỘ',
   'All sensors ({n})': 'Tất cả cảm biến ({n})',
   'ADVANCED': 'NÂNG CAO',
+  'Signed in as {user}': 'Đã đăng nhập: {user}',
+  'ACCOUNT': 'TÀI KHOẢN',
   'SIGN IN OR ENTER A LICENSE KEY': 'ĐĂNG NHẬP HOẶC NHẬP KEY',
   'This computer has already used its free 30 days with another account. Sign in with that account, or enter a license key.': 'Máy này đã dùng 30 ngày miễn phí với một tài khoản khác. Hãy đăng nhập bằng tài khoản đó, hoặc nhập key.',
   'This account already used its free 30 days on another computer. Enter a license key to use it here.': 'Tài khoản này đã dùng 30 ngày miễn phí ở máy khác. Hãy nhập key để dùng ở máy này.',
