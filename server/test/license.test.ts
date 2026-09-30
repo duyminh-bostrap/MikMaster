@@ -6,7 +6,7 @@ import path from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { after, before, describe, test } from 'node:test'
 import { createServer } from '../src/http.ts'
-import { FREE_LIMIT, TRIAL_DAYS, createLicenseManager, signLicense, verifyLicense } from '../src/license.ts'
+import { FREE_LIMIT, TRIAL_DAYS, computeMachineCode, createLicenseManager, normalizeMachineCode, parseReleaseCode, signLicense, verifyLicense } from '../src/license.ts'
 import { createProjectStore } from '../src/store.ts'
 import { PjlinkSimulator } from '../src/sim/pjlinkSim.ts'
 
@@ -68,6 +68,50 @@ describe('license policy', () => {
   test('removing the key falls back to trial/unlicensed', () => {
     const m = mgr()
     assert.equal(m.remove().state, 'unlicensed')
+  })
+})
+
+describe('machine binding and transfer', () => {
+  let dir: string
+  const A = 'AAAA-1111-BBBB-2222', B = 'CCCC-3333-DDDD-4444'
+  const mgr = (mc: string) => createLicenseManager(dir, { publicKey: PUB, machineCode: mc })
+  before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-mc-')) })
+  after(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+  test('machine code is stable, formatted, and user input is normalised', () => {
+    const c = computeMachineCode(dir)
+    assert.match(c, /^[0-9A-F]{4}(-[0-9A-F]{4}){3}$/)
+    assert.equal(computeMachineCode(dir), c)
+    assert.equal(normalizeMachineCode(' aaaa 1111-bbbb2222 '), A)
+    assert.equal(normalizeMachineCode('xyz'), null)
+  })
+
+  test('a key bound to machine A installs on A only; release gives a receipt; a new key for B works', () => {
+    const key = signLicense(PEM, { id: 'm1', licensee: 'ACME', max: 3, mc: A })
+    assert.equal(verifyLicense(key, PUB)?.mc, A)
+    assert.throws(() => mgr(B).install(key), (e: Error) => /another computer/.test(e.message))
+    const onA = mgr(A)
+    const s = onA.install(key)
+    assert.deepEqual([s.state, s.bound, s.machineCode], ['licensed', true, A])
+
+    const released = onA.remove()
+    assert.notEqual(released.state, 'licensed')
+    assert.deepEqual(parseReleaseCode(released.releaseCode!), { id: 'm1', mc: A, at: parseReleaseCode(released.releaseCode!)!.at })
+
+    // Cấp lại cùng id cho máy B (scripts/license.mjs rebind làm việc này).
+    const forB = signLicense(PEM, { id: 'm1', licensee: 'ACME', max: 3, mc: B })
+    const onB = mgr(B)
+    assert.equal(onB.install(forB).state, 'licensed')
+    // Khoá của máy A copy sang B vẫn không dùng được; khoá không gắn máy thì dùng mọi nơi.
+    assert.throws(() => mgr(B).install(key), (e: Error) => /another computer/.test(e.message))
+    assert.equal(mgr(B).install(signLicense(PEM, { id: 'u1', licensee: 'Any', max: 0 })).bound, false)
+  })
+
+  test('a stored key for another machine does not count (e.g. the data folder was copied)', () => {
+    const forA = signLicense(PEM, { id: 'm2', licensee: 'ACME', max: 0, mc: A })
+    mgr(A).install(forA)
+    const copied = mgr(B).status()
+    assert.notEqual(copied.state, 'licensed')
   })
 })
 

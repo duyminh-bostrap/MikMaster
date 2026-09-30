@@ -26,6 +26,12 @@ export interface LicenseStatusDto {
   freeLimit: number
   /** Đang bị giới hạn: chỉ xem trạng thái tối đa `freeLimit` máy, không gửi lệnh. */
   restricted: boolean
+  /** Mã của máy tính này (gửi cho người cấp khoá để nhận khoá gắn với máy). */
+  machineCode: string
+  /** Khoá đang dùng gắn với một máy (khác với khoá dùng chung mọi máy). */
+  bound?: boolean
+  /** Sau khi gỡ khoá khỏi máy: mã gửi người cấp để cấp lại khoá cho máy khác. */
+  releaseCode?: string
 }
 
 /** Hãng có "đăng nhập nhanh": một tài khoản người dùng tự lưu cho mỗi hãng / dòng máy. */

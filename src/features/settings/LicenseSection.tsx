@@ -1,8 +1,9 @@
-import { KeyRound } from 'lucide-react'
+import { Check, Copy, KeyRound, Unplug } from 'lucide-react'
 import { useState } from 'react'
 import type { LicenseStatusDto } from '../../../shared/api.ts'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useT } from '@/i18n'
 import { setLicenseStatus, useLicense } from '@/services/license'
 import { useGateway } from '@/store/useGateway'
@@ -22,6 +23,8 @@ export function LicenseSection() {
   const [key, setKey] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [copied, setCopied] = useState('')
+  const [confirmDialog, confirm] = useConfirm()
 
   if (!gateway || !s) {
     return (
@@ -38,10 +41,24 @@ export function LicenseSection() {
     setBusy(false)
     if (r.ok) { setLicenseStatus(r.value); setKey('') } else setError(r.message)
   }
-  async function remove() {
+  async function release() {
+    const ok = await confirm({
+      title: t('RELEASE LICENSE FROM THIS COMPUTER'),
+      message: t('This computer will go back to the trial / limited mode. You get a release code to send to the license issuer, who then issues a key for the other computer.'),
+      confirmLabel: t('RELEASE'), tone: 'warn',
+    })
+    if (!ok) return
     const r = await gateway!.removeLicense()
     if (r.ok) setLicenseStatus(r.value)
   }
+  async function copy(what: string, text: string) {
+    try { await navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(c => (c === what ? '' : c)), 1500) } catch { /* trình duyệt chặn clipboard → người dùng tự chọn và copy */ }
+  }
+  const CopyButton = ({ what, text }: { what: string; text: string }) => (
+    <Button type="button" size="xs" aria-label={t('Copy')} title={t('Copy')} onClick={() => void copy(what, text)}>
+      {copied === what ? <Check size={11} /> : <Copy size={11} />}
+    </Button>
+  )
 
   const limit = s.maxProjectors === 0 ? t('unlimited') : String(s.maxProjectors)
   return (
@@ -62,6 +79,19 @@ export function LicenseSection() {
           {t('Without a valid license MikMaster only shows the status of up to {n} projectors and sends no commands.', { n: s.freeLimit })}
         </p>
       )}
+      <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
+        <span className="text-muted-foreground">{t('Machine code')}</span>
+        <span className="flex items-center gap-1.5"><span className="text-foreground select-all">{s.machineCode}</span><CopyButton what="machine" text={s.machineCode} /></span>
+      </div>
+      {s.releaseCode && (
+        <div className="flex flex-col gap-1 rounded-sm border border-ok/40 bg-ok/5 p-2">
+          <span className="font-mono text-[10px] text-ok">{t('Released. Send this release code and the new computer\'s machine code to the license issuer:')}</span>
+          <div className="flex items-start gap-1.5">
+            <code className="min-w-0 flex-1 font-mono text-[10px] break-all text-foreground select-all">{s.releaseCode}</code>
+            <CopyButton what="release" text={s.releaseCode} />
+          </div>
+        </div>
+      )}
       <div className="flex gap-2">
         <input value={key} onChange={e => { setKey(e.target.value); setError('') }} placeholder="MIKM1.…" spellCheck={false} autoComplete="off" aria-label={t('License key')}
           onKeyDown={e => { if (e.key === 'Enter' && key.trim() && !busy) { e.preventDefault(); void activate() } }}
@@ -71,7 +101,10 @@ export function LicenseSection() {
         </Button>
       </div>
       {error && <p role="alert" className="font-mono text-[10px] text-danger">{error}</p>}
-      {s.state === 'licensed' && <Button type="button" size="xs" className="self-start text-muted-foreground" onClick={() => void remove()}>{t('REMOVE LICENSE')}</Button>}
+      {(s.state === 'licensed' || s.state === 'expired') && (
+        <Button type="button" size="xs" className="self-start" onClick={() => void release()}><Unplug size={11} />{t('RELEASE LICENSE FROM THIS COMPUTER')}</Button>
+      )}
+      {confirmDialog}
     </div>
   )
 }
