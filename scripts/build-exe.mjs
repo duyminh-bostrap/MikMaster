@@ -1,7 +1,7 @@
 // Đóng gói MikMaster thành MỘT file chạy (Node Single Executable Application):
 // gateway + giao diện web nhúng sẵn; máy chạy không cần cài Node hay pnpm.
 //
-//   pnpm build:exe          → release/MikMaster.exe (Windows), release/MikMaster.dmg (macOS), release/MikMaster (Linux)
+//   pnpm build:exe          → release/MikMaster.exe (Windows), release/MikMaster.dmg + release/MikMaster-Setup.pkg (macOS), release/MikMaster (Linux)
 //
 // File chạy được build cho đúng hệ điều hành đang chạy lệnh (Windows → .exe). Bản .exe build sẵn
 // trên máy Windows của GitHub Actions: workflow "Build executables".
@@ -164,5 +164,21 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000 * attempt)
     }
   }
+
+  // Bộ cài .pkg (bấm đúp → Installer → cài vào /Applications), tương đương MikMaster-Setup.exe bên Windows.
+  // preinstall tắt gateway của bản cũ đang chạy nền — nếu không, mở bản mới sẽ chỉ mở lại bản cũ ("Port 8787 is already in use").
+  step('Creating MikMaster-Setup.pkg')
+  const scripts = path.join(work, 'pkg-scripts')
+  fs.mkdirSync(scripts, { recursive: true })
+  fs.writeFileSync(path.join(scripts, 'preinstall'), [
+    '#!/bin/sh',
+    'pkill -f "MikMaster.app/Contents/Resources/mikmaster-gateway" 2>/dev/null',
+    'exit 0',
+    '',
+  ].join('\n'), { mode: 0o755 })
+  const setupPkg = path.join(out, 'MikMaster-Setup.pkg')
+  fs.rmSync(setupPkg, { force: true })
+  run('pkgbuild', ['--component', app, '--install-location', '/Applications', '--scripts', scripts,
+    '--identifier', 'com.mikmaster.app.pkg', '--version', pkg.version, setupPkg])
   return dmg
 }
