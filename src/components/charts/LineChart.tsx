@@ -1,3 +1,4 @@
+import { WifiOff } from 'lucide-react'
 import { useRef, useState, type ReactNode } from 'react'
 
 export interface LinePoint { x: number; y: number }
@@ -7,8 +8,10 @@ export interface LineSeries {
   color: string
   /** Các đoạn liền (vd. mỗi lần máy bật); giữa hai đoạn đường bị ngắt. */
   segments: readonly (readonly LinePoint[])[]
-  /** Dấu bật (▲) / tắt (■) trên trục thời gian. */
-  events?: readonly { x: number; on: boolean }[]
+  /** Dấu bật (▲) / tắt (■) / mất kết nối (icon đỏ) trên trục thời gian. */
+  events?: readonly { x: number; on: boolean; lost?: boolean }[]
+  /** Máy đang mất kết nối: icon đỏ ở cuối đường. */
+  lost?: boolean
 }
 export interface Threshold { value: number; color: string; label: string }
 
@@ -138,9 +141,12 @@ export function LineChart({ series, xMax, xLabel, xStep, thresholds, highlight, 
               {s.segments.map((sg, k) => sg.length > 1
                 ? <polyline key={k} points={sg.map(p => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={on ? 4 : 2.5} strokeLinejoin="round" strokeLinecap="round" />
                 : sg[0] && <circle key={k} cx={x(sg[0].x)} cy={y(sg[0].y)} r={3} fill={s.color} />)}
-              {end && <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />}
+              {end && (s.lost
+                ? <WifiOff data-lost-end x={x(end.x) - 8} y={y(end.y) - 8} width={16} height={16} color="var(--color-danger)" strokeWidth={2.5} />
+                : <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />)}
               {s.events?.map((e, k) => {
                 const ex = x(e.x), ey = H - PAD.b
+                if (e.lost) return <g key={k} data-event="lost"><WifiOff x={ex - 7} y={ey - 15} width={14} height={14} color="var(--color-danger)" strokeWidth={2.5} /><title>{`${s.name}: OFFLINE ${xLabel(e.x)}`}</title></g>
                 return e.on
                   ? <path key={k} data-event="on" d={`M${ex},${ey - 9} l5,8 l-10,0 z`} fill={s.color}><title>{`${s.name}: ON ${xLabel(e.x)}`}</title></path>
                   : <rect key={k} data-event="off" x={ex - 4} y={ey - 9} width={8} height={8} fill="var(--color-card)" stroke={s.color} strokeWidth={2}><title>{`${s.name}: OFF ${xLabel(e.x)}`}</title></rect>

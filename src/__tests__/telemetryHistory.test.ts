@@ -11,13 +11,13 @@ const proj = (id: string, c: number, patch: Partial<Projector> = {}): Projector 
 describe('telemetryHistory', () => {
   beforeEach(() => clearHistory())
 
-  test('ghi lần bật (mốc = poweredOnAt) và lần tắt; mất kết nối cũng tính là hết bật', () => {
+  test('ghi lần bật (mốc = poweredOnAt) và lần tắt; mất kết nối cũng tính là hết bật (đánh dấu lost)', () => {
     recordTelemetry([proj('a', 40, { poweredOnAt: 500 })], 1000)
     recordTelemetry([proj('a', 40, { poweredOnAt: 500 })], 2000) // vẫn bật → không thêm sự kiện
     recordTelemetry([proj('a', 0, { power: 'standby' })], 3000)
     recordTelemetry([proj('a', 41, { poweredOnAt: 4000 })], 4000)
     recordTelemetry([proj('a', 41, { connection: 'disconnected' })], 5000)
-    expect(eventsOf('a')).toEqual([{ t: 500, on: true }, { t: 3000, on: false }, { t: 4000, on: true }, { t: 5000, on: false }])
+    expect(eventsOf('a')).toEqual([{ t: 500, on: true }, { t: 3000, on: false }, { t: 4000, on: true }, { t: 5000, on: false, lost: true }])
   })
 
   test('nhiệt độ chỉ ghi khi máy đang bật và có số đo; không dày hơn MIN_GAP_MS', () => {

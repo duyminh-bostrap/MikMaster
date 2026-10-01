@@ -72,7 +72,7 @@ export interface TimelineSeries {
   /** Mỗi đoạn = một lần bật: các điểm (x = ms kể từ `origin`, y = °C). Giữa hai đoạn là lúc máy tắt (đường đứt quãng). */
   segments: { x: number; y: number }[][]
   /** Các lần bật / tắt (x = ms kể từ `origin`). */
-  events: { x: number; on: boolean }[]
+  events: { x: number; on: boolean; lost?: boolean }[]
 }
 
 export interface Timeline { origin: number; end: number; series: TimelineSeries[] }
@@ -107,7 +107,7 @@ export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sa
       const x = now - origin
       if (seg.length === 0 || x > seg[seg.length - 1]!.x) seg.push({ x, y: c })
     }
-    series.push({ projector, segments: segments.filter(sg => sg.length > 0), events: ev.map(e => ({ x: e.t - origin, on: e.on })) })
+    series.push({ projector, segments: segments.filter(sg => sg.length > 0), events: ev.map(e => ({ x: e.t - origin, on: e.on, ...(e.lost ? { lost: true } : {}) })) })
   }
   return { origin, end: now, series }
 }

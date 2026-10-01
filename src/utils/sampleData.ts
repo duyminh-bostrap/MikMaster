@@ -22,7 +22,7 @@ function sampleEvents(p: Projector, i: number, now: number): PowerEvent[] {
     case 'on': return [{ t: now - onFor, on: true }]
     case 'restarted': return [{ t: now - onFor - 40 * MIN, on: true }, { t: now - onFor - 15 * MIN, on: false }, { t: now - onFor, on: true }]
     case 'standby': return [{ t: now - 75 * MIN, on: true }, { t: now - 20 * MIN, on: false }]
-    case 'offline': return [{ t: now - onFor, on: true }, { t: now - 3 * MIN, on: false }]
+    case 'offline': return [{ t: now - onFor, on: true }, { t: now - 3 * MIN, on: false, lost: true }]
   }
 }
 

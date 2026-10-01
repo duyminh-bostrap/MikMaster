@@ -1,4 +1,4 @@
-import { FlaskConical } from 'lucide-react'
+import { FlaskConical, WifiOff } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -30,6 +30,15 @@ function Table({ head, children, caption }: { head: string[]; children: ReactNod
       </table>
     </div>
   )
+}
+
+/** Trạng thái kết nối dạng icon: đang kết nối = chấm xanh; mất kết nối = icon mất kết nối màu đỏ. */
+function ConnectionIcon({ p }: { p: Projector }) {
+  const t = useT()
+  const lost = p.connection === 'disconnected' || p.connection === 'protocol-error'
+  return lost
+    ? <WifiOff size={13} strokeWidth={2.5} className="shrink-0 text-danger" role="img" aria-label={t('Disconnected')} data-connection="lost"><title>{t('Disconnected')}</title></WifiOff>
+    : <span role="img" aria-label={t('Connected')} title={t('Connected')} data-connection="ok" className="inline-block size-2.5 shrink-0 rounded-full bg-ok" />
 }
 
 const Note = ({ children }: { children: ReactNode }) => <p className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-muted-foreground">{children}</p>
@@ -75,6 +84,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
   const tl = timeline(projectors, history, powerEvents, now)
   const chartSeries = (tl?.series ?? []).map(sr => ({
     id: sr.projector.id, name: sr.projector.name, color: colorOf(sr.projector), segments: sr.segments, events: sr.events,
+    lost: sr.projector.connection === 'disconnected' || sr.projector.connection === 'protocol-error',
   }))
   const xMax = Math.max(2 * 60_000, tl ? tl.end - tl.origin : 0)
   const clockAt = (ms: number) => formatClock(new Date((tl?.origin ?? now) + ms)).slice(0, 5)
@@ -134,14 +144,14 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
             <ul className="max-h-96 overflow-y-auto py-1">
               {projectors.map(p => {
                 const line = chartSeries.find(sr => sr.id === p.id)
-                const st = monitorStatus(p), c = p.telemetry.temperatureC
+                const c = p.telemetry.temperatureC
                 return (
                   <li key={p.id} data-legend={p.id}>
                     <button type="button" onMouseEnter={() => line && setFocus(p.id)} onMouseLeave={() => setFocus(null)} onFocus={() => line && setFocus(p.id)} onBlur={() => setFocus(null)} onClick={() => onOpen(p.id)}
                       className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-xs transition-colors hover:bg-muted', focus === p.id && 'bg-muted')}>
                       <span className={cn('size-3 shrink-0 rounded-sm', !line && 'border border-dashed border-muted-foreground/60')} style={line ? { background: line.color } : undefined} aria-hidden />
                       <span className="min-w-0 flex-1 truncate text-foreground">{p.name}</span>
-                      <Badge tone={st.tone}>{t(st.label)}</Badge>
+                      <ConnectionIcon p={p} />
                       <span className={cn('w-10 shrink-0 text-right', c > 0 ? TONE_TEXT[temperatureTone(c)] : 'text-muted-foreground')}>{c > 0 ? `${c}°C` : '—'}</span>
                     </button>
                   </li>
@@ -150,7 +160,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
             </ul>
           </aside>
         </div>
-        {chartSeries.length > 0 && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{t('Power on ▲ · power off ■ (under the time axis)')}</p>}
+        {chartSeries.length > 0 && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{t('Power on ▲ · power off ■ · connection lost (red icon) — under the time axis')}</p>}
         {(temp.missing > 0 || onTime.off > 0) && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{[onTime.off > 0 && t('{n} projector(s) are not on', { n: onTime.off }), temp.missing > 0 && temp.rows.length > 0 && t('{n} projector(s) report no temperature', { n: temp.missing })].filter(Boolean).join(' · ')}</p>}
       </Panel>
 

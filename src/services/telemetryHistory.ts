@@ -8,7 +8,8 @@ import type { Projector } from '@/types'
  * Giữ MAX_AGE_MS gần nhất.
  */
 export interface Sample { t: number; c: number }
-export interface PowerEvent { t: number; on: boolean }
+/** `lost`: hết bật vì MẤT KẾT NỐI (không phải tắt máy). */
+export interface PowerEvent { t: number; on: boolean; lost?: boolean }
 
 export const MAX_AGE_MS = 24 * 60 * 60_000
 export const MIN_GAP_MS = 10_000
@@ -36,7 +37,7 @@ export function recordTelemetry(projectors: Projector[], now: number = Date.now(
     const last = ev[ev.length - 1]
     const on = isOn(p)
     if (on && !last?.on) { ev.push({ t: Math.min(now, p.poweredOnAt ?? now), on: true }); changed = true }
-    else if (!on && last?.on) { ev.push({ t: now, on: false }); changed = true }
+    else if (!on && last?.on) { ev.push({ t: now, on: false, ...(p.connection !== 'connected' ? { lost: true } : {}) }); changed = true }
     trim(ev, now)
     if (ev.length > 0) events.set(p.id, ev)
 

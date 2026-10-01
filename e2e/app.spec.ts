@@ -348,7 +348,7 @@ test('Dashboard: one overview chart (temperature + power on / off over time from
   await expect(legend.locator('li')).toHaveCount(6)
   await expect(legend).toContainText('Center Fill')
   await expect(legend).toContainText('27°C')
-  await expect(legend.locator('li').first()).toContainText('ON') // kèm trạng thái kết nối của từng máy
+  await expect(legend.locator('li').first().getByRole('img', { name: 'Connected' })).toBeVisible() // kết nối: chấm xanh
   // Chưa trỏ vào đường nào → không có khung thông tin; trỏ vào đường của một máy → hiện thông tin máy đó.
   const tip = page.getByTestId('chart-tip')
   await expect(tip).toHaveCount(0)
@@ -378,7 +378,8 @@ test('Dashboard: one overview chart (temperature + power on / off over time from
   // Khung màu vẫn liệt kê mọi máy, kèm trạng thái mất kết nối (máy chưa có đường thì ô màu nét đứt).
   const legendAfter = monitor.getByRole('complementary', { name: 'Projector colours' })
   await expect(legendAfter.locator('li')).toHaveCount(6)
-  await expect(legendAfter.locator('li').first()).toContainText('OFFLINE')
+  await expect(legendAfter.getByRole('img', { name: 'Disconnected' })).toHaveCount(6) // mất kết nối: icon đỏ
+  await expect(chart.locator('[data-event="lost"]')).toHaveCount(6) // và dấu mất kết nối trên trục thời gian
   await monitor.getByRole('radio', { name: 'Errors', exact: true }).click()
   await expect(monitor.getByText(/ACTIVE ERRORS/)).toBeVisible()
   await page.screenshot({ path: 'test-results/monitor.png' })
@@ -487,7 +488,6 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await expect(chart.locator('[data-event="on"]')).not.toHaveCount(0)
   const legend = monitor.getByRole('complementary', { name: 'Projector colours' })
   await expect(legend.locator('li')).toHaveCount(6)
-  await expect(legend).toContainText('STANDBY')
   // Trỏ vào một đường → khung thông tin của máy đó.
   const dot = await chart.locator('[data-series]').first().locator('circle').boundingBox()
   await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2)
