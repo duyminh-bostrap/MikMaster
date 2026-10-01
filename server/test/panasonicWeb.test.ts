@@ -123,4 +123,13 @@ describe('Panasonic Remote preview over WebSocket (pj-cast-protocol on port 8080
     await new Promise(r => setTimeout(r, 200))
     assert.deepEqual(idle.fp.received.filter(x => x === 'start' || x.startsWith('preshow')), ['start']) // (khung đóng kết nối không tính)
   })
+
+  test('Pre-Show already on (the projector streams pictures right away) → "preshow:1" is NOT sent, and nothing is "restored" (the user\'s own setting stays)', async () => {
+    const { fp, port } = await start('frames')
+    const r = await panasonicPreview(target, port, { preshow: true })
+    assert.equal(r.state, 'image')
+    closeAllPanasonicStreams()
+    await new Promise(res => setTimeout(res, 200))
+    assert.deepEqual(fp.received.filter(x => x === 'start' || x.startsWith('preshow')), ['start'])
+  })
 })

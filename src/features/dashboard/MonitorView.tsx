@@ -17,7 +17,7 @@ import type { Booth, Projector } from '@/types'
 import { cn } from '@/utils/cn'
 import { formatClock, formatDuration } from '@/utils/format'
 import { sampleData } from '@/utils/sampleData'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, temperatureRows, timeline } from '@/utils/monitor'
+import { activeErrors, brightnessRows, logRows, monitorStatus, temperatureRows, timeline } from '@/utils/monitor'
 import { TEMP_DANGER, TEMP_RANGE, TEMP_WARN, TONE_TEXT, temperatureTone } from '@/utils/tones'
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
@@ -61,7 +61,6 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
 
   const temp = temperatureRows(projectors)
   const bright = brightnessRows(projectors)
-  const onTime = onTimeRows(projectors, now)
   const logs = logRows(projectors, logFilter)
   const errors = activeErrors(projectors)
 
@@ -157,13 +156,13 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
           </aside>
         </div>
         {chartSeries.length > 0 && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{t('Power on ▲ · power off ■ · connection lost (red icon) — under the time axis')}</p>}
-        {(temp.missing > 0 || onTime.off > 0) && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{[onTime.off > 0 && t('{n} projector(s) are not on', { n: onTime.off }), temp.missing > 0 && temp.rows.length > 0 && t('{n} projector(s) report no temperature', { n: temp.missing })].filter(Boolean).join(' · ')}</p>}
+        {temp.missing > 0 && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{[temp.missing > 0 && temp.rows.length > 0 && t('{n} projector(s) report no temperature', { n: temp.missing })].filter(Boolean).join(' · ')}</p>}
       </Panel>
 
       <Panel title={t('BRIGHTNESS')} className="col-span-2 min-w-0 max-xl:col-span-1"
-        aside={<Aside>{bright.rows.length > 0 ? `${t('avg {avg}%', { avg: bright.avg })}${bright.off > 0 ? ` · ${t('{n} projector(s) are not on', { n: bright.off })}` : ''}` : '—'}</Aside>}>
+        aside={<Aside>{bright.rows.length > 0 ? `${t('avg {avg}%', { avg: bright.avg })}${bright.off > 0 ? ` · ${t('{n} projector(s) report no brightness', { n: bright.off })}` : ''}` : '—'}</Aside>}>
         {bright.rows.length === 0 ? (
-          <p className="font-mono text-xs text-muted-foreground">{t('No projector is on.')}</p>
+          <p className="font-mono text-xs text-muted-foreground">{t('No projector reports a brightness.')}</p>
         ) : (
           <ul aria-label={t('BRIGHTNESS')} className="grid grid-cols-3 gap-x-6 gap-y-1 font-mono text-xs max-2xl:grid-cols-2 max-md:grid-cols-1">
             {bright.rows.map(p => (

@@ -28,9 +28,9 @@ export function temperatureRows(ps: Projector[]): { rows: Projector[]; missing: 
   return { rows, missing: ps.length - rows.length, avg: temps.length ? Math.round(temps.reduce((s, n) => s + n, 0) / temps.length) : 0, max: temps.length ? Math.max(...temps) : 0 }
 }
 
-/** Máy đang bật, sáng nhất trước; kèm số máy không bật (không có độ sáng). */
+/** Máy báo được độ sáng (> 0, đang kết nối — kể cả khi đang tắt / chờ), sáng nhất trước; kèm số máy không báo. */
 export function brightnessRows(ps: Projector[]): { rows: Projector[]; off: number; avg: number } {
-  const rows = ps.filter(p => p.power === 'on').sort((a, b) => b.telemetry.brightness - a.telemetry.brightness || byName(a, b))
+  const rows = ps.filter(p => p.connection === 'connected' && p.telemetry.brightness > 0).sort((a, b) => b.telemetry.brightness - a.telemetry.brightness || byName(a, b))
   return { rows, off: ps.length - rows.length, avg: rows.length ? Math.round(rows.reduce((s, p) => s + p.telemetry.brightness, 0) / rows.length) : 0 }
 }
 
@@ -88,7 +88,7 @@ export const GAP_MS = 60_000
 
 /**
  * Biểu đồ theo thời gian thật, gốc = lúc MÁY ĐẦU TIÊN được xác nhận là bật (sự kiện bật sớm nhất của các máy đang xem).
- * Mỗi máy một đường: nhiệt độ khi bật, rơi xuống đáy khi tắt / chờ, đứt khi mất kết nối. Máy đang kết nối được thêm điểm "bây giờ"
+ * Mỗi máy một đường: nhiệt độ thật (kể cả khi máy tắt / chờ mà vẫn báo được), rơi xuống đáy khi tắt mà không có số đo, đứt khi mất kết nối. Máy đang kết nối được thêm điểm "bây giờ"
  * từ trạng thái hiện tại. `end` = mốc mới nhất có dữ liệu (biểu đồ chỉ dịch tiếp khi có dữ liệu mới). `null` nếu chưa máy nào từng bật.
  */
 export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sample[], eventsOf: (id: string) => readonly PowerEvent[], now: number): Timeline | null {
@@ -113,7 +113,9 @@ export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sa
     // Điểm "bây giờ": chỉ khi máy đang kết nối.
     if (projector.connection === 'connected') {
       const c = projector.telemetry.temperatureC
-      if (projector.power === 'on') { if (c > 0) push(now, c) } else push(now, null)
+      // Có số đo thì vẽ số đo (kể cả máy đang tắt / chờ mà vẫn báo nhiệt độ); không có số đo + đang tắt → đáy trục.
+      if (c > 0) push(now, c)
+      else if (projector.power !== 'on') push(now, null)
     }
     series.push({ projector, segments: segments.filter(sg => sg.length > 0), events: ev.map(e => ({ x: e.t - origin, on: e.on, ...(e.lost ? { lost: true } : {}) })) })
   }

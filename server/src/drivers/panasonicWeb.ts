@@ -36,6 +36,8 @@ interface Stream {
   preshow?: boolean
   /** Máy đang đổi Pre-Show ('CHANGING_PRE'): chờ ảnh. */
   switching?: boolean
+  /** Đã xem trạng thái ban đầu để quyết định có cần bật Pre-Show không. */
+  preshowChecked?: boolean
   waiters: Array<() => void>
   idle?: ReturnType<typeof setTimeout>
   dead: boolean
@@ -106,7 +108,13 @@ export async function panasonicPreview(t: DriverTarget, port = WS_PORT, opts: { 
   clearTimeout(s.idle)
   s.idle = setTimeout(() => close(key, s), IDLE_MS)
 
-  if (opts.preshow === true && !s.preshow) { s.preshow = true; s.switching = true; s.ws.send('preshow:1') }
+  if (opts.preshow === true && !s.preshow && !s.preshowChecked) {
+    // Máy .176 đo thực tế (2026-10-01): đang chờ mà VẪN gửi ảnh ngay khi Pre-Show đã bật sẵn → chỉ bật khi máy chưa gửi ảnh (BLANK / im lặng),
+    // và chỉ "trả lại" (preshow:0) khi chính driver đã bật — không tắt cài đặt có sẵn của người dùng.
+    if (!s.frame && !s.status) await new Promise<void>(resolve => { const timer = setTimeout(resolve, 1500); s.waiters.push(() => { clearTimeout(timer); resolve() }) })
+    s.preshowChecked = true
+    if (!s.frame && s.status !== 'hdcp') { s.preshow = true; s.switching = true; s.ws.send('preshow:1') }
+  }
   else if (opts.preshow === false && s.preshow) { s.preshow = false; s.ws.send('preshow:0'); return { state: 'no-signal' } }
 
   if (s.frame && Date.now() - s.frame.at < FRESH_MS) return toResult(s)!

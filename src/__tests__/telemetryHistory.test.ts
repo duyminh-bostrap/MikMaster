@@ -20,11 +20,13 @@ describe('telemetryHistory', () => {
     expect(eventsOf('a')).toEqual([{ t: 500, on: true }, { t: 3000, on: false }, { t: 4000, on: true }, { t: 5000, on: false, lost: true }])
   })
 
-  test('mỗi lần cập nhật một mẫu (cách nhau ≥ MIN_GAP_MS): nhiệt độ khi bật, mẫu "tắt" khi tắt / chờ, KHÔNG có mẫu khi mất kết nối', () => {
+  test('mỗi lần cập nhật một mẫu (cách nhau ≥ MIN_GAP_MS): nhiệt độ thật (kể cả đang chờ), mẫu "tắt" khi tắt mà không có số đo, KHÔNG có mẫu khi mất kết nối', () => {
     recordTelemetry([proj('a', 40), proj('b', 0), proj('c', 50, { power: 'standby' }), proj('d', 33, { connection: 'disconnected' })], 1000)
     expect(historyOf('a')).toEqual([{ t: 1000, c: 40 }])
     expect(historyOf('b')).toEqual([]) // bật nhưng chưa có số đo
-    expect(historyOf('c')).toEqual([{ t: 1000, c: 0, off: true }]) // chờ: đường rơi xuống đáy
+    expect(historyOf('c')).toEqual([{ t: 1000, c: 50 }]) // đang chờ nhưng vẫn báo nhiệt độ: mẫu nhiệt độ thật
+    recordTelemetry([proj('e', 0, { power: 'standby' })], 1000)
+    expect(historyOf('e')).toEqual([{ t: 1000, c: 0, off: true }]) // chờ và không báo gì: đáy trục
     expect(historyOf('d')).toEqual([]) // mất kết nối: đứt
     recordTelemetry([proj('a', 41)], 1000 + MIN_GAP_MS - 1)
     recordTelemetry([proj('a', 42)], 1000 + MIN_GAP_MS)

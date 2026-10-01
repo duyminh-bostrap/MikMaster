@@ -3,7 +3,8 @@ import type { Projector } from '@/types'
 
 /**
  * Lịch sử cho biểu đồ ở view Dashboard (chỉ trong bộ nhớ, mất khi tải lại trang hoặc đổi project):
- *   - mẫu của từng máy mỗi lần cập nhật (cách nhau ≥ MIN_GAP_MS): nhiệt độ khi máy bật, hoặc mẫu "tắt" (`off`) khi máy tắt / chờ;
+ *   - mẫu của từng máy mỗi lần cập nhật (cách nhau ≥ MIN_GAP_MS): nhiệt độ thật nếu máy báo được (kể cả khi đang tắt / chờ),
+ *     hoặc mẫu "tắt" (`off`, vẽ ở đáy trục) khi máy tắt và không báo nhiệt độ;
  *     MẤT KẾT NỐI thì không có mẫu (đường biểu đồ đứt quãng);
  *   - các lần BẬT / TẮT của từng máy (lúc app xác nhận máy chuyển trạng thái).
  * Giữ MAX_AGE_MS gần nhất.
@@ -61,7 +62,8 @@ export function recordTelemetry(projectors: Projector[], now: number = Date.now(
 
     if (p.connection !== 'connected') continue // mất kết nối: không có mẫu
     const c = p.telemetry.temperatureC
-    const sample: Sample | null = on ? (c > 0 ? { t: now, c } : null) : { t: now, c: 0, off: true }
+    // Máy báo được nhiệt độ (kể cả đang tắt / chờ) → mẫu nhiệt độ thật; không có số đo + đang tắt → mẫu "tắt" (đáy trục).
+    const sample: Sample | null = c > 0 ? { t: now, c } : on ? null : { t: now, c: 0, off: true }
     if (!sample) continue
     const list = samples.get(p.id) ?? []
     const prev = list[list.length - 1]

@@ -27,10 +27,14 @@ describe('bảng nhiệt độ / độ sáng', () => {
     expect(temperatureRows([])).toEqual({ rows: [], missing: 0, avg: 0, max: 0 })
   })
 
-  test('độ sáng: chỉ máy đang bật, sáng nhất trước', () => {
-    const r = brightnessRows([proj('a', { power: 'on', telemetry: tel(0, 50) }), proj('b', { power: 'on', telemetry: tel(0, 90) }), proj('c', { power: 'standby', telemetry: tel(0, 100) })])
-    expect(r.rows.map(p => p.id)).toEqual(['b', 'a'])
-    expect([r.off, r.avg]).toEqual([1, 70])
+  test('độ sáng: mọi máy đang kết nối báo được độ sáng (kể cả đang chờ), sáng nhất trước; máy không báo / mất kết nối chỉ được đếm', () => {
+    const r = brightnessRows([
+      proj('a', { power: 'on', telemetry: tel(0, 50) }), proj('b', { power: 'on', telemetry: tel(0, 90) }),
+      proj('c', { power: 'standby', telemetry: tel(0, 100) }), proj('d', { power: 'off', telemetry: tel(0, 0) }),
+      proj('e', { power: 'on', connection: 'disconnected', telemetry: tel(0, 80) }),
+    ])
+    expect(r.rows.map(p => p.id)).toEqual(['c', 'b', 'a'])
+    expect([r.off, r.avg]).toEqual([2, 80])
   })
 })
 
@@ -98,6 +102,13 @@ describe('timeline (bật / tắt + nhiệt độ lúc bật, gốc = máy đầ
     const sb = tl.series.find(x => x.projector.id === 'b')!
     expect(sb.segments[0]!.slice(0, 2)).toEqual([{ x: 1000, y: 33 }, { x: 1500, y: 36 }])
     expect(sb.events[1]).toEqual({ x: 2000, on: false, lost: true })
+  })
+
+  test('máy đang tắt / chờ mà vẫn báo nhiệt độ → vẽ nhiệt độ thật, không rơi xuống đáy', () => {
+    const now2 = 5_000_000
+    const standby = proj('a', { power: 'standby', telemetry: tel(31) })
+    const tl = timeline([standby], () => [{ t: now2 - 4000, c: 33 }], () => [{ t: now2 - 4000, on: true }, { t: now2 - 2000, on: false }], now2)!
+    expect(tl.series[0]!.segments).toEqual([[{ x: 0, y: 33 }, { x: 4000, y: 31 }]])
   })
 
   test('mất kết nối (không có mẫu quá GAP_MS) → đường đứt thành hai đoạn; máy mất kết nối không có điểm "bây giờ"', () => {

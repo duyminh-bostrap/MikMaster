@@ -47,6 +47,15 @@ function offCurve(from: number, to: number): Sample[] {
   return out
 }
 
+/** Máy đã tắt nhưng vẫn báo nhiệt độ: nguội dần từ nhiệt độ lúc tắt về nhiệt độ phòng, mỗi 30 giây. */
+function coolCurve(p: Projector, from: number, to: number, fromTemp: number): Sample[] {
+  const h = hash(p.id)
+  const base = 22 + (h % 3)
+  const out: Sample[] = []
+  for (let t = from; t < to; t += 30_000) out.push({ t, c: Math.round((base + (fromTemp - base) * Math.exp(-(t - from) / (12 * MIN))) * 10) / 10 })
+  return out
+}
+
 export interface SampleSet {
   projectors: Projector[]
   history: Map<string, Sample[]>
@@ -67,7 +76,11 @@ export function sampleData(ps: Projector[], now: number): SampleSet {
     ev.forEach((e, k) => {
       const to = ev[k + 1]?.t ?? now - 10_000
       if (e.on) samples.push(...warmCurve(p, target, e.t, to))
-      else if (!e.lost) samples.push(...offCurve(e.t, to))
+      else if (!e.lost) {
+        // Máy chờ vẫn báo nhiệt độ (nguội dần); các máy khác tắt mà không có số đo → đáy trục.
+        const before = [...samples].reverse().find(x => !x.off)?.c ?? target
+        samples.push(...(kind === 'standby' ? coolCurve(p, e.t, to, before) : offCurve(e.t, to)))
+      }
     })
     history.set(p.id, samples)
     const on = kind === 'on' || kind === 'restarted'
@@ -84,7 +97,8 @@ export function sampleData(ps: Projector[], now: number): SampleSet {
       connection: kind === 'offline' ? 'disconnected' : 'connected',
       errors: kind === 'offline' ? ['Offline'] : [],
       log,
-      telemetry: { ...p.telemetry, temperatureC: on ? (last?.c ? Math.round(last.c) : target) : 0, brightness: on ? 60 + (h % 41) : 0, lampHours: 100 + (h % 3000) },
+      // Máy chờ vẫn báo nhiệt độ và độ sáng (mẫu); máy đã tắt hẳn không báo gì.
+      telemetry: { ...p.telemetry, temperatureC: on || kind === 'standby' ? (last?.c ? Math.round(last.c) : target) : 0, brightness: on ? 60 + (h % 41) : kind === 'standby' ? 20 + (h % 20) : 0, lampHours: 100 + (h % 3000) },
     } satisfies Projector
   })
   return { projectors, history, events }

@@ -30,7 +30,9 @@ describe('dữ liệu mẫu cho Dashboard', () => {
         const k = ev.findIndex((_, i) => sm.t >= ev[i]!.t && sm.t < (ev[i + 1]?.t ?? Infinity))
         const e = ev[k]!
         expect(e.lost).toBeFalsy() // không có mẫu trong lúc mất kết nối
-        expect(!!sm.off).toBe(!e.on) // bật ↔ nhiệt độ, tắt ↔ mẫu "tắt"
+        if (e.on) expect(sm.off).toBeFalsy() // bật: nhiệt độ
+        else if (p.power === 'standby') expect(sm.off).toBeFalsy() // máy chờ vẫn báo nhiệt độ (nguội dần)
+        else expect(sm.off).toBe(true) // tắt hẳn: mẫu "tắt"
       }
     }
   })

@@ -324,7 +324,7 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
   await expect(monitor.getByRole('heading', { name: 'STATUS' })).toHaveCount(0) // không có box Status (trạng thái nằm ở khung màu bên biểu đồ)
   await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
   // Bấm hàng → mở trang máy.
-  await expect(monitor.getByText('No projector is on.')).toBeVisible()
+  await expect(monitor.getByText('No projector reports a brightness.')).toBeVisible()
   await page.getByRole('radio', { name: 'Groups' }).click()
   await card(page, 'PJ-03').click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
@@ -494,7 +494,7 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2)
   await expect(page.getByTestId('chart-tip')).toBeVisible()
   await page.screenshot({ path: 'test-results/sample-chart.png' })
-  await expect(monitor.getByTestId('brightness-row')).toHaveCount(5)
+  await expect(monitor.getByTestId('brightness-row')).toHaveCount(6) // gồm cả máy đang chờ vẫn báo độ sáng
   // Tắt → về dữ liệu thật; project không bị đổi.
   await page.getByRole('button', { name: 'STOP SAMPLE DATA' }).click()
   await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
