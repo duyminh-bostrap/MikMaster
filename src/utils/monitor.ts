@@ -1,4 +1,4 @@
-import type { Sample } from '@/services/telemetryHistory'
+import type { PowerEvent, Sample } from '@/services/telemetryHistory'
 import type { LogEntry, Projector } from '@/types'
 import type { Tone } from '@/utils/tones'
 
@@ -67,24 +67,47 @@ export function activeErrors(ps: Projector[]): { projector: Projector; errors: s
   return ps.filter(p => p.errors.length > 0).map(projector => ({ projector, errors: projector.errors })).sort((a, b) => byName(a.projector, b.projector))
 }
 
-export interface WarmupSeries { projector: Projector; points: { x: number; y: number }[] }
+export interface TimelineSeries {
+  projector: Projector
+  /** Mỗi đoạn = một lần bật: các điểm (x = ms kể từ `origin`, y = °C). Giữa hai đoạn là lúc máy tắt (đường đứt quãng). */
+  segments: { x: number; y: number }[][]
+  /** Các lần bật / tắt (x = ms kể từ `origin`). */
+  events: { x: number; on: boolean }[]
+}
+
+export interface Timeline { origin: number; end: number; series: TimelineSeries[] }
 
 /**
- * Nhiệt độ theo thời gian TỪ LÚC BẬT MÁY (bằng phần mềm): mỗi máy đang bật một đường, x = ms kể từ lúc bật, y = °C.
- * Chỉ lấy mẫu sau lúc bật (mẫu của lần bật trước bị bỏ), thêm điểm "bây giờ" từ số đo hiện tại để đường luôn chạm tới hiện tại.
+ * Biểu đồ theo thời gian thật, gốc = lúc MÁY ĐẦU TIÊN được xác nhận là bật (sự kiện bật sớm nhất của các máy đang xem).
+ * Mỗi máy: các lần bật / tắt, và nhiệt độ trong lúc bật (đường liền trong một lần bật; máy tắt thì ngắt quãng).
+ * Máy đang bật được thêm điểm "bây giờ" từ số đo hiện tại để đường chạm tới hiện tại. `null` nếu chưa máy nào từng bật.
  */
-export function warmupSeries(ps: Projector[], historyOf: (id: string) => readonly Sample[], now: number): WarmupSeries[] {
-  const out: WarmupSeries[] = []
+export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sample[], eventsOf: (id: string) => readonly PowerEvent[], now: number): Timeline | null {
+  const firstOn = ps.flatMap(p => eventsOf(p.id).filter(e => e.on).map(e => e.t))
+  if (firstOn.length === 0) return null
+  const origin = Math.min(...firstOn)
+  const series: TimelineSeries[] = []
   for (const projector of ps) {
-    if (projector.power !== 'on' || projector.poweredOnAt === undefined) continue
-    const start = projector.poweredOnAt
-    const points = historyOf(projector.id).filter(s => s.t >= start).map(s => ({ x: s.t - start, y: s.c }))
-    const c = projector.telemetry.temperatureC
-    if (c > 0 && projector.connection === 'connected') {
-      const x = Math.max(0, now - start)
-      if (points.length === 0 || x > points[points.length - 1]!.x) points.push({ x, y: c })
+    const ev = eventsOf(projector.id)
+    if (!ev.some(e => e.on)) continue
+    // Khoảng bật: [lúc bật, lúc tắt kế tiếp | bây giờ]
+    const periods: [number, number][] = []
+    for (let i = 0; i < ev.length; i++) {
+      const e = ev[i]!
+      if (!e.on) continue
+      const off = ev.slice(i + 1).find(x => !x.on)
+      periods.push([e.t, off ? off.t : now])
     }
-    if (points.length > 0) out.push({ projector, points })
+    const hist = historyOf(projector.id)
+    const segments = periods.map(([a, b]) => hist.filter(s => s.t >= a && s.t <= b).map(s => ({ x: s.t - origin, y: s.c })))
+    const lastOpen = ev[ev.length - 1]!.on
+    const c = projector.telemetry.temperatureC
+    if (lastOpen && c > 0 && projector.connection === 'connected' && segments.length > 0) {
+      const seg = segments[segments.length - 1]!
+      const x = now - origin
+      if (seg.length === 0 || x > seg[seg.length - 1]!.x) seg.push({ x, y: c })
+    }
+    series.push({ projector, segments: segments.filter(sg => sg.length > 0), events: ev.map(e => ({ x: e.t - origin, on: e.on })) })
   }
-  return out
+  return { origin, end: now, series }
 }

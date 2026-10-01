@@ -1,7 +1,15 @@
 import { useRef, useState, type ReactNode } from 'react'
 
 export interface LinePoint { x: number; y: number }
-export interface LineSeries { id: string; name: string; color: string; points: readonly LinePoint[] }
+export interface LineSeries {
+  id: string
+  name: string
+  color: string
+  /** Các đoạn liền (vd. mỗi lần máy bật); giữa hai đoạn đường bị ngắt. */
+  segments: readonly (readonly LinePoint[])[]
+  /** Dấu bật (▲) / tắt (■) trên trục thời gian. */
+  events?: readonly { x: number; on: boolean }[]
+}
 export interface Threshold { value: number; color: string; label: string }
 
 const W = 1000
@@ -36,9 +44,11 @@ interface Hover { id: string; point: LinePoint; left: number; top: number; flip:
  * Rê chuột vào một đường: đường đó nổi lên (các đường khác mờ), có đường kẻ dọc + điểm tròn tại mẫu gần nhất và khung thông tin
  * (do `renderTip` dựng) — rời khỏi đường thì khung biến mất. `highlight` / `onHighlight` cho phép khung chú thích bên cạnh dùng chung trạng thái.
  */
-export function LineChart({ series, xMax, xLabel, thresholds, highlight, onHighlight, renderTip, label }: {
+export function LineChart({ series, xMax, xLabel, xStep, thresholds, highlight, onHighlight, renderTip, label }: {
   series: LineSeries[]
   xMax: number
+  /** Bước chia trục ngang (ms); mặc định tự chọn. */
+  xStep?: number
   xLabel: (ms: number) => string
   thresholds?: Threshold[]
   highlight?: string | null
@@ -50,15 +60,15 @@ export function LineChart({ series, xMax, xLabel, thresholds, highlight, onHighl
   const wrap = useRef<HTMLDivElement>(null)
   const [hover, setHover] = useState<Hover | null>(null)
 
-  const ys = series.flatMap(s => s.points.map(p => p.y))
+  const ys = series.flatMap(s => s.segments.flatMap(sg => sg.map(p => p.y)))
   const lo = Math.max(0, Math.floor((Math.min(...ys) - 5) / 5) * 5)
   const hi = Math.max(lo + 20, Math.ceil((Math.max(...ys, ...(thresholds?.map(th => th.value) ?? [])) + 5) / 5) * 5)
   const plotR = W - PAD.r
   const x = (v: number) => PAD.l + (v / xMax) * (plotR - PAD.l)
   const y = (v: number) => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b)
   const yTicks = Array.from({ length: 5 }, (_, i) => lo + ((hi - lo) / 4) * i)
-  const step = niceStepMs(xMax)
-  const xTicks = Array.from({ length: Math.floor(xMax / step) + 1 }, (_, i) => i * step)
+  const step = xStep ?? niceStepMs(xMax)
+  const xTicks = Array.from({ length: Math.floor(xMax / step) + 1 }, (_, i) => i * step).filter(v => v === 0 || xMax - v > step * 0.25)
   const sorted = [...(thresholds ?? [])].sort((a, b) => a.value - b.value)
 
   function setActive(h: Hover | null) {
@@ -74,16 +84,17 @@ export function LineChart({ series, xMax, xLabel, thresholds, highlight, onHighl
     const vy = ((e.clientY - box.top) / box.height) * H
     let best: { s: LineSeries; d: number } | null = null
     for (const s of series) {
-      const pts = s.points
-      for (let i = 0; i < pts.length; i++) {
-        const a = pts[i]!, b = pts[i + 1] ?? a
-        const d = distToSegment(vx, vy, x(a.x), y(a.y), x(b.x), y(b.y))
-        if (!best || d < best.d) best = { s, d }
-        if (i === pts.length - 1) break
+      for (const pts of s.segments) {
+        for (let i = 0; i < pts.length; i++) {
+          const a = pts[i]!, b = pts[i + 1] ?? a
+          const d = distToSegment(vx, vy, x(a.x), y(a.y), x(b.x), y(b.y))
+          if (!best || d < best.d) best = { s, d }
+          if (i === pts.length - 1) break
+        }
       }
     }
     if (!best || best.d > HIT) { if (hover) setActive(null); return }
-    const point = best.s.points.reduce((n, p) => (Math.abs(x(p.x) - vx) < Math.abs(x(n.x) - vx) ? p : n))
+    const point = best.s.segments.flat().reduce((n, p) => (Math.abs(x(p.x) - vx) < Math.abs(x(n.x) - vx) ? p : n))
     const left = e.clientX - wbox.left, top = e.clientY - wbox.top
     setActive({ id: best.s.id, point, left, top, flip: left > wbox.width * 0.6 })
   }
@@ -118,14 +129,22 @@ export function LineChart({ series, xMax, xLabel, thresholds, highlight, onHighl
         ))}
         {hover && <line x1={x(hover.point.x)} x2={x(hover.point.x)} y1={PAD.t} y2={H - PAD.b} stroke="var(--color-muted-foreground)" strokeWidth={1} opacity={0.7} />}
         {series.map(s => {
-          const end = s.points[s.points.length - 1]
-          if (!end) return null
           const on = focus === s.id
           const dim = focus != null && !on
+          const lastSeg = s.segments[s.segments.length - 1]
+          const end = lastSeg?.[lastSeg.length - 1]
           return (
-            <g key={s.id} data-series={s.id} opacity={dim ? 0.18 : 1}>
-              {s.points.length > 1 && <polyline points={s.points.map(p => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={on ? 4 : 2.5} strokeLinejoin="round" strokeLinecap="round" />}
-              <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />
+            <g key={s.id} data-series={s.id} opacity={dim ? 0.15 : 1}>
+              {s.segments.map((sg, k) => sg.length > 1
+                ? <polyline key={k} points={sg.map(p => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={on ? 4 : 2.5} strokeLinejoin="round" strokeLinecap="round" />
+                : sg[0] && <circle key={k} cx={x(sg[0].x)} cy={y(sg[0].y)} r={3} fill={s.color} />)}
+              {end && <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />}
+              {s.events?.map((e, k) => {
+                const ex = x(e.x), ey = H - PAD.b
+                return e.on
+                  ? <path key={k} data-event="on" d={`M${ex},${ey - 9} l5,8 l-10,0 z`} fill={s.color}><title>{`${s.name}: ON ${xLabel(e.x)}`}</title></path>
+                  : <rect key={k} data-event="off" x={ex - 4} y={ey - 9} width={8} height={8} fill="var(--color-card)" stroke={s.color} strokeWidth={2}><title>{`${s.name}: OFF ${xLabel(e.x)}`}</title></rect>
+              })}
             </g>
           )
         })}
@@ -133,7 +152,7 @@ export function LineChart({ series, xMax, xLabel, thresholds, highlight, onHighl
       </svg>
       {hover && hovered && (
         <div role="tooltip" data-testid="chart-tip" style={{ left: hover.left, top: hover.top, transform: `translate(${hover.flip ? 'calc(-100% - 14px)' : '14px'}, 14px)` }}
-          className="pointer-events-none absolute z-10 min-w-44 rounded-sm border border-border bg-card px-3 py-2 font-mono text-xs shadow-lg">
+          className="pointer-events-none absolute z-10 min-w-56 whitespace-nowrap rounded-sm border border-border bg-card px-3 py-2 font-mono text-xs shadow-lg">
           {renderTip(hovered, hover.point)}
         </div>
       )}

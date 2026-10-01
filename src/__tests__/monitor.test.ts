@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { distToSegment, niceStepMs } from '@/components/charts/LineChart'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, warmupSeries } from '@/utils/monitor'
+import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, timeline } from '@/utils/monitor'
 import { createProjector } from '@/utils/projector'
 import type { Projector } from '@/types'
 
@@ -71,24 +71,31 @@ describe('trạng thái và nhật ký', () => {
   })
 })
 
-describe('warmupSeries (nhiệt độ theo thời gian từ lúc bật)', () => {
+describe('timeline (bật / tắt + nhiệt độ lúc bật, gốc = máy đầu tiên bật)', () => {
   const now = 10_000_000
-  test('x = thời gian kể từ lúc bật; bỏ mẫu của lần bật trước; thêm điểm hiện tại', () => {
-    const on = proj('a', { power: 'on', poweredOnAt: now - 600_000, telemetry: tel(48) })
-    const hist = (id: string) => id === 'a' ? [{ t: now - 900_000, c: 30 }, { t: now - 500_000, c: 35 }, { t: now - 100_000, c: 44 }] : []
-    const [s] = warmupSeries([on], hist, now)
-    expect(s!.points).toEqual([{ x: 100_000, y: 35 }, { x: 500_000, y: 44 }, { x: 600_000, y: 48 }])
+  test('chưa máy nào từng bật → null', () => {
+    expect(timeline([proj('a')], () => [], () => [], now)).toBeNull()
   })
 
-  test('máy không bật, chưa có mốc bật, hoặc chưa có số đo thì không có đường', () => {
-    const none = () => []
-    expect(warmupSeries([proj('a', { power: 'standby', poweredOnAt: 1, telemetry: tel(40) }), proj('b', { power: 'on', telemetry: tel(40) }), proj('c', { power: 'on', poweredOnAt: 1, telemetry: tel(0) })], none, now)).toEqual([])
-  })
-
-  test('điểm hiện tại không trùng / lùi so với mẫu cuối', () => {
-    const on = proj('a', { power: 'on', poweredOnAt: now - 1000, telemetry: tel(40) })
-    const [s] = warmupSeries([on], () => [{ t: now, c: 41 }], now)
-    expect(s!.points).toEqual([{ x: 1000, y: 41 }])
+  test('gốc là lần bật sớm nhất; mỗi lần bật một đoạn; sự kiện bật / tắt đổi sang trục từ gốc', () => {
+    const a = proj('a', { power: 'on', poweredOnAt: now - 1000, telemetry: tel(50) })
+    const b = proj('b', { power: 'standby' })
+    const ev: Record<string, { t: number; on: boolean }[]> = {
+      a: [{ t: now - 5000, on: true }, { t: now - 3000, on: false }, { t: now - 1000, on: true }],
+      b: [{ t: now - 6000, on: true }, { t: now - 4000, on: false }],
+    }
+    const hist: Record<string, { t: number; c: number }[]> = {
+      a: [{ t: now - 4500, c: 30 }, { t: now - 3500, c: 35 }, { t: now - 2000, c: 99 }, { t: now - 500, c: 40 }],
+      b: [{ t: now - 5000, c: 33 }],
+    }
+    const tl = timeline([a, b], id => hist[id] ?? [], id => ev[id] ?? [], now)!
+    expect(tl.origin).toBe(now - 6000)
+    const sa = tl.series.find(x => x.projector.id === 'a')!
+    // mẫu lúc máy tắt (now-2000) bị bỏ; đoạn đang bật thêm điểm "bây giờ" 50°C
+    expect(sa.segments).toEqual([[{ x: 1500, y: 30 }, { x: 2500, y: 35 }], [{ x: 5500, y: 40 }, { x: 6000, y: 50 }]])
+    expect(sa.events).toEqual([{ x: 1000, on: true }, { x: 3000, on: false }, { x: 5000, on: true }])
+    const sb = tl.series.find(x => x.projector.id === 'b')!
+    expect(sb.segments).toEqual([[{ x: 1000, y: 33 }]])
   })
 })
 

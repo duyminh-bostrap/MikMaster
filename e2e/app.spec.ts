@@ -318,17 +318,17 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
   // Dashboard: các bảng theo dõi.
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  for (const title of ['TEMPERATURE · TIME SINCE POWER ON', 'BRIGHTNESS', 'STATUS', 'LOG & ERRORS']) {
+  for (const title of ['TEMPERATURE · POWER ON / OFF', 'BRIGHTNESS', 'STATUS', 'LOG & ERRORS']) {
     await expect(monitor.getByRole('heading', { name: title })).toBeVisible()
   }
   await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr')).toHaveCount(6) // đủ 6 máy, mọi trạng thái
-  await expect(monitor.getByText('No projector is on, or none reports a temperature.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
+  await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
   // Bấm hàng → mở trang máy.
   await monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr', { hasText: 'PJ-03' }).click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
 })
 
-test('Dashboard: one overview chart (temperature vs time since power on; hover a line for that projector, colour legend beside), brightness, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
+test('Dashboard: one overview chart (temperature + power on / off over time from the first projector on; hover a line for that projector, colour legend beside), brightness, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
   await createProject(page, 'Monitor Show')
   await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
   let unreachable = false
@@ -341,7 +341,7 @@ test('Dashboard: one overview chart (temperature vs time since power on; hover a
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
   // Một biểu đồ chung: nhiệt độ theo thời gian từ lúc bật máy; mỗi máy một đường, khung bên cạnh ghi màu của từng máy.
-  const chart = monitor.getByRole('group', { name: 'Temperature since power on' })
+  const chart = monitor.getByRole('group', { name: 'Temperature and power on / off over time' })
   await expect(chart).toBeVisible({ timeout: 10_000 })
   await expect(chart.locator('[data-series]')).toHaveCount(6)
   const legend = monitor.getByRole('complementary', { name: 'Projector colours' })
@@ -362,7 +362,7 @@ test('Dashboard: one overview chart (temperature vs time since power on; hover a
   await expect(tip).toHaveCount(0)
   // Trỏ vào khung màu → đường tương ứng nổi lên; bấm → mở trang máy.
   await legend.locator('[data-legend="PJ-03"] button').hover()
-  await expect(chart.locator('[data-series="PJ-02"]')).toHaveAttribute('opacity', '0.18')
+  await expect(chart.locator('[data-series="PJ-02"]')).toHaveAttribute('opacity', '0.15')
   await legend.locator('[data-legend="PJ-03"] button').click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
   await page.goBack()
@@ -478,11 +478,13 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await createProject(page, 'Sample Show')
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  await expect(monitor.getByText('No projector is on, or none reports a temperature.')).toBeVisible()
+  await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
   await page.getByRole('button', { name: 'USE SAMPLE DATA' }).click()
   await expect(page.getByText('SAMPLE DATA — not real measurements')).toBeVisible()
-  const chart = monitor.getByRole('group', { name: 'Temperature since power on' })
-  await expect(chart.locator('[data-series]')).toHaveCount(5) // 6 máy mẫu, 1 máy ở chế độ chờ
+  const chart = monitor.getByRole('group', { name: 'Temperature and power on / off over time' })
+  await expect(chart.locator('[data-series]')).toHaveCount(6) // mọi máy mẫu đều từng bật (kể cả máy đã tắt / mất kết nối)
+  await expect(chart.locator('[data-event="off"]').first()).toBeAttached() // có dấu tắt máy
+  await expect(chart.locator('[data-event="on"]')).not.toHaveCount(0)
   const legend = monitor.getByRole('complementary', { name: 'Projector colours' })
   await expect(legend.locator('li')).toHaveCount(6)
   await expect(legend).toContainText('STANDBY')
@@ -494,6 +496,6 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(5)
   // Tắt → về dữ liệu thật; project không bị đổi.
   await page.getByRole('button', { name: 'STOP SAMPLE DATA' }).click()
-  await expect(monitor.getByText('No projector is on, or none reports a temperature.')).toBeVisible()
+  await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
   await expect(sidebar(page).getByText('UNSAVED')).toHaveCount(0)
 })

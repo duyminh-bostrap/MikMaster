@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { sampleHistory, sampleProjectors } from '@/utils/sampleData'
-import { monitorStatus, warmupSeries } from '@/utils/monitor'
+import { sampleData } from '@/utils/sampleData'
+import { monitorStatus, timeline } from '@/utils/monitor'
 import { createProjector } from '@/utils/projector'
 
 const ps = Array.from({ length: 12 }, (_, i) => createProjector({ id: `PJ-${String(i + 1).padStart(2, '0')}`, boothId: 'b', name: `P${i + 1}`, ip: `10.0.0.${i + 1}` }))
@@ -9,37 +9,36 @@ const now = 1_800_000_000_000
 describe('dữ liệu mẫu cho Dashboard', () => {
   test('xác định (cùng đầu vào → cùng kết quả) và không sửa máy thật', () => {
     const before = JSON.stringify(ps)
-    const a = sampleProjectors(ps, now), b = sampleProjectors(ps, now)
-    expect(a).toEqual(b)
+    expect(sampleData(ps, now)).toEqual(sampleData(ps, now))
     expect(JSON.stringify(ps)).toBe(before)
   })
 
-  test('có đủ các trạng thái để xem: bật, chờ, mất kết nối, có máy vượt ngưỡng nguy hiểm', () => {
-    const s = sampleProjectors(ps, now)
-    const keys = new Set(s.map(p => monitorStatus(p).key))
-    expect(keys).toContain('on')
-    expect(keys).toContain('standby')
-    expect(keys).toContain('offline')
-    expect(Math.max(...s.map(p => p.telemetry.temperatureC))).toBeGreaterThanOrEqual(70)
-    expect(s.filter(p => p.power === 'on').every(p => p.poweredOnAt !== undefined && p.poweredOnAt < now)).toBe(true)
+  test('có đủ tình huống: bật, chờ (đã tắt), mất kết nối, bật lại, vượt ngưỡng nguy hiểm', () => {
+    const s = sampleData(ps, now)
+    const keys = new Set(s.projectors.map(p => monitorStatus(p).key))
+    for (const k of ['on', 'standby', 'offline'] as const) expect(keys).toContain(k)
+    expect([...s.events.values()].some(ev => ev.filter(e => e.on).length >= 2)).toBe(true) // tắt rồi bật lại
+    expect(Math.max(...[...s.history.values()].flat().map(x => x.c))).toBeGreaterThanOrEqual(65)
   })
 
-  test('lịch sử mẫu: tăng dần về nhiệt độ làm việc, mốc thời gian đều và trong khoảng từ lúc bật tới hiện tại', () => {
-    const p = sampleProjectors(ps, now).find(x => x.power === 'on' && x.connection === 'connected')!
-    const h = sampleHistory(p, now)
-    expect(h.length).toBeGreaterThan(10)
-    expect(h[0]!.t).toBe(p.poweredOnAt)
-    expect(h.every((s, i) => i === 0 || s.t - h[i - 1]!.t === 30_000)).toBe(true)
-    expect(h[0]!.c).toBeLessThan(h[h.length - 1]!.c)
-    expect(Math.abs(h[h.length - 1]!.c - p.telemetry.temperatureC)).toBeLessThanOrEqual(Math.ceil(p.telemetry.temperatureC * 0.25))
-    // máy chờ không có lịch sử
-    expect(sampleHistory(sampleProjectors(ps, now).find(x => x.power === 'standby')!, now)).toEqual([])
+  test('nhiệt độ chỉ có trong lúc bật', () => {
+    const s = sampleData(ps, now)
+    for (const p of s.projectors) {
+      const ev = s.events.get(p.id)!
+      for (const sm of s.history.get(p.id)!) {
+        const inside = ev.some((e, k) => e.on && sm.t >= e.t && sm.t <= (ev[k + 1]?.t ?? now))
+        expect(inside).toBe(true)
+      }
+    }
   })
 
-  test('đưa vào warmupSeries được một đường cho mỗi máy đang bật', () => {
-    const s = sampleProjectors(ps, now)
-    const hist = new Map(s.map(p => [p.id, sampleHistory(p, now)]))
-    const series = warmupSeries(s, id => hist.get(id) ?? [], now)
-    expect(series.length).toBe(s.filter(p => p.power === 'on').length) // máy mất kết nối vẫn giữ đường tới lúc mất
+  test('timeline: gốc = máy đầu tiên bật; máy bật lại có 2 đoạn; mọi máy từng bật đều có đường', () => {
+    const s = sampleData(ps, now)
+    const tl = timeline(s.projectors, id => s.history.get(id) ?? [], id => s.events.get(id) ?? [], now)!
+    const firstOn = Math.min(...[...s.events.values()].flat().filter(e => e.on).map(e => e.t))
+    expect(tl.origin).toBe(firstOn)
+    expect(tl.series).toHaveLength(ps.length)
+    expect(tl.series.some(sr => sr.segments.length === 2)).toBe(true)
+    expect(tl.series.flatMap(sr => sr.events).some(e => !e.on)).toBe(true)
   })
 })
