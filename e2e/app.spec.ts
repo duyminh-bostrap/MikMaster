@@ -318,18 +318,17 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
   // Dashboard: các bảng theo dõi.
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  for (const title of ['TEMPERATURE', 'BRIGHTNESS', 'TIME SINCE POWER ON', 'STATUS', 'LOG & ERRORS']) {
+  for (const title of ['TEMPERATURE · TIME SINCE POWER ON', 'BRIGHTNESS', 'STATUS', 'LOG & ERRORS']) {
     await expect(monitor.getByRole('heading', { name: title })).toBeVisible()
   }
   await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr')).toHaveCount(6) // đủ 6 máy, mọi trạng thái
-  await expect(monitor.getByText('No projector reports a temperature.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
-  await expect(monitor.getByText('No projector has been switched on since MikMaster started watching it.')).toBeVisible()
+  await expect(monitor.getByText('No projector is on, or none reports a temperature.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
   // Bấm hàng → mở trang máy.
   await monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr', { hasText: 'PJ-03' }).click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
 })
 
-test('Dashboard tables: temperature, brightness, time since power on, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
+test('Dashboard: one overview chart (temperature vs time since power on, labelled lines), brightness, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
   await createProject(page, 'Monitor Show')
   await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
   let unreachable = false
@@ -341,17 +340,22 @@ test('Dashboard tables: temperature, brightness, time since power on, status, lo
   await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  // Nhiệt độ: biểu đồ đường theo thời gian + chú thích nhiệt độ hiện tại của từng máy.
-  const chart = monitor.getByRole('img', { name: 'Temperature over time' })
+  // Một biểu đồ chung: nhiệt độ theo thời gian từ lúc bật máy; mỗi máy một đường + chú thích (nhiệt độ, thời gian bật).
+  const chart = monitor.getByRole('group', { name: 'Temperature since power on' })
   await expect(chart).toBeVisible({ timeout: 10_000 })
   await expect(chart.locator('[data-series]')).toHaveCount(6)
-  await expect(monitor.getByRole('list', { name: 'Current temperatures' }).locator('li')).toHaveCount(6)
-  await expect(monitor.getByRole('list', { name: 'Current temperatures' })).toContainText('27°C')
+  // Tên, nhiệt độ hiện tại và thời gian bật ghi ngay cuối mỗi đường (không cần chú thích riêng).
+  const labels = chart.locator('[data-label]')
+  await expect(labels).toHaveCount(6)
+  await expect(labels.first()).toContainText('27°C')
+  await expect(labels.first()).toContainText(/\d+m/)
+  await expect(chart).toContainText('Center Fill')
+  // Bấm nhãn → mở trang máy.
+  await chart.locator('[data-label]', { hasText: 'Center Fill' }).click()
+  await expect(page).toHaveURL(/projectors\/PJ-03/)
+  await page.goBack()
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
   await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(6)
-  // Thời gian từ lúc bật: biểu đồ cột ngang.
-  const onFor = monitor.getByTestId('ontime-row')
-  await expect(onFor).toHaveCount(6)
-  await expect(onFor.first()).toContainText(/\d+m/)
   await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('ON')
   // Mất kết nối → hàng đầu của bảng trạng thái là máy cần chú ý, có mục trong nhật ký.
   await expect(monitor.getByText('No events')).toBeVisible()

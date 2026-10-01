@@ -1,3 +1,4 @@
+import type { Sample } from '@/services/telemetryHistory'
 import type { LogEntry, Projector } from '@/types'
 import type { Tone } from '@/utils/tones'
 
@@ -64,4 +65,26 @@ export function logRows(ps: Projector[], filter: LogFilter, limit = 60): LogRow[
 /** Lỗi đang có (Projector.errors) theo máy. */
 export function activeErrors(ps: Projector[]): { projector: Projector; errors: string[] }[] {
   return ps.filter(p => p.errors.length > 0).map(projector => ({ projector, errors: projector.errors })).sort((a, b) => byName(a.projector, b.projector))
+}
+
+export interface WarmupSeries { projector: Projector; points: { x: number; y: number }[] }
+
+/**
+ * Nhiệt độ theo thời gian TỪ LÚC BẬT MÁY (bằng phần mềm): mỗi máy đang bật một đường, x = ms kể từ lúc bật, y = °C.
+ * Chỉ lấy mẫu sau lúc bật (mẫu của lần bật trước bị bỏ), thêm điểm "bây giờ" từ số đo hiện tại để đường luôn chạm tới hiện tại.
+ */
+export function warmupSeries(ps: Projector[], historyOf: (id: string) => readonly Sample[], now: number): WarmupSeries[] {
+  const out: WarmupSeries[] = []
+  for (const projector of ps) {
+    if (projector.power !== 'on' || projector.poweredOnAt === undefined) continue
+    const start = projector.poweredOnAt
+    const points = historyOf(projector.id).filter(s => s.t >= start).map(s => ({ x: s.t - start, y: s.c }))
+    const c = projector.telemetry.temperatureC
+    if (c > 0 && projector.connection === 'connected') {
+      const x = Math.max(0, now - start)
+      if (points.length === 0 || x > points[points.length - 1]!.x) points.push({ x, y: c })
+    }
+    if (points.length > 0) out.push({ projector, points })
+  }
+  return out
 }

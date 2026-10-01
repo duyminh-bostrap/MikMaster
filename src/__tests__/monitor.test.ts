@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows } from '@/utils/monitor'
+import { spreadLabels } from '@/components/charts/LineChart'
+import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, warmupSeries } from '@/utils/monitor'
 import { createProjector } from '@/utils/projector'
 import type { Projector } from '@/types'
 
@@ -67,5 +68,45 @@ describe('trạng thái và nhật ký', () => {
 
   test('activeErrors: chỉ máy đang có lỗi', () => {
     expect(activeErrors([proj('a'), proj('b', { errors: ['Lamp', 'Fan'] })]).map(e => [e.projector.id, e.errors])).toEqual([['b', ['Lamp', 'Fan']]])
+  })
+})
+
+describe('warmupSeries (nhiệt độ theo thời gian từ lúc bật)', () => {
+  const now = 10_000_000
+  test('x = thời gian kể từ lúc bật; bỏ mẫu của lần bật trước; thêm điểm hiện tại', () => {
+    const on = proj('a', { power: 'on', poweredOnAt: now - 600_000, telemetry: tel(48) })
+    const hist = (id: string) => id === 'a' ? [{ t: now - 900_000, c: 30 }, { t: now - 500_000, c: 35 }, { t: now - 100_000, c: 44 }] : []
+    const [s] = warmupSeries([on], hist, now)
+    expect(s!.points).toEqual([{ x: 100_000, y: 35 }, { x: 500_000, y: 44 }, { x: 600_000, y: 48 }])
+  })
+
+  test('máy không bật, chưa có mốc bật, hoặc chưa có số đo thì không có đường', () => {
+    const none = () => []
+    expect(warmupSeries([proj('a', { power: 'standby', poweredOnAt: 1, telemetry: tel(40) }), proj('b', { power: 'on', telemetry: tel(40) }), proj('c', { power: 'on', poweredOnAt: 1, telemetry: tel(0) })], none, now)).toEqual([])
+  })
+
+  test('điểm hiện tại không trùng / lùi so với mẫu cuối', () => {
+    const on = proj('a', { power: 'on', poweredOnAt: now - 1000, telemetry: tel(40) })
+    const [s] = warmupSeries([on], () => [{ t: now, c: 41 }], now)
+    expect(s!.points).toEqual([{ x: 1000, y: 41 }])
+  })
+})
+
+describe('spreadLabels (nhãn cuối đường không đè nhau)', () => {
+  test('giữ khoảng cách tối thiểu và thứ tự theo vị trí mong muốn', () => {
+    const out = spreadLabels([100, 102, 101, 300], 20, 0, 400)
+    const sorted = [...out].sort((a, b) => a - b)
+    for (let i = 1; i < sorted.length; i++) expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(20)
+    expect(out[0]).toBeLessThan(out[2]!) // 100 < 101 < 102
+    expect(out[2]).toBeLessThan(out[1]!)
+    expect(out[3]).toBe(300) // đủ chỗ → giữ nguyên
+  })
+
+  test('nhãn thấp quá thì được đẩy ngược lên, vẫn trong khung', () => {
+    const out = spreadLabels([390, 395, 399], 20, 0, 400)
+    expect(Math.max(...out)).toBeLessThanOrEqual(400)
+    const sorted = [...out].sort((a, b) => a - b)
+    expect(sorted[1]! - sorted[0]!).toBeGreaterThanOrEqual(20)
+    expect(sorted[2]! - sorted[1]!).toBeGreaterThanOrEqual(20)
   })
 })

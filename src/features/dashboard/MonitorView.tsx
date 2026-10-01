@@ -9,12 +9,10 @@ import { historyOf, useHistoryVersion } from '@/services/telemetryHistory'
 import type { Booth, Projector } from '@/types'
 import { cn } from '@/utils/cn'
 import { formatClock, formatDuration } from '@/utils/format'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, type LogFilter } from '@/utils/monitor'
-import { TONE_TEXT, temperatureTone } from '@/utils/tones'
+import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, warmupSeries, type LogFilter } from '@/utils/monitor'
+import { temperatureTone } from '@/utils/tones'
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
-const WINDOW_MIN_MS = 5 * 60_000
-const WINDOW_MAX_MS = 60 * 60_000
 const THRESHOLDS = [{ value: 55, color: 'var(--color-warn)' }, { value: 70, color: 'var(--color-danger)' }]
 const TH = 'px-3 py-1.5 text-left font-mono text-[10px] font-normal tracking-[0.1em] text-muted-foreground'
 const TD = 'px-3 py-1.5 align-middle'
@@ -62,12 +60,17 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
   const logs = logRows(projectors, logFilter)
   const errors = activeErrors(projectors)
 
-  // Màu theo thứ tự máy trong danh sách (ổn định giữa hai biểu đồ).
+  // Màu theo thứ tự máy trong danh sách.
   const colorOf = (p: Projector) => seriesColor(Math.max(0, projectors.findIndex(x => x.id === p.id)))
-  const series = projectors.map(p => ({ id: p.id, name: p.name, color: colorOf(p), points: historyOf(p.id) })).filter(x => x.points.length > 0)
-  const chartNow = Math.max(now, ...series.map(x => x.points[x.points.length - 1]!.t))
-  const earliest = Math.min(...series.map(x => x.points[0]!.t))
-  const windowMs = Math.min(WINDOW_MAX_MS, Math.max(WINDOW_MIN_MS, chartNow - earliest))
+  // Mỗi máy đang bật có số đo là một đường; nhãn cuối đường: tên · nhiệt độ hiện tại · thời gian đã bật. Nóng nhất ở trên.
+  const chartSeries = warmupSeries(projectors, historyOf, now).map(w => {
+    const p = w.projector, c = p.telemetry.temperatureC, last = w.points[w.points.length - 1]!
+    return {
+      id: p.id, color: colorOf(p), points: w.points,
+      label: { name: p.name, value: c > 0 ? `${c}°C` : `${last.y}°C`, valueColor: `var(--color-${temperatureTone(c > 0 ? c : last.y)})`, detail: formatDuration(last.x) },
+    }
+  })
+  const xMax = Math.max(2 * 60_000, ...chartSeries.map(sr => sr.points[sr.points.length - 1]!.x))
 
   const Row = ({ p, children }: { p: Projector; children: ReactNode }) => (
     <tr tabIndex={0} onClick={() => onOpen(p.id)} onKeyDown={e => { if (e.key === 'Enter') onOpen(p.id) }}
@@ -79,30 +82,14 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
 
   return (
     <div className="grid grid-cols-2 gap-4 max-xl:grid-cols-1" data-testid="monitor">
-      <Panel title={t('TEMPERATURE')} className="min-w-0"
-        aside={<Aside>{temp.rows.length > 0 ? t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max }) : '—'}</Aside>}>
-        {series.length === 0 ? (
-          <p className="font-mono text-xs text-muted-foreground">{temp.rows.length > 0 ? t('Collecting temperature samples…') : t('No projector reports a temperature.')}</p>
+      <Panel title={t('TEMPERATURE · TIME SINCE POWER ON')} className="col-span-2 min-w-0 max-xl:col-span-1"
+        aside={<Aside>{temp.rows.length > 0 ? `${t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })}${onTime.rows.length > 0 ? ` · ${t('longest {d}', { d: formatDuration(onTime.longest) })}` : ''}` : '—'}</Aside>}>
+        {chartSeries.length === 0 ? (
+          <p className="font-mono text-xs text-muted-foreground">{onTime.rows.length > 0 ? t('Collecting temperature samples…') : t('No projector is on, or none reports a temperature.')}</p>
         ) : (
-          <LineChart series={series} now={chartNow} windowMs={windowMs} thresholds={THRESHOLDS} label={t('Temperature over time')} />
+          <LineChart series={chartSeries} xMax={xMax} xLabel={ms => (ms === 0 ? t('power on') : formatDuration(ms))} thresholds={THRESHOLDS} onSelect={onOpen} label={t('Temperature since power on')} />
         )}
-        {temp.rows.length > 0 && (
-          <ul className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-mono text-[11px]" aria-label={t('Current temperatures')}>
-            {temp.rows.map(p => {
-              const c = p.telemetry.temperatureC
-              return (
-                <li key={p.id}>
-                  <button type="button" onClick={() => onOpen(p.id)} className="flex items-center gap-1.5 hover:underline">
-                    <span className="size-2 rounded-full" style={{ background: colorOf(p) }} aria-hidden />
-                    <span className="text-foreground">{p.name}</span>
-                    <span className={TONE_TEXT[temperatureTone(c)]}>{c}°C</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        {temp.missing > 0 && temp.rows.length > 0 && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{t('{n} projector(s) report no temperature', { n: temp.missing })}</p>}
+        {(temp.missing > 0 || onTime.off > 0) && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{[onTime.off > 0 && t('{n} projector(s) are not on', { n: onTime.off }), temp.missing > 0 && temp.rows.length > 0 && t('{n} projector(s) report no temperature', { n: temp.missing })].filter(Boolean).join(' · ')}</p>}
       </Panel>
 
       <Panel title={t('BRIGHTNESS')} className="min-w-0" bodyClassName="p-0"
@@ -114,30 +101,6 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
         </Table>
         {bright.rows.length === 0 && <Note>{t('No projector is on.')}</Note>}
         {bright.off > 0 && bright.rows.length > 0 && <Note>{t('{n} projector(s) are not on', { n: bright.off })}</Note>}
-      </Panel>
-
-      <Panel title={t('TIME SINCE POWER ON')} className="min-w-0"
-        aside={<Aside>{onTime.rows.length > 0 ? t('longest {d}', { d: formatDuration(onTime.longest) }) : '—'}</Aside>}>
-        {onTime.rows.length === 0 ? (
-          <p className="font-mono text-xs text-muted-foreground">{t('No projector has been switched on since MikMaster started watching it.')}</p>
-        ) : (
-          <ul className="flex max-h-72 flex-col gap-1.5 overflow-y-auto font-mono text-xs" aria-label={t('TIME SINCE POWER ON')}>
-            {onTime.rows.map(r => {
-              const pct = onTime.longest > 0 ? Math.max(2, (r.ms / onTime.longest) * 100) : 2
-              return (
-                <li key={r.projector.id} data-testid="ontime-row">
-                  <button type="button" onClick={() => onOpen(r.projector.id)} title={`${t('SINCE')} ${formatClock(new Date(r.since))}`}
-                    className="grid w-full grid-cols-[minmax(0,10rem)_1fr_4.5rem] items-center gap-3 rounded-sm px-1 py-0.5 text-left hover:bg-muted">
-                    <span className="truncate text-foreground">{r.projector.name}</span>
-                    <span className="h-3 rounded-sm bg-border/60"><span className="block h-full rounded-sm" style={{ width: `${pct}%`, background: colorOf(r.projector) }} /></span>
-                    <span className="text-right text-foreground">{formatDuration(r.ms)}</span>
-                  </button>
-                </li>
-              )
-            })}
-          </ul>
-        )}
-        {onTime.off > 0 && onTime.rows.length > 0 && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{t('{n} projector(s) are not on', { n: onTime.off })}</p>}
       </Panel>
 
       <Panel title={t('STATUS')} className="min-w-0" bodyClassName="p-0"
