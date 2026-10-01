@@ -1,5 +1,6 @@
 import { PreviewNotice } from '@/components/projector/PreviewNotice'
 import { PreviewScreen } from '@/components/projector/PreviewScreen'
+import { ProNotice } from './ProNotice'
 import { useLivePreview } from '@/hooks/useLivePreview'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
@@ -8,7 +9,7 @@ import { t } from '@/i18n'
 const PREVIEW_MS = 1000
 
 export function PreviewPanel({ projector }: { projector: Projector }) {
-  const { live, supported, hasAccount } = useLivePreview(projector, PREVIEW_MS)
+  const { live, supported, hasAccount, proLocked } = useLivePreview(projector, PREVIEW_MS)
   const image = live.kind === 'ok' && live.preview.state === 'image' ? live.preview.image : undefined
   const hdcp = live.kind === 'ok' && live.preview.state === 'hdcp'
 
@@ -35,6 +36,7 @@ export function PreviewPanel({ projector }: { projector: Projector }) {
           </div>
         ) : hdcp ? <PreviewNotice size="lg">{t('HDCP-protected content')}</PreviewNotice>
         : <PreviewScreen projector={projector} size="lg" />}
+        {proLocked && <div className="mt-2"><ProNotice>{t('Live preview is a MikMaster Pro feature. Enter a license key to unlock it.')}</ProNotice></div>}
         {note && <p className="mt-2 px-1 font-mono text-[10px] text-muted-foreground">{note}</p>}
         <div className="mt-2 flex items-center justify-between px-1 font-mono text-xs text-muted-foreground">
           <span>{projector.name} · {projector.model}</span>

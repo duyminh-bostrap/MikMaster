@@ -77,7 +77,10 @@ export function LicenseSection() {
     <div className="flex flex-col gap-2">
       <div className="flex items-center justify-between">
         <span className="font-mono text-xs text-muted-foreground">{t('LICENSE')}</span>
-        <StateBadge s={s} />
+        <span className="flex items-center gap-2">
+          <Badge tone={s.edition === 'pro' ? 'accent' : 'warn'}>{s.edition === 'pro' ? 'PRO' : t('FREE EDITION')}</Badge>
+          <StateBadge s={s} />
+        </span>
       </div>
       {s.account?.configured && (
         <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
@@ -140,7 +143,7 @@ export function LicenseSection() {
         </Button>
       </div>
       {error && <p role="alert" className="font-mono text-[10px] text-danger">{error}</p>}
-      {s.id && (s.state === 'licensed' || s.state === 'expired') && (
+      {s.id && s.state !== 'revoked' && s.state !== 'trial' && s.state !== 'unlicensed' && s.state !== 'signin' && (
         <Button type="button" size="xs" className="self-start" onClick={() => void release()}><Unplug size={11} />{t('RELEASE LICENSE FROM THIS COMPUTER')}</Button>
       )}
       {confirmDialog}

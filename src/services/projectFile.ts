@@ -1,4 +1,3 @@
-import { sanitizeMapPos } from '@/utils/mapLayout'
 import { createProjector } from '@/utils/projector'
 import type { Booth, Projector } from '@/types'
 import type { ProjectSnapshot } from './projectRepository'
@@ -54,12 +53,12 @@ export function parseProjectFile(text: string): ProjectSnapshot {
     seen.add(id)
     const base = createProjector({ id, boothId: boothList[0]!.id, name: `Projector ${ip}`, ip, protocol: typeof protocol.type === 'string' ? (protocol.type as never) : undefined })
     // Bỏ các trường đã thôi dùng (location của máy — từ bản 0.4).
-    const { location: _dropped, ...rest } = p as Partial<Projector> & { location?: unknown }
+    // (và `mapPos` — sơ đồ 2D đã bỏ ở 0.6.2: file lưu từ bản 0.6.1 có trường này.)
+    const { location: _dropped, mapPos: _map, ...rest } = p as Partial<Projector> & { location?: unknown; mapPos?: unknown }
     const merged = { ...base, ...rest, id } as Projector
     return {
       ...merged,
       boothId: boothIds.has(merged.boothId) ? merged.boothId : boothList[0]!.id,
-      mapPos: sanitizeMapPos(merged.mapPos),
       network: { ip, protocol: { ...base.network.protocol, ...(protocol as object), password: undefined } },
       // Trạng thái kết nối lưu trong file đã cũ; đọc lại từ thiết bị khi mở.
       connection: 'connected',

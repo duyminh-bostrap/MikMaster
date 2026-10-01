@@ -6,7 +6,7 @@ import path from 'node:path'
 import type { AddressInfo } from 'node:net'
 import { after, before, describe, test } from 'node:test'
 import { createServer } from '../src/http.ts'
-import { FREE_LIMIT, TRIAL_DAYS, ONLINE_GRACE_DAYS, computeMachineCode, createLicenseManager, normalizeMachineCode, parseReleaseCode, signLicense, signLicenseV1, signStatusDoc, verifyLicense, verifyStatusDoc } from '../src/license.ts'
+import { TRIAL_DAYS, ONLINE_GRACE_DAYS, computeMachineCode, createLicenseManager, normalizeMachineCode, parseReleaseCode, signLicense, signLicenseV1, signStatusDoc, verifyLicense, verifyStatusDoc } from '../src/license.ts'
 import { createProjectStore } from '../src/store.ts'
 import { PjlinkSimulator } from '../src/sim/pjlinkSim.ts'
 
@@ -78,7 +78,7 @@ describe('compact key format', () => {
 describe('tamper resistance of the local state', () => {
   let dir: string, mirror: string
   let t = 4_000_000_000_000
-  const mk = (mc = 'AAAA-1111-BBBB-2222') => createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: mirror, machineCode: mc, checkUrl: '' })
+  const mk = (mc = 'AAAA-1111-BBBB-2222') => createLicenseManager(dir, { localTrial: true, now: () => t, publicKey: PUB, mirrorDir: mirror, machineCode: mc, checkUrl: '' })
   before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-t-')); mirror = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-m-')) })
   after(() => { fs.rmSync(dir, { recursive: true, force: true }); fs.rmSync(mirror, { recursive: true, force: true }) })
   const files = () => [path.join(dir, 'state.dat'), path.join(mirror, 'state.dat')]
@@ -137,7 +137,7 @@ describe('lifetime license with an update period (like TouchDesigner / Resolume)
   const A = 'AAAA-1111-BBBB-2222'
   const T0 = Date.UTC(2026, 8, 30)                 // 2026-09-30: ngày phát hành của "bản hiện tại"
   const iso = (ms: number) => new Date(ms).toISOString()
-  const mgr = (buildDate: string, now = T0) => createLicenseManager(dir, { now: () => now, publicKey: PUB, mirrorDir: null, machineCode: A, checkUrl: '', buildDate })
+  const mgr = (buildDate: string, now = T0) => createLicenseManager(dir, { localTrial: true, now: () => now, publicKey: PUB, mirrorDir: null, machineCode: A, checkUrl: '', buildDate })
   before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-upd-')) })
   after(() => fs.rmSync(dir, { recursive: true, force: true }))
 
@@ -164,8 +164,8 @@ describe('lifetime license with an update period (like TouchDesigner / Resolume)
     const n = newBuild.status()
     assert.deepEqual([n.state, n.restricted, n.updatesUntil?.slice(0, 10)], ['outdated', true, iso(T0 + 100 * DAY).slice(0, 10)])
     assert.equal(n.updatesInDays, undefined)
-    assert.throws(() => newBuild.check('10.0.0.1', 'control'), (e: Error) => /released after your updates ended/.test(e.message))
-    newBuild.check('10.0.0.1', 'status') // vẫn xem được trạng thái (chế độ giới hạn)
+    assert.throws(() => newBuild.requirePro('Live preview'), (e: Error) => /released after your updates ended/.test(e.message))
+    newBuild.check('10.0.0.1', 'status') // bản Free: vẫn bật / tắt và xem trạng thái được
   })
 
   test('the update period ends at the END of the chosen day', () => {
@@ -187,7 +187,7 @@ describe('lifetime license with an update period (like TouchDesigner / Resolume)
 describe('license policy', () => {
   let dir: string
   let t = 1_800_000_000_000
-  const mgr = () => createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: null })
+  const mgr = () => createLicenseManager(dir, { localTrial: true, now: () => t, publicKey: PUB, mirrorDir: null })
   before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-')) })
   after(() => fs.rmSync(dir, { recursive: true, force: true }))
 
@@ -198,10 +198,10 @@ describe('license policy', () => {
     t += (TRIAL_DAYS + 1) * DAY
     const s = m.status()
     assert.deepEqual([s.state, s.restricted], ['unlicensed', true])
-    assert.throws(() => m.check('10.0.0.1', 'control'), (e: { code?: string }) => e.code === 'license')
-    m.check('10.0.0.1', 'status')
-    for (let i = 2; i <= FREE_LIMIT; i++) m.check(`10.0.0.${i}`, 'status')
-    assert.throws(() => m.check('10.0.0.99', 'status'), (e: { code?: string }) => e.code === 'license')
+    // Bản Free: bật / tắt máy và shutter (check) cho mọi máy, không giới hạn số máy; tính năng Pro bị từ chối.
+    for (let i = 1; i <= 20; i++) m.check(`10.0.0.${i}`, 'control')
+    assert.equal(m.status().edition, 'free')
+    assert.throws(() => m.requirePro('Live preview'), (e: { code?: string; message: string }) => e.code === 'license' && /Pro feature/.test(e.message))
   })
 
   test('a valid key lifts the restriction up to its projector count; expiry restricts again', () => {
@@ -216,7 +216,7 @@ describe('license policy', () => {
     assert.throws(() => m2.check('10.1.0.6', 'control'), (e: { code?: string }) => e.code === 'license')
     t += 11 * DAY
     assert.deepEqual([m2.status().state, m2.status().restricted], ['expired', true])
-    assert.throws(() => m2.check('10.1.0.1', 'control'), (e: { code?: string }) => e.code === 'license')
+    assert.throws(() => m2.requirePro('Lens'), (e: { code?: string }) => e.code === 'license')
     assert.throws(() => m2.install(key), (e: { code?: string }) => e.code === 'bad-request') // khoá đã hết hạn không cài được
   })
 
@@ -226,10 +226,38 @@ describe('license policy', () => {
   })
 })
 
+describe('a license is required from the first launch (no local trial)', () => {
+  let dir: string
+  const A = 'AAAA-1111-BBBB-2222'
+  const t = 1_800_000_000_000
+  const mgr = () => createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: null, machineCode: A })
+  before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-req-')) })
+  after(() => fs.rmSync(dir, { recursive: true, force: true }))
+
+  test('no key → Free edition (license page offered, power + shutter only); a key unlocks Pro', () => {
+    const m = mgr()
+    const s = m.status()
+    assert.deepEqual([s.state, s.gate, s.restricted, s.trialDaysLeft], ['unlicensed', true, true, 0])
+    m.check('10.0.0.1', 'control') // bật / tắt máy và shutter vẫn dùng được (bản Free)
+    assert.equal(s.edition, 'free')
+    assert.throws(() => m.requirePro('RAW COMMAND'), (e: { code?: string; message: string }) => e.code === 'license' && /enter a license key/.test(e.message))
+    const open = m.install(signLicense(PEM, { id: 'k1', licensee: 'ACME', max: 0, exp: new Date(t + 30 * DAY).toISOString(), mc: A }))
+    assert.deepEqual([open.state, open.gate, open.restricted, open.edition], ['licensed', false, false, 'pro'])
+    m.requirePro('RAW COMMAND')
+  })
+
+  test('releasing the key (to move it to another computer) shows the license page again, with a release code', () => {
+    const m = mgr()
+    const s = m.remove()
+    assert.deepEqual([s.state, s.gate], ['unlicensed', true])
+    assert.ok(s.releaseCode, 'a release code is given for the issuer')
+  })
+})
+
 describe('machine binding and transfer', () => {
   let dir: string
   const A = 'AAAA-1111-BBBB-2222', B = 'CCCC-3333-DDDD-4444'
-  const mgr = (mc: string) => createLicenseManager(dir, { publicKey: PUB, mirrorDir: null, machineCode: mc })
+  const mgr = (mc: string) => createLicenseManager(dir, { localTrial: true, publicKey: PUB, mirrorDir: null, machineCode: mc })
   before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-mc-')) })
   after(() => fs.rmSync(dir, { recursive: true, force: true }))
 
@@ -279,7 +307,7 @@ describe('expiry warning and online verification (30 days)', () => {
     if (!online) throw new Error('offline')
     return new Response(doc, { status: 200 })
   }) as unknown as typeof fetch
-  const mgr = (url = 'https://example.test/license-status') => createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: null, machineCode: 'AAAA-1111-BBBB-2222', checkUrl: url, fetch: fakeFetch })
+  const mgr = (url = 'https://example.test/license-status') => createLicenseManager(dir, { localTrial: true, now: () => t, publicKey: PUB, mirrorDir: null, machineCode: 'AAAA-1111-BBBB-2222', checkUrl: url, fetch: fakeFetch })
   before(() => { dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-on-')) })
   after(() => fs.rmSync(dir, { recursive: true, force: true }))
 
@@ -309,7 +337,7 @@ describe('expiry warning and online verification (30 days)', () => {
     assert.equal(near.online?.daysLeft, 1)
     t += 2 * DAY // đã quá 30 ngày kể từ lần kiểm tra cuối (lúc cài khoá)
     assert.equal(m.status().state, 'unverified')
-    assert.throws(() => m.check('10.9.0.1', 'control'), (e: Error) => /online/.test(e.message))
+    assert.throws(() => m.requirePro('Live preview'), (e: Error) => /online/.test(e.message))
     online = false
     const failed = await m.checkNow()
     assert.equal(failed.state, 'unverified')
@@ -336,7 +364,7 @@ describe('expiry warning and online verification (30 days)', () => {
     const d2 = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-off-'))
     try {
       let n = t
-      const m = createLicenseManager(d2, { now: () => n, publicKey: PUB, mirrorDir: null, machineCode: 'AAAA-1111-BBBB-2222', checkUrl: '' })
+      const m = createLicenseManager(d2, { localTrial: true, now: () => n, publicKey: PUB, mirrorDir: null, machineCode: 'AAAA-1111-BBBB-2222', checkUrl: '' })
       m.install(signLicense(PEM, { id: 'o1', licensee: 'ACME', max: 0 }))
       n += 400 * DAY
       const s = m.status()
@@ -351,7 +379,7 @@ describe('license over HTTP', () => {
   let t = 2_000_000_000_000
   before(async () => {
     dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-lic-http-'))
-    s = createServer({ store: createProjectStore(dir), license: createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: null }) })
+    s = createServer({ store: createProjectStore(dir), license: createLicenseManager(dir, { localTrial: true, now: () => t, publicKey: PUB, mirrorDir: null }) })
     await new Promise<void>(r => s.listen(0, '127.0.0.1', r))
     u = `http://127.0.0.1:${(s.address() as AddressInfo).port}`
     await sim.start()
@@ -360,21 +388,26 @@ describe('license over HTTP', () => {
   const post = (p: string, body: unknown, method = 'POST') => fetch(u + p, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
   const target = { ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: 0 } }
 
-  test('GET /api/license, then control is refused (402) once the trial is over; a key restores it', async () => {
+  test('GET /api/license; once the trial is over only power + shutter work (Free), Pro features answer 402; a key restores them', async () => {
     target.protocol.port = sim.port
     assert.equal((await (await fetch(`${u}/api/license`)).json() as any).state, 'trial')
     assert.equal((await post('/api/devices/command', { target, command: { kind: 'power', value: 'on' } })).status, 200)
     t += (TRIAL_DAYS + 1) * DAY
-    const denied = await post('/api/devices/command', { target, command: { kind: 'power', value: 'standby' } })
+    assert.equal((await post('/api/devices/command', { target, command: { kind: 'shutter', closed: true } })).status, 200)
+    assert.equal((await post('/api/devices/command', { target, command: { kind: 'power', value: 'standby' } })).status, 200) // bản Free: bật / tắt được
+    const denied = await post('/api/devices/command', { target, command: { kind: 'input', input: 'HDMI 1' } })
     assert.equal(denied.status, 402)
     assert.equal(((await denied.json()) as any).error.code, 'license')
-    assert.equal((await post('/api/devices/status', { target })).status, 200) // xem trạng thái vẫn được
+    assert.equal((await post('/api/devices/raw', { target, text: '%1POWR ?' })).status, 402)
+    assert.equal((await post('/api/devices/status', { target })).status, 200)
     const bad = await post('/api/license', { key: 'nope' }, 'PUT')
     assert.equal(bad.status, 400)
     // Khoá thật của test: chỉ cài được nếu ký bằng khoá test → dùng payload ký bằng PEM test ở trên.
     const ok = await post('/api/license', { key: signLicense(PEM, { id: 'h1', licensee: 'HTTP Co', max: 0 }) }, 'PUT')
     assert.equal(ok.status, 200)
     assert.equal(((await ok.json()) as any).state, 'licensed')
-    assert.equal((await post('/api/devices/command', { target, command: { kind: 'power', value: 'standby' } })).status, 200)
+    // Pro đã mở: hai lệnh này không còn bị chặn bởi license (có thể vẫn lỗi do máy giả lập, miễn không phải 402).
+    assert.notEqual((await post('/api/devices/command', { target, command: { kind: 'input', input: 'HDMI 1' } })).status, 402)
+    assert.notEqual((await post('/api/devices/raw', { target, text: '%1POWR ?' })).status, 402)
   })
 })

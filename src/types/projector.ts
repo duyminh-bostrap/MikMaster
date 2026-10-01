@@ -51,8 +51,6 @@ export interface Projector {
   power: PowerState
   /** Lúc app thấy máy chuyển sang bật (ms epoch); xoá khi máy tắt / standby. Chỉ là trạng thái sống, không tính vào "sửa project". */
   poweredOnAt?: number
-  /** Vị trí trên sơ đồ 2D của tab All (px ảo, góc trên trái của ô). Thiếu = xếp tự động. Lưu theo project. */
-  mapPos?: { x: number; y: number }
   shutter: boolean
   /** Hiển thị OSD (menu trên màn hình). Thiếu = bật (project lưu từ bản cũ). */
   osd?: boolean

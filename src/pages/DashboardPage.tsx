@@ -7,8 +7,8 @@ import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
-import { ProjectorMap } from '@/features/dashboard/ProjectorMap'
-import { setAllView, setCollapsedGroups, useDashboardView } from '@/services/dashboardView'
+import { MonitorView } from '@/features/dashboard/MonitorView'
+import { setAllView, useDashboardView } from '@/services/dashboardView'
 import { PowerControls, QuickControls } from '@/features/dashboard/QuickControls'
 import { Sidebar } from '@/features/dashboard/Sidebar'
 import { TopBar } from '@/features/dashboard/TopBar'
@@ -89,10 +89,10 @@ export default function DashboardPage() {
         actions={<QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
-        {...(inBooth ? {} : { view, onView: setAllView, onCollapseAll: () => setCollapsedGroups(booths.map(b => b.id)), onExpandAll: () => setCollapsedGroups([]) })} />
+        {...(inBooth ? {} : { view, onView: setAllView })} />
       <main className="flex-1 overflow-y-auto p-5">
-        {!inBooth && view === 'map'
-          ? <ProjectorMap projectors={visible} booths={booths} onOpen={openProjector} onContextMenu={openMenu} emptyText={emptyText} />
+        {!inBooth && view === 'monitor'
+          ? <MonitorView projectors={visible} booths={booths} onOpen={openProjector} emptyText={emptyText} />
           : <ProjectorGrid projectors={visible} groups={inBooth ? undefined : booths} onOpen={openProjector} onContextMenu={openMenu} emptyText={emptyText} />}
       </main>
       {menu && menuProjector && (

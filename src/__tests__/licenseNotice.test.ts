@@ -26,9 +26,13 @@ describe('licenseNotice', () => {
     expect(licenseNotice({ ...base, online: { configured: false } })).toBeNull()
   })
 
-  it('is red when restricted', () => {
-    for (const state of ['unlicensed', 'expired', 'revoked', 'unverified', 'outdated', 'signin'] as const) {
+  it('is red when a key has a problem (expired, revoked, not verified, outdated, sign in)', () => {
+    for (const state of ['expired', 'revoked', 'unverified', 'outdated', 'signin'] as const) {
       expect(licenseNotice({ ...base, state, restricted: true })?.tone).toBe('danger')
     }
+  })
+
+  it('just invites to unlock Pro (yellow) when there is no license at all (Free edition)', () => {
+    expect(licenseNotice({ ...base, state: 'unlicensed', restricted: true })).toMatchObject({ tone: 'warn', text: 'FREE EDITION · UNLOCK PRO' })
   })
 })

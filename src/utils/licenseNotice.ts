@@ -14,7 +14,7 @@ export function licenseNotice(s: LicenseStatusDto): LicenseNotice | null {
   switch (s.state) {
     case 'outdated': return { tone: 'danger', text: 'THIS VERSION IS NEWER THAN YOUR UPDATES' }
     case 'signin': return { tone: 'danger', text: 'SIGN IN OR ENTER A LICENSE KEY' }
-    case 'unlicensed': return { tone: 'danger', text: 'TRIAL ENDED · ENTER LICENSE' }
+    case 'unlicensed': return { tone: 'warn', text: 'FREE EDITION · UNLOCK PRO' }
     case 'expired': return { tone: 'danger', text: 'LICENSE EXPIRED' }
     case 'revoked': return { tone: 'danger', text: 'LICENSE REVOKED' }
     case 'unverified': return { tone: 'danger', text: 'CONNECT TO THE INTERNET TO VERIFY THE LICENSE' }

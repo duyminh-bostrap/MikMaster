@@ -1,7 +1,7 @@
 import { useSyncExternalStore } from 'react'
 
 /** Cách xem tab All của Dashboard + các group đang thu gọn — lưu trong trình duyệt (mỗi máy một bộ), không đi theo project. */
-export type AllView = 'groups' | 'map'
+export type AllView = 'groups' | 'monitor'
 
 export interface DashboardView {
   view: AllView
@@ -18,7 +18,7 @@ function read(): DashboardView {
     if (!raw) return base
     const s = JSON.parse(raw) as Partial<DashboardView>
     return {
-      view: s.view === 'map' ? 'map' : 'groups',
+      view: s.view === 'monitor' ? 'monitor' : 'groups',
       collapsed: Array.isArray(s.collapsed) ? s.collapsed.filter((x): x is string => typeof x === 'string') : [],
     }
   } catch { return base }

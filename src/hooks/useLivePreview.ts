@@ -3,6 +3,7 @@ import { previewBrandOf, type PreviewDto } from '../../shared/api.ts'
 import { deviceCapabilities } from '@/services/capabilities'
 import { useQuickLogins } from '@/services/quickLogins'
 import { useGateway } from '@/store/useGateway'
+import { useEdition } from './useEdition'
 import { brandOf } from '@/utils/quickLogin'
 import { withCredentials } from '@/utils/credentials'
 import type { Projector } from '@/types'
@@ -16,6 +17,8 @@ export interface LivePreview {
   live: Live
   /** Máy có tính năng preview thật (driver hỗ trợ + có gateway). */
   supported: boolean
+  /** Máy có preview nhưng đang ở bản Free (preview là tính năng Pro). */
+  proLocked: boolean
   /** Có tài khoản để đăng nhập web của máy (của máy, hoặc đăng nhập nhanh của hãng). */
   hasAccount: boolean
 }
@@ -28,7 +31,9 @@ export interface LivePreview {
 export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
   const { gateway } = useGateway()
   const quick = useQuickLogins(gateway)
-  const supported = gateway !== null && deviceCapabilities(p).includes('preview')
+  const { free } = useEdition()
+  const capable = gateway !== null && deviceCapabilities(p).includes('preview')
+  const supported = capable && !free
   const own = !!(p.network.protocol.username || p.network.protocol.password)
   const brand = brandOf(p)
   const fallback = !own && brand ? quick[brand] : undefined
@@ -61,5 +66,5 @@ export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
     return () => { cancelled = true; clearTimeout(timer) }
   }, [gateway, supported, on, hasAccount, p.id, p.network.ip, username, password, intervalMs])
 
-  return { live, supported, hasAccount }
+  return { live, supported, hasAccount, proLocked: capable && free }
 }

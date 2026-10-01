@@ -26,10 +26,12 @@ export interface LicenseStatusDto {
   maxProjectors?: number
   expiresAt?: string
   trialDaysLeft?: number
-  /** Số máy được xem trạng thái khi không có bản quyền (không điều khiển được). */
+  /** (Không còn dùng: bản Free không giới hạn số máy.) */
   freeLimit: number
-  /** Đang bị giới hạn: chỉ xem trạng thái tối đa `freeLimit` máy, không gửi lệnh. */
+  /** Chưa có quyền Pro (bản Free): chỉ bật / tắt máy và shutter. */
   restricted: boolean
+  /** free = chưa có license hợp lệ: chỉ bật / tắt máy và shutter. pro = mở khoá preview, chỉnh thông số (input, OSD, test pattern, lens, độ sáng, RAW…). */
+  edition?: 'free' | 'pro'
   /** Ngày phát hành của bản build này (ISO). */
   buildDate?: string
   /** Khoá dùng vĩnh viễn kèm cập nhật đến ngày này (ISO, cuối ngày): chỉ mở các bản phát hành trước hoặc trong ngày đó. */
@@ -40,7 +42,7 @@ export interface LicenseStatusDto {
   expiresInDays?: number
   /** Kiểm tra bản quyền qua mạng (bật khi có địa chỉ kiểm tra): phải kiểm được ít nhất 30 ngày một lần. */
   online?: { configured: boolean; lastCheckAt?: string; daysLeft?: number; lastError?: string }
-  /** Có hệ thống tài khoản (Supabase) và đang bị giới hạn: app hiện màn hình đăng nhập / tạo tài khoản / nhập key. */
+  /** Đang bị giới hạn (chưa có quyền dùng): app hiện trang yêu cầu license (nhập khoá; có thêm đăng nhập / tài khoản nếu đã cấu hình). */
   gate?: boolean
   account?: AccountStatusDto
   /** Mã của máy tính này (gửi cho người cấp khoá để nhận khoá gắn với máy). */

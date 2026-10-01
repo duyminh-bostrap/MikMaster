@@ -299,68 +299,64 @@ test('the All tab groups the cards under their group; a single group tab shows n
   await expect(main.locator('article')).toHaveCount(1)
 })
 
-test('All tab: collapse groups, switch to the 2D map, drag a projector (position is kept), click opens it', async ({ page }) => {
+test('All tab: collapse groups one by one; the Dashboard view lists every projector in the monitoring tables', async ({ page }) => {
   await createProject(page)
   await card(page, 'PJ-01').click({ button: 'right' })
   await page.getByRole('menu').getByRole('menuitem', { name: 'Balcony' }).click()
   const main = page.locator('main')
 
-  // Thu gọn / mở từng group; thu gọn / mở tất cả.
+  // Thu gọn / mở từng group (không có nút thu gọn / mở tất cả).
   const first = main.getByRole('region', { name: 'Group 1' })
-  await first.getByRole("button", { name: /Group 1/ }).click()
+  await first.getByRole('button', { name: /Group 1/ }).click()
   await expect(first.locator('article')).toHaveCount(0)
   await expect(first).toContainText('5 device') // vẫn thấy số máy khi thu gọn
-  await first.getByRole("button", { name: /Group 1/ }).click()
+  await first.getByRole('button', { name: /Group 1/ }).click()
   await expect(first.locator('article')).toHaveCount(5)
-  await page.getByRole('button', { name: 'Collapse all groups' }).click()
-  await expect(main.locator('article')).toHaveCount(0)
-  await page.getByRole('button', { name: 'Expand all groups' }).click()
-  await expect(main.locator('article')).toHaveCount(6)
+  await expect(page.getByRole('button', { name: 'Collapse all groups' })).toHaveCount(0)
+  await expect(page.getByRole('radio', { name: '2D map' })).toHaveCount(0) // sơ đồ 2D đã bỏ
 
-  // Sơ đồ 2D: đủ 6 ô; kéo một ô sang chỗ khác; đổi view rồi quay lại vẫn giữ vị trí.
-  await page.getByRole('radio', { name: '2D map' }).click()
-  const map = page.getByTestId('projector-map')
-  await expect(map.locator('[data-projector]')).toHaveCount(6)
-  const node = map.locator('[data-projector="PJ-02"]')
-  const before = await node.boundingBox()
-  await node.hover()
-  await page.mouse.down()
-  await page.mouse.move(before!.x + before!.width / 2 + 40, before!.y + before!.height / 2 + 96, { steps: 8 }) // từ tâm ô
-  await page.mouse.up()
-  const after = await node.boundingBox()
-  expect(after!.y - before!.y).toBeGreaterThan(80)
-  await expect(page).toHaveURL(/#\/project(\?|$)/) // kéo không mở máy
-  await page.screenshot({ path: 'test-results/map-2d.png' })
-  await page.getByRole('radio', { name: 'Groups' }).click()
-  await page.getByRole('radio', { name: '2D map' }).click()
-  const kept = await map.locator('[data-projector="PJ-02"]').boundingBox()
-  expect(Math.abs(kept!.y - after!.y)).toBeLessThan(2)
-  await expect(sidebar(page).getByText('UNSAVED')).toBeVisible() // đặt vị trí là sửa project
-
-  // AUTO ARRANGE trả về vị trí tự động.
-  await page.getByRole('button', { name: 'AUTO ARRANGE' }).click()
-  const reset = await map.locator('[data-projector="PJ-02"]').boundingBox()
-  expect(Math.abs(reset!.y - before!.y)).toBeLessThan(2)
-
-  // Bấm (không kéo) thì mở trang máy.
-  await map.locator('[data-projector="PJ-03"]').click()
+  // Dashboard: các bảng theo dõi.
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  const monitor = page.getByTestId('monitor')
+  for (const title of ['TEMPERATURE', 'BRIGHTNESS', 'TIME SINCE POWER ON', 'STATUS', 'LOG & ERRORS']) {
+    await expect(monitor.getByRole('heading', { name: title })).toBeVisible()
+  }
+  await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr')).toHaveCount(6) // đủ 6 máy, mọi trạng thái
+  await expect(monitor.getByRole('table', { name: 'TEMPERATURE' }).locator('tbody tr')).toHaveCount(0) // giả lập: chưa có số đo nhiệt độ
+  // Bấm hàng → mở trang máy.
+  await monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr', { hasText: 'PJ-03' }).click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
 })
 
-test('2D map nodes show the IP, the temperature and the live preview (gateway mocked, no real device)', async ({ page }) => {
-  await createProject(page, 'Map Show')
-  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+test('Dashboard tables: temperature, brightness, time since power on, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
+  await createProject(page, 'Monitor Show')
   await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
-  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'on', temperatureC: 27, errors: [] } }))
-  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'image', image: PNG } }))
+  let unreachable = false
+  await page.route('**/api/devices/status', r => unreachable
+    ? r.fulfill({ status: 502, json: { error: { code: 'connect', message: 'Cannot reach the projector' } } })
+    : r.fulfill({ json: { power: 'on', temperatureC: 27, errors: [] } }))
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'no-signal' } }))
   await page.getByRole('button', { name: /NO GATEWAY/ }).click()
   await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
-  await page.getByRole('radio', { name: '2D map' }).click()
-  const node = page.getByTestId('projector-map').locator('[data-projector="PJ-03"]')
-  await expect(node).toContainText('192.168.1.102')
-  await expect(node).toContainText('27°C', { timeout: 10_000 })
-  await expect(node.locator('img')).toBeVisible({ timeout: 10_000 })
-  await page.screenshot({ path: 'test-results/map-2d-live.png' })
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  const monitor = page.getByTestId('monitor')
+  const temp = monitor.getByRole('table', { name: 'TEMPERATURE' })
+  await expect(temp.locator('tbody tr')).toHaveCount(6, { timeout: 10_000 })
+  await expect(temp.locator('tbody tr').first()).toContainText('27°C')
+  await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(6)
+  const onFor = monitor.getByRole('table', { name: 'TIME SINCE POWER ON' })
+  await expect(onFor.locator('tbody tr')).toHaveCount(6)
+  await expect(onFor.locator('tbody tr').first()).toContainText(/\d+m/)
+  await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('ON')
+  // Mất kết nối → hàng đầu của bảng trạng thái là máy cần chú ý, có mục trong nhật ký.
+  await expect(monitor.getByText('No events')).toBeVisible()
+  unreachable = true
+  await page.getByRole('button', { name: 'Refresh all projectors' }).click()
+  await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('OFFLINE', { timeout: 10_000 })
+  await expect(monitor.getByText('No events')).toHaveCount(0)
+  await monitor.getByRole('radio', { name: 'Errors', exact: true }).click()
+  await expect(monitor.getByText(/ACTIVE ERRORS/)).toBeVisible()
+  await page.screenshot({ path: 'test-results/monitor.png' })
 })
 
 test('detail page: no ADVANCED block on the projector; brightness control sits under the lens presets and needs the projector on', async ({ page }) => {
@@ -412,4 +408,43 @@ test('detail page: LOG and RAW COMMAND live behind one TERMINAL button (Ctrl+` t
   await page.screenshot({ path: 'test-results/terminal.png' })
   await page.keyboard.press('Control+`')
   await expect(dock).toBeHidden()
+})
+
+test('license: Free edition = power + shutter only, the license page is skippable; a key unlocks Pro (orange PRO next to the logo); a key can be released', async ({ page }) => {
+  const base = { freeLimit: 3, machineCode: 'AAAA-1111-BBBB-2222', trialDaysLeft: 0 }
+  let status: Record<string, unknown> = { ...base, state: 'unlicensed', edition: 'free', gate: true, restricted: true }
+  await createProject(page, 'Edition Show')
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'on', errors: [] } }))
+  await page.route('**/api/license', async r => {
+    const m = r.request().method()
+    if (m === 'PUT') status = { ...base, state: 'licensed', edition: 'pro', gate: false, restricted: false, licensee: 'ACME', id: 'k1', maxProjectors: 0, bound: true }
+    if (m === 'DELETE') status = { ...base, state: 'unlicensed', edition: 'free', gate: true, restricted: true, releaseCode: 'MIKR1.TESTCODE' }
+    await r.fulfill({ json: status })
+  })
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  const gate = page.getByRole('dialog', { name: 'Sign in to MikMaster' })
+  await expect(gate).toBeVisible({ timeout: 15_000 })
+  await expect(gate.getByRole('heading', { name: 'LICENSE REQUIRED' })).toBeVisible()
+  await expect(gate.getByRole('tab')).toHaveCount(0) // chưa cấu hình tài khoản: chỉ có ô nhập khoá
+  await expect(gate.getByText('AAAA-1111-BBBB-2222')).toBeVisible()
+  // Bỏ qua → bản Free: OSD / test pattern bị khoá, không có nhãn PRO cạnh logo.
+  await gate.getByRole('button', { name: 'CONTINUE WITH THE FREE EDITION' }).click()
+  await expect(gate).toBeHidden()
+  await expect(page.locator('aside').first().getByText('PRO', { exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'OSD on for all' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Show test pattern on all' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Turn on' }).first()).toBeEnabled()
+  // Máy: Pro bị khoá, có nút mở khoá.
+  await card(page, 'PJ-03').click()
+  await expect(page.getByRole('button', { name: 'UNLOCK PRO' }).first()).toBeVisible()
+  await page.getByRole('button', { name: 'UNLOCK PRO' }).first().click()
+  await expect(gate).toBeVisible()
+  await gate.getByLabel('License key').fill('MIKM2-FAKEKEY')
+  await gate.getByRole('button', { name: 'ACTIVATE' }).click()
+  await expect(gate).toBeHidden()
+  // Pro: nhãn PRO màu cam cạnh logo, hết khoá.
+  await expect(page.locator('header').getByText('PRO', { exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'UNLOCK PRO' })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/pro-logo.png' })
 })

@@ -249,6 +249,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     const hint = isObject(body.target) && body.target.brand === 'panasonic' ? 'panasonic' : undefined
     const brand = previewBrandOf(protocol, hint === 'panasonic' ? 'Panasonic' : undefined)
     if (!brand) throw new DeviceError('unsupported', `${protocol} has no live preview`)
+    license?.requirePro('Live preview')
     license?.check(target.host, 'status')
     try {
       const preview = brand === 'christie' ? await christiePreview(target) : await panasonicPreview(target)
@@ -273,6 +274,8 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
       if (!isObject(body.command) || typeof body.command.kind !== 'string') throw new DeviceError('bad-request', 'Missing command.kind')
       const command = body.command as unknown as CommandDto
       requireCapability(protocol, command.kind, target)
+      // Bản Free chỉ bật / tắt máy và shutter; mọi thay đổi khác (input, OSD, test pattern, lens…) là Pro.
+      if (command.kind !== 'power' && command.kind !== 'shutter') license?.requirePro(`Changing ${command.kind}`)
       const templates = target.commands
       if (command.kind === 'testPattern' && templates?.testPatternOn && templates.testPatternOff) {
         // Người dùng đã khai báo lệnh test pattern của riêng mình: gửi đúng lệnh đó qua đường RAW của driver.
@@ -289,6 +292,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
 
     if (typeof body.text !== 'string' || body.text.length === 0 || body.text.length > 256) throw new DeviceError('bad-request', 'text must be 1–256 characters')
     requireCapability(protocol, 'raw', target)
+    license?.requirePro('RAW COMMAND')
     return sendJson(res, 200, { reply: await driver.raw(target, body.text) })
   }
 

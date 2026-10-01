@@ -1,7 +1,7 @@
 # MikMaster — Tài khoản và dùng thử 30 ngày (Supabase)
 
 Khi đã cấu hình Supabase, mở app phải **đăng nhập tài khoản** (hoặc **tạo tài khoản Free 30 ngày**), hoặc **nhập key offline**.
-Chưa cấu hình (mặc định) thì app chạy như trước: dùng thử 30 ngày cục bộ + khoá license.
+Chưa cấu hình (mặc định): **không còn dùng thử cục bộ**: chưa có khoá thì chạy **bản Free** (chỉ bật / tắt máy và shutter); nhập khoá để mở **bản Pro** (preview, chỉnh thông số…). Mở app hiện trang license, bỏ qua được. "Dùng thử 30 ngày" là một khoá có hạn 30 ngày do trang web cấp khi đăng ký tài khoản. Khoá đã cài có thể **gỡ khỏi máy** (trang license hoặc Cài đặt → Bản quyền) để chuyển sang máy khác.
 
 ## Quy tắc
 

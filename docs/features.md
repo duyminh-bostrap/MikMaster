@@ -54,6 +54,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 |---|---|---|
 | Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
 | **Chuyển máy sang group khác**: kéo thả hoặc chuột phải | ✅ | |
+| Tab **All** có hai cách xem (nút ở thanh lọc): **Groups** (thẻ gộp theo group, thu gọn / mở từng group) và **Dashboard** — các bảng theo dõi: nhiệt độ, độ sáng, thời gian từ lúc bật máy (tính từ lúc app thấy máy bật), trạng thái, nhật ký & lỗi; bấm hàng để mở máy | ✅ | Chịu bộ lọc / tìm kiếm của thanh lọc. Độ sáng hiện là giá trị trong app (chưa đọc từ máy) |
 | Điều khiển hàng loạt (tab Tất cả hoặc từng booth), nút icon: nguồn (bật lần lượt, mặc định cách 5 giây), shutter, OSD, test pattern; tắt máy / đóng shutter / hiện pattern hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
 | Tìm máy (tên, IP, model, booth; phím /) và lọc theo trạng thái | ✅ | |
 | Thêm / sửa / gỡ máy chiếu trên Dashboard (nút ở cuối sidebar, chuột phải vào thẻ) | ✅ | |
@@ -100,7 +101,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Khi đã cấu hình Supabase: mở app hiện màn hình **Đăng nhập / Tạo tài khoản Free 30 ngày / Nhập key offline** cho tới khi có quyền dùng | ✅ (bằng Supabase giả) | Chưa cấu hình → chạy như trước (dùng thử cục bộ + key). Hướng dẫn: [docs/accounts.md](accounts.md); SQL: `supabase/schema.sql` |
+| Khi đã cấu hình Supabase: mở app hiện màn hình **Đăng nhập / Tạo tài khoản Free 30 ngày / Nhập key offline** cho tới khi có quyền dùng | ✅ (bằng Supabase giả) | Chưa cấu hình → trang **yêu cầu license** chỉ có ô nhập khoá. Hướng dẫn: [docs/accounts.md](accounts.md); SQL: `supabase/schema.sql` |
 | Dùng thử 30 ngày do **máy chủ** quyết định: mỗi tài khoản một lần, mỗi máy một lần (tạo tài khoản khác trên cùng máy không được thêm) | ✅ (bằng Supabase giả) | Cần bạn tạo project Supabase, chạy `schema.sql` và điền URL + khoá anon; **chưa thử với Supabase thật** |
 | Key offline vẫn dùng được, gắn với máy | ✅ | Vào app không cần tài khoản |
 | Gói trả phí gắn với tài khoản (bảng `entitlements`) | 🧪 | Cấp bằng SQL |
@@ -126,7 +127,7 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
 | Khoá ký số Ed25519, kiểm ngoại tuyến bằng khoá công khai nhúng trong app. Định dạng gọn `MIKM2-…` (~115–140 ký tự); khoá cũ `MIKM1.…` (~220 ký tự) vẫn dùng được | ✅ | Cấp bằng `node scripts/license.mjs issue --licensee "Tên" [--max N] [--days N] [--machine MÃ]`. Khoá bí mật ở `~/.mikmaster-license/private.pem`, **không nằm trong repo** — sao lưu cẩn thận |
-| Dùng thử 30 ngày đủ tính năng; hết dùng thử / hết hạn: chỉ xem trạng thái tối đa 3 máy, không gửi lệnh (API trả 402 `license`) | ✅ | Chính sách ở `server/src/license.ts` |
+| **Hai bản**: **Free** (chưa có license hợp lệ / hết hạn / quá hạn cập nhật) chỉ **bật / tắt máy và shutter** (không giới hạn số máy); **Pro** (có khoá hợp lệ) mở khoá preview, input, OSD, test pattern, lens, độ sáng, RAW. Gateway từ chối tính năng Pro ở bản Free bằng 402 `license`; giao diện khoá nút và hiện nút MỞ KHOÁ PRO; có Pro thì nhãn **PRO** màu cam hiện cạnh logo. Mở app ở bản Free hiện trang license, bỏ qua được. Không còn dùng thử cục bộ — khoá dùng thử 30 ngày do web cấp | ✅ | Chính sách ở `server/src/license.ts` (`requirePro`) |
 | Có khoá: giới hạn số máy chiếu làm việc trong 10 phút gần nhất theo `max` (0 = không giới hạn) | ✅ | |
 | **Gắn khoá với máy tính** (mã máy = băm một chiều định danh phần cứng) và **gỡ key khỏi máy này** để chuyển máy: nhận "mã gỡ" → người cấp chạy `rebind` cấp khoá mới cho máy kia | ✅ | Sổ cấp phát `~/.mikmaster-license/issued.json`. Không có máy chủ nên "gỡ" chỉ là biên nhận, khoá gắn máy nào chỉ chạy được trên máy đó |
 | **Cảnh báo** khi dùng thử / khoá còn ≤ 14 ngày (huy hiệu chân trang + Cài đặt) | ✅ | |

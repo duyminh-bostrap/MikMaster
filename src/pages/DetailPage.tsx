@@ -15,6 +15,7 @@ import { BrightnessPanel } from '@/features/detail/BrightnessPanel'
 import { InputPanel } from '@/features/detail/InputPanel'
 import { TerminalDock } from '@/features/detail/TerminalDock'
 import { UnavailableNotice } from '@/features/detail/UnavailableNotice'
+import { ProNotice } from '@/features/detail/ProNotice'
 import { useCapabilities } from '@/hooks/useCapabilities'
 import { useOpenProject, useProjector } from '@/store/hooks'
 import { useGateway } from '@/store/useGateway'
@@ -77,7 +78,8 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
             </div>
             <fieldset disabled={!caps.testPattern} className="contents">
               <div>
-                {!caps.testPattern && <UnavailableNotice>{t('Add the test pattern ON / OFF commands on the Advanced page (logo menu → Advanced…) — from the projector manual — to use test patterns on this projector.')}</UnavailableNotice>}
+                {caps.proLocked && <ProNotice />}
+                {!caps.proLocked && !caps.testPattern && <UnavailableNotice>{t('Add the test pattern ON / OFF commands on the Advanced page (logo menu → Advanced…) — from the projector manual — to use test patterns on this projector.')}</UnavailableNotice>}
                 <TestPatternPanel projector={projector} />
               </div>
             </fieldset>
@@ -88,11 +90,11 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
         {!locked && <aside className={`${SIDE_PANEL} w-72 border-l border-border max-lg:w-full max-lg:border-t max-lg:border-l-0`}>
           {caps.live && <LensReading projector={projector} />}
           <fieldset disabled={!caps.lens} className="contents">
-            {!caps.lens && <UnavailableNotice>{why}</UnavailableNotice>}
+            {caps.proLocked ? <ProNotice /> : !caps.lens && <UnavailableNotice>{why}</UnavailableNotice>}
             <LensPanel projector={projector} />
           </fieldset>
           <fieldset disabled={!caps.brightness} className="contents">
-            {!caps.brightness && <UnavailableNotice>{t('Brightness control is not available over this connection yet: no command verified against the manufacturer documentation.')}</UnavailableNotice>}
+            {!caps.proLocked && !caps.brightness && <UnavailableNotice>{t('Brightness control is not available over this connection yet: no command verified against the manufacturer documentation.')}</UnavailableNotice>}
             <BrightnessPanel projector={projector} />
           </fieldset>
         </aside>}

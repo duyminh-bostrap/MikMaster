@@ -33,16 +33,16 @@ describe('accounts (Supabase) + 30-day free trial per account and per machine', 
 
   test('not configured → no gate, the old local trial applies', () => {
     const account = createAccountManager(dir, { machineCode: A, url: '', anonKey: '' })
-    const license = createLicenseManager(dir, { now: () => t, publicKey: PUB, mirrorDir: null, machineCode: A, checkUrl: '', account })
+    const license = createLicenseManager(dir, { localTrial: true, now: () => t, publicKey: PUB, mirrorDir: null, machineCode: A, checkUrl: '', account })
     const s = license.status()
-    assert.deepEqual([account.configured, s.state, s.gate, s.account], [false, 'trial', undefined, undefined])
+    assert.deepEqual([account.configured, s.state, s.gate, s.account], [false, 'trial', false, undefined])
   })
 
   test('configured, signed out → gate (state signin), control refused', () => {
     const { license } = mk()
     const s = license.status()
     assert.deepEqual([s.state, s.restricted, s.gate, s.account?.signedIn], ['signin', true, true, false])
-    assert.throws(() => license.check('10.0.0.1', 'control'), (e: Error) => /Sign in/.test(e.message))
+    assert.throws(() => license.requirePro('Live preview'), (e: Error) => /sign in/.test(e.message))
   })
 
   test('sign up claims the 30-day trial on this machine; the trial counts down', async () => {
@@ -139,7 +139,7 @@ describe('accounts (Supabase) + 30-day free trial per account and per machine', 
     t += 6 * DAY
     sb.now = t
     assert.equal(license.status().state, 'unverified') // quá 30 ngày chưa xác nhận với máy chủ
-    assert.throws(() => license.check('10.0.0.1', 'control'), (e: Error) => /verified online/.test(e.message))
+    assert.throws(() => license.requirePro('Live preview'), (e: Error) => /verified online/.test(e.message))
     sb.down = false
     await account.refresh()
     assert.equal(license.status().state, 'licensed')

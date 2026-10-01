@@ -14,8 +14,10 @@ import { DeviceError } from './net/tcp.ts'
  * công khai nhúng trong app. Payload: { v:1, id, licensee, max (0 = không giới hạn), exp? (ISO), iat }.
  *
  * Chính sách:
- *   - Dùng thử TRIAL_DAYS ngày kể từ lần chạy đầu, đủ tính năng.
- *   - Hết dùng thử mà chưa có khoá hợp lệ (hoặc khoá hết hạn): chỉ XEM trạng thái tối đa FREE_LIMIT máy, không gửi lệnh.
+ *   - Không có dùng thử cục bộ: mở app phải có khoá (hoặc tài khoản có quyền dùng). "Dùng thử 30 ngày" là một khoá có hạn 30 ngày
+ *     do trang web cấp khi đăng ký tài khoản. (Dùng thử cục bộ TRIAL_DAYS chỉ còn bật được bằng `localTrial`, dành cho test.)
+ *   - Hai bản: FREE (chưa có khoá hợp lệ / hết hạn / quá hạn cập nhật…) chỉ bật / tắt máy và shutter; PRO (khoá hợp lệ) mở khoá preview,
+ *     chỉnh thông số (input, OSD, test pattern, lens, độ sáng, RAW…). App hiện trang license khi mở ở bản Free, có thể bỏ qua.
  *   - Có khoá hợp lệ: tối đa `max` máy (0 = không giới hạn).
  * Số máy tính theo địa chỉ máy chiếu gateway đã làm việc cùng trong ACTIVE_WINDOW_MS gần nhất.
  * Đây là rào chắn trung thực cho người dùng bình thường, không phải chống bẻ khoá (khoá công khai nằm trong app).
@@ -215,8 +217,10 @@ export interface LicenseManager {
   remove(): LicenseStatusDto
   /** Tải file trạng thái đã ký từ địa chỉ kiểm tra; thành công thì tính là "đã kiểm tra" (không có địa chỉ → không làm gì). */
   checkNow(): Promise<LicenseStatusDto>
-  /** Gọi trước khi làm việc với một máy chiếu; ném DeviceError('license') nếu không được phép. */
+  /** Gọi trước khi làm việc với một máy chiếu; ném DeviceError('license') nếu không được phép (khoá có giới hạn số máy bị vượt). */
   check(host: string, kind: 'status' | 'control'): void
+  /** Gọi trước tính năng của bản Pro (preview, chỉnh thông số, RAW…); bản Free (chưa có license hợp lệ) bị từ chối bằng DeviceError('license'). */
+  requirePro(feature: string): void
 }
 
 /** Trạng thái cục bộ: mốc dùng thử, đồng hồ đã thấy, lần kiểm tra mạng gần nhất và danh sách thu hồi. */
@@ -287,6 +291,8 @@ export function createLicenseManager(dir: string, opts: {
   account?: AccountManager
   /** Ngày phát hành của bản build (mặc định BUILD_DATE); chỉ để test. */
   buildDate?: string
+  /** Bật dùng thử cục bộ TRIAL_DAYS ngày (mặc định tắt: phải có khoá). Chỉ dành cho test. */
+  localTrial?: boolean
 } = {}): LicenseManager {
   const account = opts.account?.configured ? opts.account : undefined
   const buildDate = opts.buildDate ?? BUILD_DATE
@@ -352,7 +358,7 @@ export function createLicenseManager(dir: string, opts: {
       return fromKey
     }
     if (account) return fromAccount(t)
-    const left = Math.ceil((state.firstRun + TRIAL_DAYS * DAY_MS - t) / DAY_MS)
+    const left = opts.localTrial ? Math.ceil((state.firstRun + TRIAL_DAYS * DAY_MS - t) / DAY_MS) : 0
     if (left > 0) return { state: 'trial', trialDaysLeft: left, freeLimit: FREE_LIMIT, restricted: false, machineCode }
     return { state: 'unlicensed', trialDaysLeft: 0, freeLimit: FREE_LIMIT, restricted: true, machineCode }
   }
@@ -388,22 +394,18 @@ export function createLicenseManager(dir: string, opts: {
 
   function status(): LicenseStatusDto {
     const s = compute()
-    return account ? { ...s, gate: s.restricted, account: account.status() } : s
+    // `gate`: app hiện trang yêu cầu license (không có quyền dùng). Luôn bật khi bị giới hạn; `account` chỉ có khi đã cấu hình tài khoản.
+    // `edition`: free = chưa có license hợp lệ (chỉ bật / tắt máy và shutter); pro = mở khoá preview, chỉnh thông số…
+    return { ...s, edition: s.restricted ? 'free' : 'pro', gate: s.restricted, ...(account ? { account: account.status() } : {}) }
   }
 
   const active = new Map<string, number>()
   function check(host: string, kind: 'status' | 'control'): void {
+    void kind
     const s = status()
-    if (s.restricted && kind === 'control') {
-      throw new DeviceError('license',
-        s.state === 'expired' ? 'The MikMaster license has expired — enter a new license key in Settings'
-        : s.state === 'revoked' ? 'This MikMaster license has been revoked — contact the license issuer'
-        : s.state === 'outdated' ? `This MikMaster version was released after your updates ended on ${s.updatesUntil?.slice(0, 10)} — use an earlier version (your license keeps working with those) or renew your updates`
-        : s.state === 'signin' ? 'Sign in to your MikMaster account or enter a license key to control projectors'
-        : s.state === 'unverified' ? `The license has not been verified online for ${ONLINE_GRACE_DAYS} days — connect this computer to the internet (Settings → License → Check now)`
-        : 'The 30-day trial has ended — enter a license key in Settings to control projectors')
-    }
-    const limit = s.restricted ? FREE_LIMIT : s.state === 'licensed' && s.maxProjectors ? s.maxProjectors : Infinity
+    // Bản Free (chưa có license hợp lệ) dùng được bật / tắt máy và shutter cho mọi máy, không giới hạn số máy.
+    // Giới hạn số máy chỉ áp cho khoá có `max`.
+    const limit = !s.restricted && s.state === 'licensed' && s.maxProjectors ? s.maxProjectors : Infinity
     const t = now()
     for (const [h, seen] of active) if (t - seen > ACTIVE_WINDOW_MS) active.delete(h)
     if (!active.has(host) && active.size >= limit) {
@@ -412,9 +414,23 @@ export function createLicenseManager(dir: string, opts: {
     active.set(host, t)
   }
 
+  function requirePro(feature: string): void {
+    const s = status()
+    if (!s.restricted) return
+    const why =
+      s.state === 'expired' ? 'the license has expired — enter a new license key'
+      : s.state === 'revoked' ? 'this license has been revoked — contact the license issuer'
+      : s.state === 'outdated' ? `this version was released after your updates ended on ${s.updatesUntil?.slice(0, 10)} — use an earlier version or renew your updates`
+      : s.state === 'signin' ? 'sign in to your MikMaster account or enter a license key'
+      : s.state === 'unverified' ? `the license has not been verified online for ${ONLINE_GRACE_DAYS} days — connect this computer to the internet (Settings → License → Check now)`
+      : 'enter a license key (Settings → License)'
+    throw new DeviceError('license', `${feature} is a MikMaster Pro feature — ${why}`)
+  }
+
   return {
     status,
     check,
+    requirePro,
     async checkNow() {
       await account?.refresh()
       if (checkUrl === '') return status()

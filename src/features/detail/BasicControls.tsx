@@ -2,6 +2,7 @@ import { Ban, Power } from 'lucide-react'
 import { Button } from '@/components/ui/Button'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { SectionHeader } from '@/components/ui/SectionHeader'
+import { useEdition } from '@/hooks/useEdition'
 import { useT } from '@/i18n'
 import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
@@ -9,6 +10,7 @@ import type { Projector } from '@/types'
 /** Power · Shutter · OSD on/off. Tắt máy hỏi xác nhận. OSD gửi tới máy nếu driver có lệnh (Christie), còn lại chỉ đổi trạng thái trong app. */
 export function BasicControls({ projector: p }: { projector: Projector }) {
   const t = useT()
+  const { free } = useEdition()
   const { setPower, setShutter, setOsdMany } = useProjectActions()
   const [confirmDialog, confirm] = useConfirm()
   const osdOn = p.osd !== false
@@ -38,10 +40,10 @@ export function BasicControls({ projector: p }: { projector: Projector }) {
         {p.shutter ? t('SHUTTER CLOSED') : t('SHUTTER OPEN')}
       </Button>
 
-      <SectionHeader label={t('OSD')} />
+      <SectionHeader label={free ? `${t('OSD')} · PRO` : t('OSD')} />
       <div className="mb-5 flex gap-2">
-        <Button size="md" variant="ok" selected={osdOn} className="flex-1" onClick={() => setOsdMany([p.id], true)}>{t('ON')}</Button>
-        <Button size="md" variant="secondary" selected={!osdOn} className="flex-1" onClick={() => setOsdMany([p.id], false)}>{t('OFF')}</Button>
+        <Button size="md" variant="ok" selected={osdOn} disabled={free} className="flex-1" onClick={() => setOsdMany([p.id], true)}>{t('ON')}</Button>
+        <Button size="md" variant="secondary" selected={!osdOn} disabled={free} className="flex-1" onClick={() => setOsdMany([p.id], false)}>{t('OFF')}</Button>
       </div>
       {confirmDialog}
     </>

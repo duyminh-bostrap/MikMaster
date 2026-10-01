@@ -1,4 +1,4 @@
-import { ChevronsDownUp, ChevronsUpDown, LayoutList, Map as MapIcon, Search, X } from 'lucide-react'
+import { Activity, LayoutList, Search, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useT } from '@/i18n'
 import type { AllView } from '@/services/dashboardView'
@@ -9,17 +9,15 @@ import { STATUS_FILTERS, type StatusFilter } from '@/utils/projectorFilter'
 const STATUS_LABEL: Record<StatusFilter, string> = { all: 'All', on: 'On', off: 'Off', alerts: 'Alerts', offline: 'Offline' }
 
 /** Lọc theo trạng thái (trái) + tìm nhanh (phải; phím "/" để vào ô tìm). */
-export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts, view, onView, onCollapseAll, onExpandAll }: {
+export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts, view, onView }: {
   query: string
   onQuery: (q: string) => void
   status: StatusFilter
   onStatus: (s: StatusFilter) => void
   counts: Record<StatusFilter, number>
-  /** Chỉ tab All có hai cách xem: theo group (thu gọn được) hoặc sơ đồ 2D. */
+  /** Chỉ tab All có hai cách xem: theo group (thu gọn được) hoặc Dashboard (các bảng theo dõi thông số). */
   view?: AllView
   onView?: (v: AllView) => void
-  onCollapseAll?: () => void
-  onExpandAll?: () => void
 }) {
   const t = useT()
   const input = useRef<HTMLInputElement>(null)
@@ -46,14 +44,8 @@ export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts, v
       <div className="ml-auto flex flex-wrap items-center gap-3">
       {view && onView && (
         <>
-          {view === 'groups' && onCollapseAll && onExpandAll && (
-            <div className="flex gap-1">
-              <button type="button" onClick={onCollapseAll} title={t('Collapse all groups')} aria-label={t('Collapse all groups')} className="rounded-sm border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"><ChevronsDownUp size={12} /></button>
-              <button type="button" onClick={onExpandAll} title={t('Expand all groups')} aria-label={t('Expand all groups')} className="rounded-sm border border-border p-1.5 text-muted-foreground transition-colors hover:text-foreground"><ChevronsUpDown size={12} /></button>
-            </div>
-          )}
           <div role="radiogroup" aria-label={t('View')} className="flex overflow-hidden rounded-sm border border-border">
-            {([['groups', LayoutList, 'Groups'], ['map', MapIcon, '2D map']] as const).map(([v, Icon, label]) => (
+            {([['groups', LayoutList, 'Groups'], ['monitor', Activity, 'Dashboard']] as const).map(([v, Icon, label]) => (
               <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => onView(v)}
                 className={cn('flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] transition-colors', view === v ? 'bg-accent/10 text-accent' : 'text-muted-foreground hover:text-foreground')}>
                 <Icon size={11} />{t(label)}
