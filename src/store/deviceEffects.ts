@@ -1,5 +1,5 @@
 import type { Dispatch } from 'react'
-import { TEMPLATE_PROTOCOLS, type OsdKeyDto } from '../../shared/api.ts'
+import { TEMPLATE_PROTOCOLS, supportsTestPattern, type OsdKeyDto } from '../../shared/api.ts'
 import type { Gateway } from '@/services/gateway'
 import { deviceCapabilities } from '@/services/capabilities'
 import type { InputSource, Projector } from '@/types'
@@ -46,6 +46,12 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
     busyUntil.set(id, Date.now() + HOLD_MS)
     const result = await send(p)
     if (result.ok) hooks.onSent?.()
+    if (!result.ok && result.code === 'unsupported') {
+      // Máy từ chối vì không có lệnh này: chỉ ghi vào nhật ký — không phải lỗi kết nối / giao thức của máy.
+      busyUntil.delete(id)
+      dispatch({ type: 'projector/log', id, level: 'warn', message: `${capability}: ${result.message}` })
+      return
+    }
     if (!result.ok) {
       busyUntil.delete(id)
       dispatch({ type: 'projector/sync', id, result: { ok: false, code: result.code, message: `${capability}: ${result.message}` } })
@@ -64,6 +70,12 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
     testPattern: (ids, enabled, pattern) => ids.forEach(id => {
       const on = enabled ?? find(id)?.testPattern.enabled
       if (!on && enabled === undefined) return
+      const p0 = find(id)
+      const wanted = pattern ?? p0?.testPattern.type
+      if (on && p0 && wanted && !supportsTestPattern(p0.network.protocol.type, wanted) && !(p0.network.protocol.commands?.testPatternOn)) {
+        dispatch({ type: 'projector/log', id, level: 'warn', message: `testPattern: ${p0.model} has no "${wanted}" test pattern (not sent)` })
+        return
+      }
       void run(id, 'testPattern', p => gateway.command(p, { kind: 'testPattern', enabled: !!on, pattern: pattern ?? p.testPattern.type }))
     }),
     brightness: (id, percent) => void run(id, 'brightness', p => gateway.command(p, { kind: 'brightness', percent })),

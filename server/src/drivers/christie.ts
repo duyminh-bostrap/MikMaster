@@ -20,7 +20,7 @@ import type { Driver, DriverTarget, ProbeResult } from './types.ts'
  * Tài liệu chính thức "4K7-HS and 4K10-HS Technical Reference — Serial Commands" (020-102782-02, 2021) do người dùng cung cấp:
  * dòng máy khác Griffyn nhưng cùng họ lệnh. Dùng ở đây: `(OSD <0|1>)` hiện / ẩn OSD (Griffyn trả lời `(OSD?)` → `(OSD!000)`),
  * `(ITP <n>)` test pattern (0 tắt, 1 lưới, 2 trắng, 3 đen, 4 ô cờ, 5 thanh màu, 6 đỏ, 7 xanh lá, 8 xanh dương, 9 vàng, 10 tím, 11 lục lam,
- * 12 boresight, 13 toàn màn hình). Số mẫu CHƯA kiểm trên Griffyn (mới xác nhận `(ITP?)` → `(ITP!000 "Off")`).
+ * 12 boresight, 13 toàn màn hình). Menu Test Pattern của Griffyn 4K50-RGB (ảnh người dùng): Off, Grid, Gray Scale 16, Flat White/Gray/Black, Checker, 17 Point, Edge Blend, Color Bars, Multi-color, các Ramp, Grid vuông/chéo, Prism, Boresight, Convergence, Integrator Rod… — KHÔNG có mẫu đỏ / xanh lá / xanh dương phẳng. Số mẫu CHƯA kiểm trên Griffyn (mới xác nhận `(ITP?)` → `(ITP!000 "Off")`).
  * Có trong tài liệu nhưng CHƯA làm: `(LMA n)` / `(LMS n)` nạp / lưu 5 bộ nhớ lens (0–4), `(KEY n)` phím menu, `(LCB+HOME 1)` lens về giữa,
  * `(SIN+MAIN n)` chọn input — số input của 4K7-HS (3 = HDMI 1…) KHÁC Griffyn (`(SIN!001 "One-Port HDMI0")`) nên không dùng.
  *
@@ -32,7 +32,7 @@ import type { Driver, DriverTarget, ProbeResult } from './types.ts'
 const LENS_QUERIES = [['LHO', 'shiftH'], ['LVO', 'shiftV'], ['ZOM', 'zoom'], ['FCS', 'focus']] as const satisfies readonly (readonly [string, keyof LensReadingDto])[]
 
 /** Loại mẫu của app → số `(ITP n)`; mẫu không có tương ứng thì không hỗ trợ. */
-const ITP_PATTERNS: Record<string, number> = { grid: 1, white: 2, black: 3, 'color-bars': 5, red: 6, green: 7, blue: 8 }
+const ITP_PATTERNS: Record<string, number> = { grid: 1, white: 2, black: 3, 'color-bars': 5 }
 
 const SHUTTER_CLOSED = '1'
 const SHUTTER_OPEN = '0'

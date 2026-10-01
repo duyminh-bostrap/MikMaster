@@ -3,6 +3,8 @@ import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
 import { SectionHeader } from '@/components/ui/SectionHeader'
 import { TEST_PATTERNS } from '@/constants/testPatterns'
+import { supportsTestPattern } from '../../../shared/api.ts'
+import { useGateway } from '@/store/useGateway'
 import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
@@ -12,6 +14,9 @@ export function TestPatternPanel({ projector: p }: { projector: Projector }) {
   const { setTestPattern } = useProjectActions()
   const { enabled, type } = p.testPattern
   const disabled = p.power !== 'on'
+  const { gateway } = useGateway()
+  // Điều khiển thật: mẫu mà máy này không có lệnh thì mờ đi (mô phỏng: mẫu nào cũng dùng được).
+  const supported = (type: string) => !gateway || supportsTestPattern(p.network.protocol.type, type)
 
   return (
     <div>
@@ -24,10 +29,10 @@ export function TestPatternPanel({ projector: p }: { projector: Projector }) {
           <button
             key={pattern.type}
             type="button"
-            title={pattern.label}
+            title={supported(pattern.type) ? pattern.label : `${pattern.label} — ${t('not available on this projector')}`}
             aria-label={pattern.label}
             aria-pressed={type === pattern.type}
-            disabled={disabled}
+            disabled={disabled || !supported(pattern.type)}
             onClick={() => setTestPattern(p.id, { type: pattern.type, enabled: true })}
             className={cn('overflow-hidden rounded-sm border text-left transition-colors disabled:cursor-not-allowed disabled:opacity-40', type === pattern.type ? 'border-accent' : 'border-border hover:border-muted-foreground')}
           >

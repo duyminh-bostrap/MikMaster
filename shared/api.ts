@@ -126,6 +126,21 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   'http-api': ['raw'],
 }
 
+/**
+ * Mẫu test pattern (loại của app) mà driver có lệnh cho từng giao thức; giao thức không có trong bảng = không giới hạn (mẫu do người dùng khai báo).
+ * Phải khớp TEST_PATTERN_CODES (Panasonic, OTS) và ITP_PATTERNS (Christie, ITP) trong server/src/drivers.
+ */
+export const TEST_PATTERN_SUPPORT: Partial<Record<DriverProtocol, readonly string[]>> = {
+  'panasonic-nt-control': ['white', 'black', 'crosshatch', 'grid', 'color-bars', 'focus'],
+  'christie-serial-ip': ['grid', 'white', 'black', 'color-bars'],
+}
+
+/** Máy (giao thức này) gửi được mẫu `pattern` không? Giao thức không có bảng riêng: luôn thử. */
+export function supportsTestPattern(type: string, pattern: string): boolean {
+  const list = isDriverProtocol(type) ? TEST_PATTERN_SUPPORT[type] : undefined
+  return !list || list.includes(pattern)
+}
+
 export const DEFAULT_PORTS: Record<DriverProtocol, number> = {
   'pjlink-class1': 4352,
   'pjlink-class2': 4352,

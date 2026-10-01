@@ -889,5 +889,9 @@ test('live brightness, test pattern and input: shown from the projector status, 
   await page.getByRole('button', { name: /^Color Bars$/ }).click()
   await expect.poll(() => commands.find(c => c.kind === 'testPattern')).toMatchObject({ kind: 'testPattern', enabled: true, pattern: 'color-bars' })
   status = { ...status, testPattern: { enabled: true, pattern: 'color-bars' } }
+  // Mẫu mà Panasonic không có lệnh (crosshair, red…) bị mờ → không chọn được, không gửi lệnh.
+  await expect(page.getByRole('button', { name: /^Crosshair$/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /^Red$/ })).toBeDisabled()
+  await expect(page.getByRole('button', { name: /^Grid$/ })).toBeEnabled()
   await page.screenshot({ path: 'test-results/live-controls.png' })
 })

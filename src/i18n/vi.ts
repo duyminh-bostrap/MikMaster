@@ -478,6 +478,7 @@ export const VI: Record<string, string> = {
   'Connected projectors': 'Máy chiếu đã kết nối',
   '{s} s apart': 'cách {s} giây',
   'OFF / STANDBY': 'TẮT / CHỜ',
+  'not available on this projector': 'máy này không có',
   'USE SAMPLE DATA': 'DÙNG DỮ LIỆU MẪU',
   'STOP SAMPLE DATA': 'TẮT DỮ LIỆU MẪU',
   'SAMPLE DATA — not real measurements': 'DỮ LIỆU MẪU — không phải số đo thật',
