@@ -1,6 +1,7 @@
-import { Download, FlaskConical, WifiOff } from 'lucide-react'
+import { Download, FlaskConical } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { EthernetStatus } from '@/components/ui/EthernetStatus'
 import { Button } from '@/components/ui/Button'
 import { Panel } from '@/components/ui/Panel'
 import { ProgressBar } from '@/components/ui/ProgressBar'
@@ -20,13 +21,11 @@ import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, tempe
 import { TEMP_DANGER, TEMP_RANGE, TEMP_WARN, TONE_TEXT, temperatureTone } from '@/utils/tones'
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
-/** Trạng thái kết nối dạng icon: đang kết nối = chấm xanh; mất kết nối = icon mất kết nối màu đỏ. */
+/** Trạng thái kết nối dạng icon Ethernet: đang kết nối = xanh; mất kết nối = đỏ, gạch chéo. */
 function ConnectionIcon({ p }: { p: Projector }) {
   const t = useT()
   const lost = p.connection === 'disconnected' || p.connection === 'protocol-error'
-  return lost
-    ? <WifiOff size={13} strokeWidth={2.5} className="shrink-0 text-danger" role="img" aria-label={t('Disconnected')} data-connection="lost"><title>{t('Disconnected')}</title></WifiOff>
-    : <span role="img" aria-label={t('Connected')} title={t('Connected')} data-connection="ok" className="inline-block size-2.5 shrink-0 rounded-full bg-ok" />
+  return <EthernetStatus lost={lost} label={lost ? t('Disconnected') : t('Connected')} />
 }
 
 const Aside = ({ children }: { children: ReactNode }) => <span className="font-mono text-[10px] text-muted-foreground">{children}</span>

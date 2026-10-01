@@ -1,4 +1,4 @@
-import { WifiOff } from 'lucide-react'
+import { EthernetPort } from 'lucide-react'
 import { useId, useRef, useState, type ReactNode } from 'react'
 
 /** `y: null` = máy đang tắt / chờ: vẽ ở đáy trục (đường vẫn nối liền). */
@@ -49,6 +49,17 @@ export function decimate<T>(pts: readonly T[], max = MAX_DRAW): readonly T[] {
   const out = pts.filter((_, i) => i % k === 0)
   if (out[out.length - 1] !== pts[pts.length - 1]) out.push(pts[pts.length - 1]!)
   return out
+}
+
+/** Icon "mất kết nối" trong SVG: cổng Ethernet đỏ có gạch chéo, tâm tại (cx, cy). */
+function LostIcon({ cx, cy, size, ...rest }: { cx: number; cy: number; size: number } & Record<string, unknown>) {
+  const x = cx - size / 2, y = cy - size / 2
+  return (
+    <g {...rest} color="var(--color-danger)">
+      <EthernetPort x={x} y={y} width={size} height={size} strokeWidth={2.25} />
+      <line x1={x + size * 0.12} y1={y + size * 0.12} x2={x + size * 0.88} y2={y + size * 0.88} stroke="var(--color-danger)" strokeWidth={2.5} strokeLinecap="round" />
+    </g>
+  )
 }
 
 interface Hover { id: string; point: LinePoint; left: number; top: number; flip: boolean }
@@ -170,11 +181,11 @@ export function LineChart({ series, xMin = 0, xMax, xLabel, xStep, yRange, thres
                 })}
               </g>
               {end && (s.lost
-                ? <WifiOff data-lost-end x={x(end.x) - 8} y={y(end.y) - 8} width={16} height={16} color="var(--color-danger)" strokeWidth={2.5} />
+                ? <LostIcon data-lost-end cx={x(end.x)} cy={y(end.y)} size={18} />
                 : <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />)}
               {s.events?.filter(e => e.x >= xMin && e.x <= xMax).map((e, k) => {
                 const ex = x(e.x), ey = H - PAD.b
-                if (e.lost) return <g key={k} data-event="lost"><WifiOff x={ex - 7} y={ey - 15} width={14} height={14} color="var(--color-danger)" strokeWidth={2.5} /><title>{`${s.name}: OFFLINE ${xLabel(e.x)}`}</title></g>
+                if (e.lost) return <g key={k} data-event="lost"><LostIcon cx={ex} cy={ey - 8} size={16} /><title>{`${s.name}: OFFLINE ${xLabel(e.x)}`}</title></g>
                 return e.on
                   ? <path key={k} data-event="on" d={`M${ex},${ey - 9} l5,8 l-10,0 z`} fill={s.color}><title>{`${s.name}: ON ${xLabel(e.x)}`}</title></path>
                   : <rect key={k} data-event="off" x={ex - 4} y={ey - 9} width={8} height={8} fill="var(--color-card)" stroke={s.color} strokeWidth={2}><title>{`${s.name}: OFF ${xLabel(e.x)}`}</title></rect>

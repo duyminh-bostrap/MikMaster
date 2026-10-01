@@ -350,7 +350,7 @@ test('Dashboard: one overview chart (temperature + power on / off over time from
   await expect(legend.locator('li')).toHaveCount(6)
   await expect(legend).toContainText('Center Fill')
   await expect(legend).toContainText('27°C')
-  await expect(legend.locator('li').first().getByRole('img', { name: 'Connected' })).toBeVisible() // kết nối: chấm xanh
+  await expect(legend.locator('li').first().getByRole('img', { name: 'Connected' })).toBeVisible() // kết nối: icon Ethernet xanh
   // Chưa trỏ vào đường nào → không có khung thông tin; trỏ vào đường của một máy → hiện thông tin máy đó.
   const tip = page.getByTestId('chart-tip')
   await expect(tip).toHaveCount(0)
