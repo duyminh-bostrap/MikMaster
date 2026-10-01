@@ -14,7 +14,7 @@ export const DEFAULT_LICENSE_CHECK_URL = ''
 /**
  * Máy chủ tài khoản (Supabase): URL project và khoá `anon` (công khai theo thiết kế của Supabase, bảo vệ bằng Row Level Security).
  * Điền ở đây hoặc đặt biến môi trường MIKMASTER_SUPABASE_URL / MIKMASTER_SUPABASE_ANON_KEY. Để trống = tắt hệ thống tài khoản
- * (app dùng dùng thử 30 ngày cục bộ + khoá license như trước). Xem docs/accounts.md.
+ * (không có dùng thử cục bộ: app chạy bản Free cho tới khi nhập khoá license). Xem docs/accounts.md.
  */
 export const SUPABASE_URL = ''
 export const SUPABASE_ANON_KEY = ''
