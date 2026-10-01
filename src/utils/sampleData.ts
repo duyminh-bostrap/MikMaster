@@ -32,11 +32,18 @@ function warmCurve(p: Projector, target: number, from: number, to: number): Samp
   const base = 21 + (h % 3)
   const tau = (8 + (h % 9)) * MIN
   const out: Sample[] = []
-  for (let t = from; t <= to; t += 30_000) {
+  for (let t = from; t < to; t += 30_000) {
     const e = t - from
     const wobble = Math.sin(e / 90_000 + (h % 7)) * 0.6
     out.push({ t, c: Math.round((base + (target - base) * (1 - Math.exp(-e / tau)) + wobble) * 10) / 10 })
   }
+  return out
+}
+
+/** Mẫu "máy tắt / chờ" (đang kết nối) trong khoảng [from, to], mỗi 30 giây. */
+function offCurve(from: number, to: number): Sample[] {
+  const out: Sample[] = []
+  for (let t = from; t < to; t += 30_000) out.push({ t, c: 0, off: true })
   return out
 }
 
@@ -56,7 +63,12 @@ export function sampleData(ps: Projector[], now: number): SampleSet {
     const ev = sampleEvents(p, i, now)
     events.set(p.id, ev)
     const samples: Sample[] = []
-    ev.forEach((e, k) => { if (e.on) samples.push(...warmCurve(p, target, e.t, ev[k + 1]?.t ?? now - 10_000)) })
+    // Bật → đường nóng dần; tắt (vẫn kết nối) → mẫu "tắt"; mất kết nối → không có mẫu (đường đứt).
+    ev.forEach((e, k) => {
+      const to = ev[k + 1]?.t ?? now - 10_000
+      if (e.on) samples.push(...warmCurve(p, target, e.t, to))
+      else if (!e.lost) samples.push(...offCurve(e.t, to))
+    })
     history.set(p.id, samples)
     const on = kind === 'on' || kind === 'restarted'
     const at = new Date(now - 60_000).toISOString()
@@ -64,7 +76,7 @@ export function sampleData(ps: Projector[], now: number): SampleSet {
       ...ev.map((e, k) => ({ id: `${p.id}-e${k}`, at: new Date(e.t).toISOString(), level: (kind === 'offline' && !e.on ? 'error' : 'info') as LogEntry['level'], message: kind === 'offline' && !e.on ? 'Connection lost (sample)' : e.on ? 'Power on (sample)' : 'Power off (sample)' })).reverse(),
       ...(target > 40 ? [{ id: `${p.id}-hot`, at, level: 'warn' as const, message: `Temperature ${target}°C above 40°C (sample)` }] : []),
     ]
-    const last = samples[samples.length - 1]
+    const last = [...samples].reverse().find(x => !x.off)
     return {
       ...p,
       power: on || kind === 'offline' ? 'on' : 'standby',

@@ -16,7 +16,7 @@ function frame(opcode: 1 | 2, payload: Buffer): Buffer {
 }
 
 /** "Máy chiếu" giả nói giao thức pj-cast-protocol: sau khi nhận 'start' thì gửi ảnh JPEG đều đặn (hoặc chuỗi trạng thái). */
-function fakeProjector(mode: 'frames' | 'blank' | 'hdcp' | 'silent') {
+function fakeProjector(mode: 'frames' | 'blank' | 'hdcp' | 'silent' | 'standby') {
   const received: string[] = []
   const sockets = new Set<Socket>()
   let connections = 0
@@ -29,15 +29,25 @@ function fakeProjector(mode: 'frames' | 'blank' | 'hdcp' | 'silent') {
     const accept = crypto.createHash('sha1').update(`${req.headers['sec-websocket-key']}258EAFA5-E914-47DA-95CA-C5AB0DC85B11`).digest('base64')
     socket.write(`HTTP/1.1 101 Switching Protocols\r\nUpgrade: websocket\r\nConnection: Upgrade\r\nSec-WebSocket-Accept: ${accept}\r\nSec-WebSocket-Protocol: pj-cast-protocol\r\n\r\n`)
     let timer: ReturnType<typeof setInterval> | undefined
-    socket.on('data', (d: Buffer) => {
-      // Khung của khách luôn được che (mask): đọc text ngắn.
+    socket.on('data', (chunk: Buffer) => {
+     // Một gói TCP có thể chứa nhiều khung của khách (vd. 'start' rồi 'preshow:1'): đọc lần lượt, mỗi khung đã được che (mask).
+     for (let d = chunk; d.length >= 6;) {
       const len = d[1]! & 0x7f, mask = d.subarray(2, 6), body = d.subarray(6, 6 + len)
+      d = d.subarray(6 + len)
       const text = Buffer.from(body.map((b, i) => b ^ mask[i % 4]!)).toString()
       received.push(text)
-      if (text !== 'start') return
+      if (mode === 'standby') {
+        // Máy đang tắt: chỉ có 'BLANK' cho tới khi bật Pre-Show; 'preshow:0' trả về BLANK.
+        if (text === 'start') socket.write(frame(1, Buffer.from('BLANK')))
+        else if (text === 'preshow:1') { socket.write(frame(1, Buffer.from('CHANGING_PRE'))); setTimeout(() => { socket.write(frame(1, Buffer.from('SIGNAL'))); timer = setInterval(() => socket.write(frame(2, JPEG)), 50) }, 150) }
+        else if (text === 'preshow:0') { clearInterval(timer); socket.write(frame(1, Buffer.from('BLANK'))) }
+        continue
+      }
+      if (text !== 'start') continue
       if (mode === 'blank') socket.write(frame(1, Buffer.from('BLANK')))
       else if (mode === 'hdcp') socket.write(frame(1, Buffer.from('HDCP')))
       else if (mode === 'frames') { socket.write(frame(1, Buffer.from('SIGNAL'))); timer = setInterval(() => socket.write(frame(2, JPEG)), 50) }
+     }
     })
     socket.on('close', () => { clearInterval(timer); sockets.delete(socket) })
     socket.on('error', () => undefined)
@@ -84,5 +94,33 @@ describe('Panasonic Remote preview over WebSocket (pj-cast-protocol on port 8080
     const { port } = await start('silent')
     await assert.rejects(panasonicPreview(target, port), (e: { code?: string; message: string }) => e.code === 'timeout' && /no preview image/.test(e.message))
     await assert.rejects(panasonicPreview({ ...target, host: '127.0.0.1' }, 1), (e: { code?: string }) => e.code === 'connect' || e.code === 'timeout')
+  })
+
+  test('Pre-Show: a standby projector shows only BLANK; asking for preshow sends "preshow:1" ONCE and then returns pictures; stopping sends "preshow:0"', async () => {
+    const { fp, port } = await start('standby')
+    assert.equal((await panasonicPreview(target, port)).state, 'no-signal') // không yêu cầu → không đụng cài đặt máy
+    assert.deepEqual(fp.received, ['start'])
+    const first = await panasonicPreview(target, port, { preshow: true }).catch((e: Error) => e) // đang đổi chế độ: có thể chưa kịp có ảnh
+    assert.ok(first instanceof Error || first.state === 'image')
+    let r = await panasonicPreview(target, port, { preshow: true })
+    for (let i = 0; i < 20 && r.state !== 'image'; i++) r = await panasonicPreview(target, port, { preshow: true }).catch(() => r)
+    assert.equal(r.state, 'image')
+    assert.equal(fp.received.filter(x => x === 'preshow:1').length, 1) // đúng một lần dù hỏi nhiều lần
+    await panasonicPreview(target, port, { preshow: false })
+    await new Promise(r => setTimeout(r, 150))
+    assert.deepEqual(fp.received.filter(x => x.startsWith('preshow')), ['preshow:1', 'preshow:0'])
+  })
+
+  test('Pre-Show enabled by the driver is restored ("preshow:0") when the stream closes; it is never sent if nobody asked', async () => {
+    const { fp, port } = await start('standby')
+    await panasonicPreview(target, port, { preshow: true }).catch(() => undefined)
+    closeAllPanasonicStreams()
+    await new Promise(r => setTimeout(r, 200))
+    assert.deepEqual(fp.received.filter(x => x.startsWith('preshow')), ['preshow:1', 'preshow:0'])
+    const idle = await start('standby')
+    await panasonicPreview(target, idle.port)
+    closeAllPanasonicStreams()
+    await new Promise(r => setTimeout(r, 200))
+    assert.deepEqual(idle.fp.received.filter(x => x === 'start' || x.startsWith('preshow')), ['start']) // (khung đóng kết nối không tính)
   })
 })

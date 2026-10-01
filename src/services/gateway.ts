@@ -19,7 +19,8 @@ export interface Gateway {
   command(p: Projector, command: CommandDto): Promise<GatewayResult<null>>
   raw(p: Projector, text: string): Promise<GatewayResult<string>>
   /** Ảnh tín hiệu vào hiện tại (Christie: qua web của máy, cần tài khoản web). */
-  preview(p: Projector): Promise<GatewayResult<PreviewDto>>
+  /** `preshow`: true = bật Pre-Show (xem ảnh cả khi máy tắt, Panasonic); false = tắt lại; bỏ trống = không đụng cài đặt máy. */
+  preview(p: Projector, opts?: { preshow?: boolean }): Promise<GatewayResult<PreviewDto>>
   /** Tài khoản đăng nhập nhanh theo hãng (lưu mã hoá ở gateway). */
   getQuickLogins(): Promise<GatewayResult<QuickLoginsDto>>
   saveQuickLogins(logins: QuickLoginsDto): Promise<GatewayResult<unknown>>
@@ -101,7 +102,7 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
       const r = await call<{ reply: string }>(base, token, '/api/devices/raw', { target: toTarget(p), text })
       return r.ok ? { ok: true, value: r.value.reply } : r
     },
-    preview: p => call<PreviewDto>(base, token, '/api/devices/preview', { target: toTarget(p) }),
+    preview: (p, opts) => call<PreviewDto>(base, token, '/api/devices/preview', { target: toTarget(p), ...(opts?.preshow !== undefined ? { preshow: opts.preshow } : {}) }),
     getQuickLogins: () => call<QuickLoginsDto>(base, token, '/api/quick-logins', undefined, 'GET'),
     saveQuickLogins: logins => call<unknown>(base, token, '/api/quick-logins', logins, 'PUT'),
     accountSignIn: (email, password) => call<AccountResult>(base, token, '/api/account/login', { email, password }),

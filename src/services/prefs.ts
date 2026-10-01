@@ -9,10 +9,16 @@ import type { TestPatternType } from '@/types'
  * lọc trạng thái, lọc nhật ký, mẫu test pattern chọn sẵn, ngăn Terminal (mở / thẻ), dải IP quét, group đang xem của từng project.
  * Cài đặt chung (giao diện sáng / tối, ngôn ngữ, độ trễ bật máy) nằm ở `settings.ts`; cách xem tab All + group thu gọn ở `dashboardView.ts`.
  */
+export type ChartRange = '5m' | '15m' | '1h' | 'all'
+export const CHART_RANGES: readonly ChartRange[] = ['5m', '15m', '1h', 'all']
+export const CHART_RANGE_MS: Record<ChartRange, number> = { '5m': 5 * 60_000, '15m': 15 * 60_000, '1h': 60 * 60_000, all: Infinity }
+
 export interface Prefs {
   statusFilter: StatusFilter
   logFilter: LogFilter
   testPattern: TestPatternType
+  /** Khoảng thời gian của biểu đồ nhiệt độ ở Dashboard. */
+  chartRange: ChartRange
   terminalOpen: boolean
   terminalTab: 'log' | 'raw'
   scanRange: { from: string; to: string }
@@ -24,6 +30,7 @@ export const DEFAULT_PREFS: Prefs = {
   statusFilter: 'all',
   logFilter: 'issues',
   testPattern: 'grid',
+  chartRange: 'all',
   terminalOpen: false,
   terminalTab: 'log',
   scanRange: { from: '192.168.1.1', to: '192.168.1.254' },
@@ -44,6 +51,7 @@ export function parsePrefs(raw: unknown): Prefs {
     statusFilter: STATUS_FILTERS.includes(o.statusFilter as StatusFilter) ? (o.statusFilter as StatusFilter) : d.statusFilter,
     logFilter: o.logFilter === 'all' || o.logFilter === 'errors' || o.logFilter === 'issues' ? o.logFilter : d.logFilter,
     testPattern: TEST_PATTERNS.some(p => p.type === o.testPattern) ? (o.testPattern as TestPatternType) : d.testPattern,
+    chartRange: CHART_RANGES.includes(o.chartRange as ChartRange) ? (o.chartRange as ChartRange) : d.chartRange,
     terminalOpen: typeof o.terminalOpen === 'boolean' ? o.terminalOpen : d.terminalOpen,
     terminalTab: o.terminalTab === 'raw' ? 'raw' : 'log',
     scanRange: isStr(range?.from) && isStr(range?.to) && IPV4.test(range.from) && IPV4.test(range.to) ? { from: range.from, to: range.to } : d.scanRange,

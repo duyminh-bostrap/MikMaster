@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { distToSegment, niceStepMs } from '@/components/charts/LineChart'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, timeline } from '@/utils/monitor'
+import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, timeline, GAP_MS } from '@/utils/monitor'
 import { createProjector } from '@/utils/projector'
 import type { Projector } from '@/types'
 
@@ -77,25 +77,36 @@ describe('timeline (bật / tắt + nhiệt độ lúc bật, gốc = máy đầ
     expect(timeline([proj('a')], () => [], () => [], now)).toBeNull()
   })
 
-  test('gốc là lần bật sớm nhất; mỗi lần bật một đoạn; sự kiện bật / tắt đổi sang trục từ gốc', () => {
+  test('đường nối liền kể cả lúc máy tắt (y = null → đáy trục); chỉ đứt khi mất kết nối; gốc = lần bật sớm nhất', () => {
     const a = proj('a', { power: 'on', poweredOnAt: now - 1000, telemetry: tel(50) })
     const b = proj('b', { power: 'standby' })
-    const ev: Record<string, { t: number; on: boolean }[]> = {
+    const ev: Record<string, { t: number; on: boolean; lost?: boolean }[]> = {
       a: [{ t: now - 5000, on: true }, { t: now - 3000, on: false }, { t: now - 1000, on: true }],
-      b: [{ t: now - 6000, on: true }, { t: now - 4000, on: false }],
+      b: [{ t: now - 6000, on: true }, { t: now - 4000, on: false, lost: true }],
     }
-    const hist: Record<string, { t: number; c: number }[]> = {
-      a: [{ t: now - 4500, c: 30 }, { t: now - 3500, c: 35 }, { t: now - 2000, c: 99 }, { t: now - 500, c: 40 }],
-      b: [{ t: now - 5000, c: 33 }],
+    const hist: Record<string, { t: number; c: number; off?: true }[]> = {
+      a: [{ t: now - 4500, c: 30 }, { t: now - 3500, c: 35 }, { t: now - 2500, c: 0, off: true }, { t: now - 500, c: 40 }],
+      b: [{ t: now - 5000, c: 33 }, { t: now - 4500, c: 36 }],
     }
     const tl = timeline([a, b], id => hist[id] ?? [], id => ev[id] ?? [], now)!
     expect(tl.origin).toBe(now - 6000)
     const sa = tl.series.find(x => x.projector.id === 'a')!
-    // mẫu lúc máy tắt (now-2000) bị bỏ; đoạn đang bật thêm điểm "bây giờ" 50°C
-    expect(sa.segments).toEqual([[{ x: 1500, y: 30 }, { x: 2500, y: 35 }], [{ x: 5500, y: 40 }, { x: 6000, y: 50 }]])
+    // một đoạn liền: bật → tắt (null) → bật; thêm điểm "bây giờ" 50°C
+    expect(sa.segments).toEqual([[{ x: 1500, y: 30 }, { x: 2500, y: 35 }, { x: 3500, y: null }, { x: 5500, y: 40 }, { x: 6000, y: 50 }]])
     expect(sa.events).toEqual([{ x: 1000, on: true }, { x: 3000, on: false }, { x: 5000, on: true }])
+    // máy b đang chờ (kết nối) → có điểm "bây giờ" ở đáy; sự kiện mất kết nối được đánh dấu
     const sb = tl.series.find(x => x.projector.id === 'b')!
-    expect(sb.segments).toEqual([[{ x: 1000, y: 33 }]])
+    expect(sb.segments[0]!.slice(0, 2)).toEqual([{ x: 1000, y: 33 }, { x: 1500, y: 36 }])
+    expect(sb.events[1]).toEqual({ x: 2000, on: false, lost: true })
+  })
+
+  test('mất kết nối (không có mẫu quá GAP_MS) → đường đứt thành hai đoạn; máy mất kết nối không có điểm "bây giờ"', () => {
+    const lost = proj('a', { power: 'on', connection: 'disconnected', telemetry: tel(50) })
+    const t0 = 1_000_000
+    const hist = [{ t: t0, c: 30 }, { t: t0 + 4000, c: 31 }, { t: t0 + 4000 + GAP_MS + 1000, c: 29 }]
+    const tl = timeline([lost], () => hist, () => [{ t: t0, on: true }], t0 + 10 * GAP_MS)!
+    expect(tl.series[0]!.segments.map(sg => sg.length)).toEqual([2, 1])
+    expect(tl.end).toBe(t0 + 4000 + GAP_MS + 1000) // không có điểm "bây giờ" khi mất kết nối
   })
 })
 

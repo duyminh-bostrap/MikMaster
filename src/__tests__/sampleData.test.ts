@@ -19,27 +19,31 @@ describe('dữ liệu mẫu cho Dashboard', () => {
     for (const k of ['on', 'standby', 'offline'] as const) expect(keys).toContain(k)
     expect([...s.events.values()].some(ev => ev.filter(e => e.on).length >= 2)).toBe(true) // tắt rồi bật lại
     expect(Math.max(...[...s.history.values()].flat().map(x => x.c))).toBeGreaterThan(38) // có máy vượt ngưỡng nguy hiểm 40°C
-    expect(Math.min(...[...s.history.values()].flat().map(x => x.c))).toBeGreaterThanOrEqual(19)
+    expect(Math.min(...[...s.history.values()].flat().filter(x => !x.off).map(x => x.c))).toBeGreaterThanOrEqual(19)
   })
 
-  test('nhiệt độ chỉ có trong lúc bật', () => {
+  test('nhiệt độ chỉ có khi bật; tắt → mẫu "tắt"; mất kết nối → không có mẫu', () => {
     const s = sampleData(ps, now)
     for (const p of s.projectors) {
       const ev = s.events.get(p.id)!
       for (const sm of s.history.get(p.id)!) {
-        const inside = ev.some((e, k) => e.on && sm.t >= e.t && sm.t <= (ev[k + 1]?.t ?? now))
-        expect(inside).toBe(true)
+        const k = ev.findIndex((_, i) => sm.t >= ev[i]!.t && sm.t < (ev[i + 1]?.t ?? Infinity))
+        const e = ev[k]!
+        expect(e.lost).toBeFalsy() // không có mẫu trong lúc mất kết nối
+        expect(!!sm.off).toBe(!e.on) // bật ↔ nhiệt độ, tắt ↔ mẫu "tắt"
       }
     }
   })
 
-  test('timeline: gốc = máy đầu tiên bật; máy bật lại có 2 đoạn; mọi máy từng bật đều có đường', () => {
+  test('timeline: gốc = máy đầu tiên bật; máy tắt rồi bật lại vẫn MỘT đoạn liền (rơi xuống đáy); máy mất kết nối còn đường tới lúc mất', () => {
     const s = sampleData(ps, now)
     const tl = timeline(s.projectors, id => s.history.get(id) ?? [], id => s.events.get(id) ?? [], now)!
     const firstOn = Math.min(...[...s.events.values()].flat().filter(e => e.on).map(e => e.t))
     expect(tl.origin).toBe(firstOn)
     expect(tl.series).toHaveLength(ps.length)
-    expect(tl.series.some(sr => sr.segments.length === 2)).toBe(true)
+    const restarted = tl.series.find(sr => sr.events.filter(e => e.on).length >= 2)!
+    expect(restarted.segments).toHaveLength(1)
+    expect(restarted.segments[0]!.some(p => p.y === null)).toBe(true)
     expect(tl.series.flatMap(sr => sr.events).some(e => !e.on)).toBe(true)
   })
 })

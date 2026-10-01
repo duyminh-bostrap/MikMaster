@@ -551,3 +551,62 @@ test('save the total log (all projectors) and a single projector\'s log as files
   expect(text1).toContain('Scope   : PJ-03 Center Fill (192.168.1.102)')
   expect(text1).not.toContain('Stage Left')
 })
+
+test('Pre-Show mode: a switched-off Panasonic projector can still be previewed (explicit button; the preview requests carry preshow:true, stopping sends preshow:false)', async ({ page }) => {
+  await createProject(page, 'Preshow Show')
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  const bodies: Array<{ preshow?: boolean }> = []
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'standby', errors: [] } }))
+  await page.route('**/api/devices/preview', r => {
+    const b = JSON.parse(r.request().postData() ?? '{}') as { preshow?: boolean }
+    bodies.push(b)
+    return r.fulfill({ json: b.preshow ? { state: 'image', image: PNG } : { state: 'no-signal' } })
+  })
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  await card(page, 'PJ-03').click() // Center Fill: Panasonic NTCONTROL
+  await expect(page.getByText('The projector is off. Turn on Pre-Show mode to see the picture without projecting.')).toBeVisible({ timeout: 10_000 })
+  expect(bodies).toHaveLength(0) // máy tắt, chưa bật Pre-Show → không hỏi ảnh, không đụng cài đặt máy
+  const button = page.getByRole('button', { name: /PRE-SHOW MODE/ })
+  await button.click()
+  await expect(page.getByAltText('Live preview from the projector')).toBeVisible({ timeout: 10_000 })
+  expect(bodies.length).toBeGreaterThan(0)
+  expect(bodies.every(b => b.preshow === true)).toBe(true)
+  await page.screenshot({ path: 'test-results/preshow.png' })
+  const before = bodies.length
+  await button.click() // dừng → trả máy về như cũ
+  await expect.poll(() => bodies.slice(before).some(b => b.preshow === false)).toBe(true)
+  await expect(page.getByAltText('Live preview from the projector')).toHaveCount(0)
+})
+
+test('Dashboard chart: lines stay connected while a projector is off (drops to the bottom), range buttons 5 min / 15 min / 1 hour / All', async ({ page }) => {
+  await createProject(page, 'Range Show')
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  await page.getByRole('button', { name: 'USE SAMPLE DATA' }).click()
+  const monitor = page.getByTestId('monitor')
+  const chart = monitor.getByRole('group', { name: 'Temperature and power on / off over time' })
+  const ranges = monitor.getByRole('radiogroup', { name: 'Chart range' })
+  await expect(ranges.getByRole('radio', { name: 'All', exact: true })).toHaveAttribute('aria-checked', 'true') // mặc định: tất cả
+  const ticks = async () => chart.locator('text').allTextContents()
+  const all = (await ticks()).filter(x => /^\d\d:\d\d$/.test(x))
+  // Mỗi máy một đường liền (dù có lúc tắt): tối đa một polyline dài cho máy "tắt rồi bật lại", chỉ máy mất kết nối mới đứt.
+  await expect(chart.locator('[data-series="PJ-02"] polyline')).toHaveCount(1)
+  // Khoảng ngắn → trục thời gian chỉ còn các mốc trong khoảng đó.
+  await ranges.getByRole('radio', { name: '5 min', exact: true }).click()
+  await expect(ranges.getByRole('radio', { name: '5 min', exact: true })).toHaveAttribute('aria-checked', 'true')
+  const five = (await ticks()).filter(x => /^\d\d:\d\d$/.test(x))
+  expect(five.length).toBeGreaterThan(0)
+  expect(five.length).toBeLessThanOrEqual(7)
+  expect(five[0]).not.toBe(all[0]) // trục đổi theo khoảng
+  await ranges.getByRole('radio', { name: '15 min', exact: true }).click()
+  await ranges.getByRole('radio', { name: '1 hour', exact: true }).click()
+  await expect(ranges.getByRole('radio', { name: '1 hour', exact: true })).toHaveAttribute('aria-checked', 'true')
+  await page.screenshot({ path: 'test-results/range-1h.png' })
+  // Khoảng đã chọn được nhớ cho lần sau.
+  await page.reload()
+  await createProject(page, 'Range Show 2')
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  await page.getByRole('button', { name: 'USE SAMPLE DATA' }).click()
+  await expect(page.getByTestId('monitor').getByRole('radiogroup', { name: 'Chart range' }).getByRole('radio', { name: '1 hour', exact: true })).toHaveAttribute('aria-checked', 'true')
+})

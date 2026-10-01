@@ -12,7 +12,9 @@ import type { DriverTarget } from './types.ts'
  *   máy → khách : khung NHỊ PHÂN = một ảnh JPEG (480×304, ~5 khung/giây, ~50 KB)
  *                 chuỗi 'BLANK' (không có ảnh) · 'HDCP' (nội dung có HDCP, không xem trước được) · 'SIGNAL' / 'REFRESH' (đổi tín hiệu)
  *                 · 'CHANGING_PRE' (đang đổi Pre-Show)
- *   khách → máy : 'start' khi mở kết nối (bắt đầu gửi ảnh); 'preshow:1' / 'preshow:0' bật / tắt Pre-Show — driver KHÔNG gửi (đó là đổi cài đặt máy).
+ *   khách → máy : 'start' khi mở kết nối (bắt đầu gửi ảnh); 'preshow:1' / 'preshow:0' bật / tắt Pre-Show (xem ảnh cả khi máy đang tắt).
+ *                 Pre-Show là CÀI ĐẶT của máy nên driver chỉ gửi khi người dùng yêu cầu rõ (`opts.preshow`): 'preshow:1' đúng một lần mỗi kết nối,
+ *                 và tự gửi lại 'preshow:0' khi đóng kết nối (hết người xem) để trả máy về như cũ.
  *
  * Mỗi máy giữ MỘT kết nối dùng chung cho mọi lời gọi (trang máy + nhiều thẻ Dashboard), giữ khung mới nhất, tự đóng sau IDLE_MS không ai hỏi.
  */
@@ -30,6 +32,10 @@ interface Stream {
   frame?: Frame
   /** trạng thái do máy báo bằng chuỗi (xoá khi có ảnh mới) */
   status?: 'blank' | 'hdcp'
+  /** Driver đã bật Pre-Show trên máy qua kết nối này (cần trả lại khi đóng). */
+  preshow?: boolean
+  /** Máy đang đổi Pre-Show ('CHANGING_PRE'): chờ ảnh. */
+  switching?: boolean
   waiters: Array<() => void>
   idle?: ReturnType<typeof setTimeout>
   dead: boolean
@@ -45,6 +51,8 @@ function close(key: string, s: Stream): void {
   s.dead = true
   clearTimeout(s.idle)
   if (streams.get(key) === s) streams.delete(key)
+  // Trả Pre-Show về như cũ nếu chính driver đã bật.
+  if (s.preshow) { try { s.ws.send('preshow:0') } catch { /* kết nối đã đóng */ } s.preshow = false }
   try { s.ws.close() } catch { /* đã đóng */ }
   for (const w of s.waiters.splice(0)) w()
 }
@@ -61,12 +69,14 @@ function open(key: string, host: string, port: number): Promise<Stream> {
       if (typeof e.data === 'string') {
         if (e.data === 'BLANK') { s.status = 'blank'; s.frame = undefined }
         else if (e.data === 'HDCP') { s.status = 'hdcp'; s.frame = undefined }
+        else if (e.data === 'CHANGING_PRE') { s.switching = true; s.status = undefined; s.frame = undefined }
         else return
       } else {
         const b = Buffer.from(e.data as ArrayBuffer)
         if (!isJpeg(b)) return
         s.frame = { data: b, at: Date.now() }
         s.status = undefined
+        s.switching = false
       }
       for (const w of s.waiters.splice(0)) w()
     })
@@ -81,8 +91,11 @@ const toResult = (s: Stream): PreviewDto | null =>
   : s.status === 'hdcp' ? { state: 'hdcp' }
   : null
 
-/** Ảnh xem trước hiện tại của máy Panasonic. Không cần tài khoản (cổng 8080 của máy không đòi đăng nhập). */
-export async function panasonicPreview(t: DriverTarget, port = WS_PORT): Promise<PreviewDto> {
+/**
+ * Ảnh xem trước hiện tại của máy Panasonic. Không cần tài khoản (cổng 8080 của máy không đòi đăng nhập).
+ * `opts.preshow`: true = bật Pre-Show (xem ảnh cả khi máy tắt; gửi 'preshow:1' một lần); false = tắt lại nếu driver đã bật; bỏ trống = không đụng cài đặt máy.
+ */
+export async function panasonicPreview(t: DriverTarget, port = WS_PORT, opts: { preshow?: boolean } = {}): Promise<PreviewDto> {
   const key = `${t.host}:${port}`
   let s = streams.get(key)
   if (!s) {
@@ -93,13 +106,17 @@ export async function panasonicPreview(t: DriverTarget, port = WS_PORT): Promise
   clearTimeout(s.idle)
   s.idle = setTimeout(() => close(key, s), IDLE_MS)
 
+  if (opts.preshow === true && !s.preshow) { s.preshow = true; s.switching = true; s.ws.send('preshow:1') }
+  else if (opts.preshow === false && s.preshow) { s.preshow = false; s.ws.send('preshow:0'); return { state: 'no-signal' } }
+
   if (s.frame && Date.now() - s.frame.at < FRESH_MS) return toResult(s)!
   // Chờ khung / trạng thái kế tiếp.
   await new Promise<void>(resolve => { const timer = setTimeout(resolve, FRAME_TIMEOUT_MS); s.waiters.push(() => { clearTimeout(timer); resolve() }) })
   const r = toResult(s)
   if (r) return r
   if (s.dead) throw new DeviceError('connect', 'The preview stream closed')
-  throw new DeviceError('timeout', 'The projector sent no preview image (is it in standby? Pre-Show mode shows the picture without projecting)')
+  if (s.switching) throw new DeviceError('timeout', 'Pre-Show mode is starting — the picture appears in a few seconds')
+  throw new DeviceError('timeout', 'The projector sent no preview image (is it in standby? Turn on Pre-Show mode to see the picture without projecting)')
 }
 
 /** Chỉ để test. */

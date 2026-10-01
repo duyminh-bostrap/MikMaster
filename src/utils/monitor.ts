@@ -67,47 +67,55 @@ export function activeErrors(ps: Projector[]): { projector: Projector; errors: s
   return ps.filter(p => p.errors.length > 0).map(projector => ({ projector, errors: projector.errors })).sort((a, b) => byName(a.projector, b.projector))
 }
 
+/** Điểm trên biểu đồ: `y` = °C; `null` = máy đang tắt / chờ (vẽ ở đáy trục). */
+export interface TimelinePoint { x: number; y: number | null }
+
 export interface TimelineSeries {
   projector: Projector
-  /** Mỗi đoạn = một lần bật: các điểm (x = ms kể từ `origin`, y = °C). Giữa hai đoạn là lúc máy tắt (đường đứt quãng). */
-  segments: { x: number; y: number }[][]
-  /** Các lần bật / tắt (x = ms kể từ `origin`). */
+  /**
+   * Các đoạn liền: đường nối liên tục kể cả lúc máy TẮT (y = null → đáy trục); chỉ ĐỨT khi mất kết nối
+   * (giữa hai mẫu cách nhau quá GAP_MS không có dữ liệu).
+   */
+  segments: TimelinePoint[][]
+  /** Các lần bật / tắt / mất kết nối (x = ms kể từ `origin`). */
   events: { x: number; on: boolean; lost?: boolean }[]
 }
 
 export interface Timeline { origin: number; end: number; series: TimelineSeries[] }
 
+/** Hai mẫu cách nhau hơn mức này coi là có đoạn mất kết nối ở giữa (vòng đọc trạng thái là ~4 giây). */
+export const GAP_MS = 60_000
+
 /**
  * Biểu đồ theo thời gian thật, gốc = lúc MÁY ĐẦU TIÊN được xác nhận là bật (sự kiện bật sớm nhất của các máy đang xem).
- * Mỗi máy: các lần bật / tắt, và nhiệt độ trong lúc bật (đường liền trong một lần bật; máy tắt thì ngắt quãng).
- * Máy đang bật được thêm điểm "bây giờ" từ số đo hiện tại để đường chạm tới hiện tại. `null` nếu chưa máy nào từng bật.
+ * Mỗi máy một đường: nhiệt độ khi bật, rơi xuống đáy khi tắt / chờ, đứt khi mất kết nối. Máy đang kết nối được thêm điểm "bây giờ"
+ * từ trạng thái hiện tại. `end` = mốc mới nhất có dữ liệu (biểu đồ chỉ dịch tiếp khi có dữ liệu mới). `null` nếu chưa máy nào từng bật.
  */
 export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sample[], eventsOf: (id: string) => readonly PowerEvent[], now: number): Timeline | null {
   const firstOn = ps.flatMap(p => eventsOf(p.id).filter(e => e.on).map(e => e.t))
   if (firstOn.length === 0) return null
   const origin = Math.min(...firstOn)
   const series: TimelineSeries[] = []
+  let end = origin
   for (const projector of ps) {
     const ev = eventsOf(projector.id)
     if (!ev.some(e => e.on)) continue
-    // Khoảng bật: [lúc bật, lúc tắt kế tiếp | bây giờ]
-    const periods: [number, number][] = []
-    for (let i = 0; i < ev.length; i++) {
-      const e = ev[i]!
-      if (!e.on) continue
-      const off = ev.slice(i + 1).find(x => !x.on)
-      periods.push([e.t, off ? off.t : now])
+    const segments: TimelinePoint[][] = []
+    const push = (t: number, y: number | null) => {
+      const x = t - origin
+      if (x < 0) return
+      const seg = segments[segments.length - 1]
+      const last = seg?.[seg.length - 1]
+      if (seg && last && x - last.x <= GAP_MS) { if (x > last.x) seg.push({ x, y }) } else segments.push([{ x, y }])
+      end = Math.max(end, t)
     }
-    const hist = historyOf(projector.id)
-    const segments = periods.map(([a, b]) => hist.filter(s => s.t >= a && s.t <= b).map(s => ({ x: s.t - origin, y: s.c })))
-    const lastOpen = ev[ev.length - 1]!.on
-    const c = projector.telemetry.temperatureC
-    if (lastOpen && c > 0 && projector.connection === 'connected' && segments.length > 0) {
-      const seg = segments[segments.length - 1]!
-      const x = now - origin
-      if (seg.length === 0 || x > seg[seg.length - 1]!.x) seg.push({ x, y: c })
+    for (const s of historyOf(projector.id)) push(s.t, s.off ? null : s.c)
+    // Điểm "bây giờ": chỉ khi máy đang kết nối.
+    if (projector.connection === 'connected') {
+      const c = projector.telemetry.temperatureC
+      if (projector.power === 'on') { if (c > 0) push(now, c) } else push(now, null)
     }
     series.push({ projector, segments: segments.filter(sg => sg.length > 0), events: ev.map(e => ({ x: e.t - origin, on: e.on, ...(e.lost ? { lost: true } : {}) })) })
   }
-  return { origin, end: now, series }
+  return { origin, end: Math.max(end, origin), series }
 }

@@ -4,6 +4,7 @@ import { createServer } from './http.ts'
 import { isLoopbackBind } from './security.ts'
 import type { StaticSource } from './static.ts'
 import { createAccountManager } from './account.ts'
+import { closeAllPanasonicStreams } from './drivers/panasonicWeb.ts'
 import { computeMachineCode, createLicenseManager } from './license.ts'
 import { createProjectStore } from './store.ts'
 
@@ -29,6 +30,7 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
     staticSource: opts.staticSource, token, store, license, account,
     onQuit: () => {
       console.log('Stopped from the web app.')
+      closeAllPanasonicStreams() // trả Pre-Show về như cũ trên các máy đã bật
       server.close()
       server.closeAllConnections()
       process.exit(0)

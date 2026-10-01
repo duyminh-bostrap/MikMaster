@@ -252,7 +252,7 @@ async function handleApi(req: http.IncomingMessage, res: http.ServerResponse, ur
     license?.requirePro('Live preview')
     license?.check(target.host, 'status')
     try {
-      const preview = brand === 'christie' ? await christiePreview(target) : await panasonicPreview(target)
+      const preview = brand === 'christie' ? await christiePreview(target) : await panasonicPreview(target, undefined, { preshow: typeof body.preshow === 'boolean' ? body.preshow : undefined })
       logPreview(target.host, `ok: ${preview.state}${preview.input ? ` (${preview.input})` : ''}`)
       return sendJson(res, 200, preview)
     } catch (err) {

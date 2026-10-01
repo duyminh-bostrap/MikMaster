@@ -7,7 +7,7 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { LineChart, seriesColor } from '@/components/charts/LineChart'
 import { useClock } from '@/hooks/useClock'
 import { useT } from '@/i18n'
-import { usePref } from '@/services/prefs'
+import { CHART_RANGE_MS, CHART_RANGES, usePref } from '@/services/prefs'
 import { saveTextFile } from '@/services/saveFile'
 import { useOpenProject } from '@/store/hooks'
 import { collectLog, formatLog, logFileName } from '@/utils/logExport'
@@ -51,6 +51,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
   const history = (id: string) => (sampleSet ? sampleSet.history.get(id) ?? [] : historyOf(id))
   const powerEvents = (id: string) => (sampleSet ? sampleSet.events.get(id) ?? [] : eventsOf(id))
   const [logFilter, setLogFilter] = usePref('logFilter')
+  const [range, setRange] = usePref('chartRange')
   useHistoryVersion() // vẽ lại khi có mẫu nhiệt độ mới
   const [focus, setFocus] = useState<string | null>(null) // máy đang được nhấn mạnh (rê chuột vào đường hoặc vào khung màu)
   const group = (p: Projector) => booths.find(b => b.id === p.boothId)?.name ?? ''
@@ -73,7 +74,9 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
     id: sr.projector.id, name: sr.projector.name, color: colorOf(sr.projector), segments: sr.segments, events: sr.events,
     lost: sr.projector.connection === 'disconnected' || sr.projector.connection === 'protocol-error',
   }))
+  // Khoảng thời gian hiển thị: 5 phút / 15 phút / 1 giờ gần nhất, hoặc tất cả (từ máy đầu tiên bật). Vẽ lại mỗi khi có dữ liệu mới.
   const xMax = Math.max(2 * 60_000, tl ? tl.end - tl.origin : 0)
+  const xMin = range === 'all' ? 0 : Math.max(0, xMax - CHART_RANGE_MS[range])
   const clockAt = (ms: number) => formatClock(new Date((tl?.origin ?? now) + ms)).slice(0, 5)
   /** Lần bật đang chứa thời điểm x (để biết máy đã bật bao lâu tại điểm đang trỏ). */
   const onSinceAt = (id: string, ms: number) => {
@@ -98,12 +101,19 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
     </div>
     <div className="grid grid-cols-2 gap-4 max-xl:grid-cols-1" data-testid="monitor">
       <Panel title={t('TEMPERATURE · POWER ON / OFF')} className="col-span-2 min-w-0 max-xl:col-span-1"
-        aside={<Aside>{[tl && t('first projector on {time} · {d} ago', { time: clockAt(0), d: formatDuration(tl.end - tl.origin) }), temp.rows.length > 0 && t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })].filter(Boolean).join(' · ') || '—'}</Aside>}>
+        aside={<div className="flex flex-wrap items-center gap-3">
+          <div role="radiogroup" aria-label={t('Chart range')} className="flex gap-1">
+            {CHART_RANGES.map(r => (
+              <button key={r} type="button" role="radio" aria-checked={range === r} onClick={() => setRange(r)}
+                className={cn('rounded-sm border px-2 py-0.5 font-mono text-[10px] transition-colors', range === r ? 'border-accent/50 bg-accent/10 text-accent' : 'border-transparent text-muted-foreground hover:text-foreground')}>{r === 'all' ? t('All') : r === '5m' ? t('5 min') : r === '15m' ? t('15 min') : t('1 hour')}</button>
+            ))}
+          </div>
+          <Aside>{[tl && t('first projector on {time} · {d} ago', { time: clockAt(0), d: formatDuration(tl.end - tl.origin) }), temp.rows.length > 0 && t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })].filter(Boolean).join(' · ') || '—'}</Aside></div>}>
         <div className="grid grid-cols-[minmax(0,1fr)_23rem] gap-4 max-lg:grid-cols-1">
           {chartSeries.length === 0 ? (
             <p className="font-mono text-xs text-muted-foreground">{tl ? t('Collecting temperature samples…') : t('No projector has been switched on yet.')}</p>
           ) : (
-            <LineChart series={chartSeries} xMax={xMax} xLabel={clockAt} highlight={focus} onHighlight={setFocus}
+            <LineChart series={chartSeries} xMin={xMin} xMax={xMax} xLabel={clockAt} highlight={focus} onHighlight={setFocus}
               yRange={TEMP_RANGE}
               thresholds={[{ value: TEMP_WARN, color: 'var(--color-warn)', label: t('Warning {n}°C', { n: TEMP_WARN }) }, { value: TEMP_DANGER, color: 'var(--color-danger)', label: t('Danger {n}°C', { n: TEMP_DANGER }) }]}
               label={t('Temperature and power on / off over time')}
@@ -115,7 +125,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
                   <>
                     <p className="mb-1 flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ background: sr.color }} /><span className="font-semibold text-foreground">{p.name}</span><span className="text-[10px] text-muted-foreground">{p.id}</span></p>
                     <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
-                      <dt className="text-muted-foreground">{t('TEMP')}</dt><dd className={cn('text-right font-bold', TONE_TEXT[temperatureTone(pt.y)])}>{pt.y}°C</dd>
+                      <dt className="text-muted-foreground">{t('TEMP')}</dt><dd className={cn('text-right font-bold', pt.y === null ? 'text-muted-foreground' : TONE_TEXT[temperatureTone(pt.y)])}>{pt.y === null ? t('OFF') : `${pt.y}°C`}</dd>
                       <dt className="text-muted-foreground">{t('AT')}</dt><dd className="text-right text-foreground">{formatClock(new Date((tl?.origin ?? now) + pt.x))}</dd>
                       {since !== undefined && <><dt className="text-muted-foreground">{t('ON FOR')}</dt><dd className="text-right text-foreground">{formatDuration(pt.x - since)} <span className="text-muted-foreground">({t('since')} {clockAt(since)})</span></dd></>}
                       <dt className="text-muted-foreground">{t('STATUS')}</dt><dd className="text-right"><Badge tone={st.tone}>{t(st.label)}</Badge></dd>

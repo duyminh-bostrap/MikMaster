@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'vitest'
-import { MAX_AGE_MS, MIN_GAP_MS, clearHistory, eventsOf, historyOf, recordTelemetry } from '@/services/telemetryHistory'
+import { FULL_MS, MAX_AGE_MS, MIN_GAP_MS, _thin, clearHistory, eventsOf, historyOf, recordTelemetry } from '@/services/telemetryHistory'
 import { createProjector } from '@/utils/projector'
 import type { Projector } from '@/types'
 
@@ -20,14 +20,23 @@ describe('telemetryHistory', () => {
     expect(eventsOf('a')).toEqual([{ t: 500, on: true }, { t: 3000, on: false }, { t: 4000, on: true }, { t: 5000, on: false, lost: true }])
   })
 
-  test('nhiệt độ chỉ ghi khi máy đang bật và có số đo; không dày hơn MIN_GAP_MS', () => {
-    recordTelemetry([proj('a', 40), proj('b', 0), proj('c', 50, { power: 'standby' })], 1000)
+  test('mỗi lần cập nhật một mẫu (cách nhau ≥ MIN_GAP_MS): nhiệt độ khi bật, mẫu "tắt" khi tắt / chờ, KHÔNG có mẫu khi mất kết nối', () => {
+    recordTelemetry([proj('a', 40), proj('b', 0), proj('c', 50, { power: 'standby' }), proj('d', 33, { connection: 'disconnected' })], 1000)
     expect(historyOf('a')).toEqual([{ t: 1000, c: 40 }])
-    expect(historyOf('b')).toEqual([])
-    expect(historyOf('c')).toEqual([])
+    expect(historyOf('b')).toEqual([]) // bật nhưng chưa có số đo
+    expect(historyOf('c')).toEqual([{ t: 1000, c: 0, off: true }]) // chờ: đường rơi xuống đáy
+    expect(historyOf('d')).toEqual([]) // mất kết nối: đứt
     recordTelemetry([proj('a', 41)], 1000 + MIN_GAP_MS - 1)
     recordTelemetry([proj('a', 42)], 1000 + MIN_GAP_MS)
     expect(historyOf('a').map(s => s.c)).toEqual([40, 42])
+  })
+
+  test('mẫu cũ hơn FULL_MS được thưa bớt, nhưng giữ chỗ đổi giữa bật và tắt', () => {
+    const list = Array.from({ length: 60 }, (_, i) => ({ t: i * 1000, c: 30 }))
+    list.push({ t: 60_000, c: 0, off: true } as never)
+    _thin(list as never, FULL_MS + 100_000)
+    expect(list.length).toBeLessThan(10)
+    expect(list.some(s => 'off' in s)).toBe(true)
   })
 
   test('bỏ mẫu cũ hơn MAX_AGE_MS', () => {
