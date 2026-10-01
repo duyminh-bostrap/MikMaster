@@ -53,6 +53,8 @@ Hai chế độ chạy, hiển thị ở chân trang:
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
 | Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
+| **Độ sáng, test pattern, input (Panasonic RQ35K2)**: đặt và đọc lại — độ sáng = LIGHT OUTPUT (`VXX:LOPI2` / `QVX:LOPI2`), test pattern `OTS` / `QTS` (trắng, đen, crosshatch / grid, color bars, focus), input `IIS` / `QIN`; giao diện hiện giá trị máy báo, độ sáng chỉ gửi khi thả thanh trượt | ✅ (bằng máy giả lập) | Theo bảng lệnh RS-232C chính thức RQ35K2 (2025-08); **chưa kiểm trên máy thật** (NTCONTROL đòi đăng nhập). Quy đổi độ sáng % = giá trị / 10 chưa được xác nhận |
+| **Đổi input Christie** `(SIN+MAIN n)` (HDMI 1/2, DVI, DisplayPort) | ✅ (bằng máy giả lập) | Theo tài liệu 4K7-HS/4K10-HS; chưa kiểm trên Griffyn. Griffyn không có lệnh độ sáng `BRT` / `LPP` (đã thử) nên độ sáng Christie chưa làm |
 | **Chuyển máy sang group khác**: kéo thả hoặc chuột phải | ✅ | |
 | Tab **All** có hai cách xem (nút ở thanh lọc): **Groups** (thẻ gộp theo group, thu gọn / mở từng group) và **Dashboard** — các bảng theo dõi: nhiệt độ, độ sáng, thời gian từ lúc bật máy (tính từ lúc app thấy máy bật), trạng thái, nhật ký & lỗi; bấm hàng để mở máy | ✅ | Chịu bộ lọc / tìm kiếm của thanh lọc. Độ sáng hiện là giá trị trong app (chưa đọc từ máy) |
 | Điều khiển hàng loạt (tab Tất cả hoặc từng booth), nút icon: nguồn (bật lần lượt, mặc định cách 5 giây), shutter, OSD, test pattern; tắt máy / đóng shutter / hiện pattern hỏi xác nhận | 🧪 | Chưa thử trên máy thật |

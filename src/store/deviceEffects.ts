@@ -26,15 +26,18 @@ export interface DeviceEffects {
   /** `enabled` bỏ trống = chỉ đổi loại mẫu: gửi lại nếu máy đang hiện test pattern. */
   testPattern(ids: string[], enabled: boolean | undefined, pattern?: string): void
   osdDisplay(ids: string[], visible: boolean): void
+  /** Độ sáng 0–100 % (chỉ máy có lệnh độ sáng; còn lại là thay đổi cục bộ). */
+  brightness(id: string, percent: number): void
 }
 
 export function createDeviceEffects(gateway: Gateway, find: (id: string) => Projector | undefined, dispatch: Dispatch<ProjectAction>): DeviceEffects {
-  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'testPattern', send: (p: Projector) => ReturnType<Gateway['command']>, hooks: { onSkipped?: () => void; onSent?: () => void } = {}) {
+  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'testPattern' | 'brightness', send: (p: Projector) => ReturnType<Gateway['command']>, hooks: { onSkipped?: () => void; onSent?: () => void } = {}) {
     const p = find(id)
     if (!p) return
     if (!deviceCapabilities(p).includes(capability)) {
       if (capability === 'osdDisplay') return // hầu hết máy chưa có lệnh OSD: chỉ đổi trạng thái trong app, không ghi log mỗi lần bấm
       const why = capability === 'testPattern' ? 'no test pattern command set in COMMANDS on the projector page'
+        : capability === 'brightness' ? `${p.network.protocol.type} has no verified brightness command`
         : TEMPLATE_PROTOCOLS.includes(p.network.protocol.type) ? 'no command template configured on the projector page' : `${p.network.protocol.type} has no verified live command`
       dispatch({ type: 'projector/log', id, level: 'warn', message: `"${capability}" is not sent to the device: ${why} (local change only)` })
       hooks.onSkipped?.() // không có lệnh thật → không có gì để chờ xác nhận: đặt trạng thái cuối ngay
@@ -63,6 +66,7 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
       if (!on && enabled === undefined) return
       void run(id, 'testPattern', p => gateway.command(p, { kind: 'testPattern', enabled: !!on, pattern: pattern ?? p.testPattern.type }))
     }),
+    brightness: (id, percent) => void run(id, 'brightness', p => gateway.command(p, { kind: 'brightness', percent })),
     osdDisplay: (ids, visible) => ids.forEach(id => void run(id, 'osdDisplay', p => gateway.command(p, { kind: 'osdDisplay', visible }))),
   }
 }

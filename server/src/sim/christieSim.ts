@@ -10,6 +10,8 @@ export class ChristieSimulator extends SimServer {
   pattern = 0
   /** (OSD 0|1): mặc định hiện. */
   osd = 1
+  /** (SIN+MAIN n): cổng đang chọn. */
+  mainInput = 3
   received: string[] = []
 
   constructor(opts: { host?: string; port?: number } = {}) {
@@ -48,6 +50,8 @@ export class ChristieSimulator extends SimServer {
   private handle(frame: string): string {
     const sst = /^\(SST\+([A-Z]{4})\?\)$/.exec(frame)
     if (sst) return ChristieSimulator.SST[sst[1]!]?.join('') ?? `(65535 00000 ERR00102 "SST+${sst[1]}: Cannot find status group")`
+    const sinMain = /^\(SIN\+MAIN (\d+)\)$/.exec(frame)
+    if (sinMain) { this.mainInput = Number(sinMain[1]); return `(SIN+MAIN!${String(this.mainInput).padStart(3, '0')} "Input")` }
     const m = /^\(([A-Z]{3}) ?(\?|\d+)?\)$/.exec(frame)
     if (!m) return '(ERR "Unrecognized command")'
     const [, code, arg] = m

@@ -31,7 +31,7 @@ export function useCapabilities(p: Projector): Capabilities {
   const caps = deviceCapabilities(p)
   // Bản Free: chỉ bật / tắt máy và shutter — mọi tính năng khác khoá (gateway cũng từ chối bằng 402).
   return {
-    live: true, osd: !free && caps.includes('osd'), testPattern: !free && caps.includes('testPattern'), lens: false, brightness: false,
+    live: true, osd: !free && caps.includes('osd'), testPattern: !free && caps.includes('testPattern'), lens: false, brightness: !free && caps.includes('brightness'),
     input: !free && caps.includes('input'), raw: !free && caps.includes('raw'), preview: !free && caps.includes('preview'), proLocked: free,
   }
 }

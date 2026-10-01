@@ -13,7 +13,9 @@ describe('command overrides (shared helpers)', () => {
   })
 
   it('a brand-level test pattern pair enables the test pattern for a vendor protocol without one built in', () => {
-    expect(effectiveCapabilities('panasonic-nt-control', undefined)).not.toContain('testPattern')
-    expect(effectiveCapabilities('panasonic-nt-control', mergeCommands({ testPatternOn: 'OTS:06', testPatternOff: 'OTS:00' }, undefined))).toContain('testPattern')
+    expect(effectiveCapabilities('barco-pulse', undefined)).not.toContain('testPattern')
+    expect(effectiveCapabilities('barco-pulse', mergeCommands({ testPatternOn: 'pattern.on', testPatternOff: 'pattern.off' }, undefined))).toContain('testPattern')
+    // Panasonic RQ35K2 đã có test pattern dựng sẵn (OTS / QTS).
+    expect(effectiveCapabilities('panasonic-nt-control', undefined)).toContain('testPattern')
   })
 })

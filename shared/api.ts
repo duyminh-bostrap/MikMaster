@@ -2,7 +2,7 @@
 
 export type DriverProtocol = 'pjlink-class1' | 'pjlink-class2' | 'panasonic-nt-control' | 'christie-serial-ip' | 'barco-pulse' | 'generic-tcp' | 'generic-udp' | 'art-net' | 'http-api'
 
-export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'raw' | 'testPattern' | 'preview'
+export type Capability = 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'raw' | 'testPattern' | 'preview' | 'brightness'
 
 /**
  * Giao thức điều khiển không cần đăng nhập, nhưng web của máy thì cần: tài khoản chỉ dùng cho live preview.
@@ -112,9 +112,12 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   'pjlink-class1': ['power', 'shutter', 'input', 'raw'],
   'pjlink-class2': ['power', 'shutter', 'input', 'raw'],
   // preview: Remote preview qua trang web của máy (Digest) — địa chỉ ảnh tự dò, chưa kiểm trên máy thật (xem panasonicWeb.ts)
-  'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw', 'preview'],
+  // brightness (LIGHT OUTPUT, QVX:LOPI2) / testPattern (OTS / QTS) / input (IIS / QIN): theo bảng lệnh RS-232C chính thức của RQ35K2 (2025-08);
+  // chưa kiểm trên máy thật (NTCONTROL đòi đăng nhập).
+  'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw', 'preview', 'brightness', 'testPattern'],
   // testPattern / osdDisplay: (ITP n) / (OSD 0|1) theo tài liệu Christie 4K7-HS/4K10-HS; chưa kiểm số mẫu trên Griffyn.
-  'christie-serial-ip': ['power', 'shutter', 'raw', 'preview', 'testPattern', 'osdDisplay'],
+  // input: (SIN+MAIN n) theo tài liệu 4K7-HS/4K10-HS (3 = HDMI 1, 4 = HDMI 2, 5 = DVI, 6 = DisplayPort); chưa kiểm trên Griffyn.
+  'christie-serial-ip': ['power', 'shutter', 'input', 'raw', 'preview', 'testPattern', 'osdDisplay'],
   'barco-pulse': ['power', 'shutter', 'raw'],
   // Chỉ RAW COMMAND: không có lệnh chuẩn nên không poll, không có power/shutter.
   'generic-tcp': ['raw'],
@@ -215,6 +218,8 @@ export type CommandDto =
   | { kind: 'testPattern'; enabled: boolean; pattern?: string }
   /** Hiện / ẩn OSD (on-screen display) của máy — khác `osd` là phím điều hướng menu. */
   | { kind: 'osdDisplay'; visible: boolean }
+  /** Độ sáng (công suất nguồn sáng) 0–100 %; driver kẹp vào khoảng máy cho phép. */
+  | { kind: 'brightness'; percent: number }
 
 export interface StatusDto {
   power?: 'on' | 'standby' | 'cooling' | 'warmup'
@@ -224,6 +229,10 @@ export interface StatusDto {
   lampHours?: number
   /** OSD của máy đang hiện (Christie `(OSD?)`). */
   osd?: boolean
+  /** Độ sáng hiện tại 0–100 % (Panasonic: LIGHT OUTPUT). */
+  brightness?: number
+  /** Test pattern đang hiện: `pattern` = loại mẫu của app nếu ánh xạ được. */
+  testPattern?: { enabled: boolean; pattern?: string }
   /** °C, khi đọc được từ máy (nhiệt độ chính, vd. khí vào). */
   temperatureC?: number
   /** Vị trí ống kính máy báo, đơn vị của máy (Christie LHO / LVO / ZOM / FCS). Chỉ đọc. */

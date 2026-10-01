@@ -39,10 +39,10 @@ async function post(path: string, body: unknown) {
 const panaTarget = (extra = {}) => ({ ip: '127.0.0.1', protocol: { type: 'panasonic-nt-control', port: pana.port, ...extra } })
 
 describe('HTTP API', () => {
-  test('health lists driver capabilities (no lens / test pattern)', async () => {
+  test('health lists driver capabilities (no lens)', async () => {
     const body = await (await fetch(`${base}/api/health`)).json() as any
     assert.equal(body.ok, true)
-    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'raw', 'preview', 'testPattern', 'osdDisplay'])
+    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'input', 'raw', 'preview', 'testPattern', 'osdDisplay'])
     for (const caps of Object.values<string[]>(body.drivers)) assert.ok(!caps.includes('lens'))
   })
 
@@ -270,7 +270,7 @@ describe('command templates over HTTP', () => {
   })
 
   test('templates never unlock commands for protocols that have a real driver', async () => {
-    const r = await post('/api/devices/command', { target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, commands: { powerOn: 'x', powerOff: 'y' } } }, command: { kind: 'input', input: 'HDMI 1' } })
+    const r = await post('/api/devices/command', { target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, commands: { powerOn: 'x', powerOff: 'y' } } }, command: { kind: 'osd', key: 'menu' } })
     assert.equal(r.status, 501)
   })
 })
@@ -366,7 +366,7 @@ describe('test pattern via user commands', () => {
   })
 
   test('test pattern templates do not unlock other commands', async () => {
-    const r = await post('/api/devices/command', { target: pj({ testPatternOn: 'a', testPatternOff: 'b' }), command: { kind: 'input', input: 'HDMI 1' } })
+    const r = await post('/api/devices/command', { target: pj({ testPatternOn: 'a', testPatternOff: 'b' }), command: { kind: 'osd', key: 'menu' } })
     assert.equal(r.status, 501)
   })
 })

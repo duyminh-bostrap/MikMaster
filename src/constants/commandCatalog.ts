@@ -27,6 +27,7 @@ const SRC = {
   christie: 'Christie 4K7-HS/4K10-HS Serial Commands (020-102782-02)',
   griffynWeb: 'Griffyn web UI (compiled.js)',
   rez: 'Panasonic REZ15/REZ12 Control Commands (2024/3/18)',
+  rq35k: 'Panasonic PT-RQ35K2 / RZ34K2 Control Commands (2025-08)',
   panaNotes: 'aot93/Panasonic-Multi-Controller notes',
   barco: 'Barco Pulse notes (user-provided)',
 }
@@ -100,7 +101,8 @@ export const COMMAND_CATALOG: readonly CatalogEntry[] = [
   s('panasonic', 'VXX:LNSI7…LNSIA=*value · VXX:LNSSD=*H*V*F*Z', 'Move lens (single axis / several axes)', 'Di chuyển lens (từng trục / nhiều trục)', 'doc', SRC.rez, { en: '`*` is a numeric placeholder. Moves the lens; test next to the projector.', vi: '`*` là chỗ điền số. Làm ống kính chuyển động; thử khi đứng cạnh máy.' }),
   s('panasonic', 'VXX:LNSI1=+00001 · VXX:LNSI0=+00001', 'Lens home / lens calibration', 'Lens về gốc / hiệu chuẩn lens', 'doc', SRC.rez),
   s('panasonic', 'VXX:LNMI1|2|3=+0000n', 'Lens memory 1–10 (load / save / …)', 'Bộ nhớ lens 1–10 (nạp / lưu / …)', 'unverified', SRC.rez, { en: 'Which of LNMI1/2/3 loads and which saves is unresolved.', vi: 'Chưa xác định LNMI1/2/3 cái nào nạp, cái nào lưu.' }),
-  s('panasonic', 'OTS:xx', 'Test pattern', 'Test pattern', 'doc', SRC.rez, { en: 'Examples: 00 white, 02 window, 06 crosshatch, 08 convergence, 59/71/73/74 focus colours, 78 circle, A1–A4 user patterns.', vi: 'Ví dụ: 00 trắng, 02 cửa sổ, 06 crosshatch, 08 convergence, 59/71/73/74 màu focus, 78 hình tròn, A1–A4 mẫu người dùng.' }),
+  s('panasonic', 'OTS:xx · QTS', 'Test pattern (set / query)', 'Test pattern (đặt / hỏi)', 'doc', SRC.rq35k, { en: 'RQ35K2 codes: 00 off · 01 white · 02 black · 05 window · 06 reversed window · 07 cross hatch · 08 colour bar · 32/33/34 focus · 78 focus. MikMaster maps white, black, crosshatch / grid, colour bars and focus; QTS is read every 10 s. Not yet checked on a real unit (needs the login).', vi: 'Mã RQ35K2: 00 tắt · 01 trắng · 02 đen · 05 cửa sổ · 06 cửa sổ đảo · 07 cross hatch · 08 color bar · 32/33/34 focus · 78 focus. MikMaster ánh xạ: trắng, đen, crosshatch / grid, color bars, focus; QTS đọc mỗi 10 giây. Chưa kiểm trên máy thật (cần đăng nhập).' }),
+  s('panasonic', 'VXX:LOPI2=+nnnnn · QVX:LOPI2', 'Brightness = light output (50–1000)', 'Độ sáng = LIGHT OUTPUT (50–1000)', 'doc', SRC.rq35k, { en: 'MikMaster uses % = value / 10, clamped to 5–100 %. The table lists the minimum as 8 %, so the exact mapping is not confirmed. Read every 10 s.', vi: 'MikMaster dùng % = giá trị / 10, kẹp trong 5–100 %. Bảng lệnh ghi mức nhỏ nhất là 8 % nên cách quy đổi chưa được xác nhận. Đọc mỗi 10 giây.' }),
   s('panasonic', 'VXX:WMDI0=+00000|1 · MOD:n · VXX:MMDI1=+0000n', 'OSD settings: warning message, colour, menu mode', 'Thiết lập OSD: cảnh báo, màu, kiểu menu', 'doc', SRC.rez, { en: 'Which row WMDI0 belongs to is unclear in the extracted text.', vi: 'Chưa rõ WMDI0 thuộc dòng nào trong bản trích.' }),
 
   // ───────── Barco Pulse (JSON-RPC, cổng 9090)

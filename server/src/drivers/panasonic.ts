@@ -29,6 +29,38 @@ const INPUT_CODES: Record<string, string> = {
 }
 const CODE_TO_INPUT = Object.fromEntries(Object.entries(INPUT_CODES).map(([label, code]) => [code, label]))
 
+/**
+ * Độ sáng = LIGHT OUTPUT (bảng lệnh RS-232C của RQ35K2, 2025-08): đặt `VXX:LOPI2=+00500`, hỏi `QVX:LOPI2` → `LOPI2=+00500`;
+ * giá trị 50–1000 (bảng ghi min 8 % … max 100 %). Quy ước ở đây: % = giá trị / 10, kẹp trong khoảng máy cho phép. CHƯA kiểm trên máy thật.
+ */
+export const LIGHT_OUTPUT = { min: 50, max: 1000 } as const
+
+export function percentToLightOutput(percent: number): string {
+  const v = Math.min(LIGHT_OUTPUT.max, Math.max(LIGHT_OUTPUT.min, Math.round(percent * 10)))
+  return `+${String(v).padStart(5, '0')}`
+}
+
+export function parseLightOutput(reply: string): number | undefined {
+  const m = /LOPI2=([+-]?\d+)/.exec(reply)
+  if (!m) return undefined
+  return Math.min(100, Math.max(0, Math.round(Number(m[1]) / 10)))
+}
+
+/**
+ * Test pattern (OTS:nn đặt, QTS hỏi → nn): 00 tắt · 01 trắng · 02 đen · 05 cửa sổ · 06 cửa sổ đảo · 07 cross hatch · 08 color bar · 32/33/34 focus ·
+ * 52 color bar side · 59 16:9/4:3 · 70–75 focus màu · 78 focus · 87 circle. Mẫu của app không có trong bảng (red / green / blue / gray ramp / crosshair) → không hỗ trợ.
+ */
+const TEST_PATTERN_CODES: Record<string, string> = { white: '01', black: '02', crosshatch: '07', grid: '07', 'color-bars': '08', focus: '78' }
+const CODE_TO_PATTERN: Record<string, string> = { '01': 'white', '02': 'black', '07': 'crosshatch', '08': 'color-bars', '78': 'focus' }
+
+/** Mã input máy báo (`HD1`, `IIS:HD1`, `AU1,HD2`, `DL1:HD1`…) → nhãn của app. */
+export function inputFromCode(raw: string): string | undefined {
+  const code = raw.replace(/^IIS:/, '').trim()
+  if (/^DL1/.test(code)) return CODE_TO_INPUT.DL1
+  const last = code.split(',').pop()!.split(':')[0]!
+  return CODE_TO_INPUT[last] ?? ({ DV1: 'DVI', DP1: 'DisplayPort' } as Record<string, string>)[last]
+}
+
 const OSD_KEYS: Partial<Record<OsdKeyDto, string>> = {
   menu: 'OMN', enter: 'OEN', up: 'OCU', down: 'OCD', left: 'OCL', right: 'OCR',
 }
@@ -108,6 +140,27 @@ export function parseTemperature(reply: string): number | undefined {
 const TEMP_EVERY_MS = 30_000
 const lastTempAt = new Map<string, number>()
 
+/** Độ sáng và test pattern hiện tại: hỏi tối đa 10 giây một lần (mỗi lệnh ≥ 0,5 s); giữa hai lần dùng giá trị đã đọc. */
+const EXTRA_EVERY_MS = 10_000
+const lastExtraAt = new Map<string, number>()
+const lastExtra = new Map<string, Pick<StatusDto, 'brightness' | 'testPattern'>>()
+
+async function readExtras(t: DriverTarget, status: StatusDto): Promise<void> {
+  const key = `${t.host}:${t.port}`
+  if (Date.now() - (lastExtraAt.get(key) ?? 0) >= EXTRA_EVERY_MS) {
+    lastExtraAt.set(key, Date.now())
+    const extra: Pick<StatusDto, 'brightness' | 'testPattern'> = {}
+    const lop = await optional(exchange(t, 'QVX:LOPI2'))
+    const b = lop === undefined ? undefined : parseLightOutput(lop)
+    if (b !== undefined) extra.brightness = b
+    const qts = await optional(exchange(t, 'QTS'))
+    const code = qts === undefined ? undefined : /^(\d{2})$/.exec(qts.trim())?.[1]
+    if (code !== undefined) extra.testPattern = { enabled: code !== '00', ...(CODE_TO_PATTERN[code] ? { pattern: CODE_TO_PATTERN[code] } : {}) }
+    lastExtra.set(key, extra)
+  }
+  Object.assign(status, lastExtra.get(key))
+}
+
 async function readTemperatures(t: DriverTarget, status: StatusDto): Promise<void> {
   const key = `${t.host}:${t.port}`
   if (Date.now() - (lastTempAt.get(key) ?? 0) < TEMP_EVERY_MS) return
@@ -138,8 +191,9 @@ export const panasonicDriver: Driver = {
       const qsh = await optional(exchange(t, 'QSH'))
       if (qsh !== undefined) status.shutter = qsh.endsWith('1')
       const qin = await optional(exchange(t, 'QIN'))
-      if (qin) status.input = CODE_TO_INPUT[qin.replace(/^IIS:/, '')]
+      if (qin) status.input = inputFromCode(qin)
     }
+    await readExtras(t, status)
     // Nhiệt độ đọc CẢ KHI MÁY ĐANG CHỜ: trang web của RQ35K vẫn báo "INTAKE AIR" ở STANDBY (thấy trên máy thật, 2026-10-01).
     await readTemperatures(t, status)
     return status
@@ -153,6 +207,14 @@ export const panasonicDriver: Driver = {
         const code = INPUT_CODES[c.input]
         if (!code) throw new DeviceError('unsupported', `PT-RQ35K has no input "${c.input}"`)
         await exchange(t, `IIS:${code}`)
+        return
+      }
+      case 'brightness': await exchange(t, `VXX:LOPI2=${percentToLightOutput(c.percent)}`); return
+      case 'testPattern': {
+        if (!c.enabled) { await exchange(t, 'OTS:00'); return }
+        const code = TEST_PATTERN_CODES[c.pattern ?? 'crosshatch']
+        if (!code) throw new DeviceError('unsupported', `PT-RQ35K has no "${c.pattern}" test pattern (available: ${Object.keys(TEST_PATTERN_CODES).join(', ')})`)
+        await exchange(t, `OTS:${code}`)
         return
       }
       case 'osd': {

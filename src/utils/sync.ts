@@ -1,7 +1,8 @@
 import type { StatusDto } from '../../shared/api.ts'
 import { INPUT_SOURCES } from '@/constants/inputs'
+import { TEST_PATTERNS } from '@/constants/testPatterns'
 import { DEFAULT_BRIGHTNESS, appendLog } from '@/utils/projector'
-import type { ConnectionStatus, InputSource, PowerState, Projector } from '@/types'
+import type { ConnectionStatus, InputSource, PowerState, Projector, TestPatternType } from '@/types'
 
 export type SyncResult = { ok: true; status: StatusDto } | { ok: false; code: string; message: string }
 
@@ -10,6 +11,10 @@ const LINK_REJECTED = new Set(['protocol', 'unsupported'])
 
 const FAILURE_LABEL: Record<ConnectionStatus, string | null> = { connected: null, disconnected: 'Offline', 'protocol-error': 'Protocol error', 'auth-failed': 'Login required' }
 const OWN_LABELS = new Set(['Offline', 'Protocol error', 'Login required'])
+
+function isTestPattern(v: string | undefined): v is TestPatternType {
+  return !!v && TEST_PATTERNS.some(x => x.type === v)
+}
 
 function isInputSource(label: string | undefined): label is InputSource {
   return !!label && (INPUT_SOURCES as readonly string[]).includes(label)
@@ -58,6 +63,7 @@ export function applyRemote(p: Projector, r: SyncResult, now: number = Date.now(
     osd: s.osd ?? p.osd,
     input: isInputSource(s.input) ? s.input : p.input,
     errors: s.errors,
+    testPattern: s.testPattern ? { enabled: s.testPattern.enabled, type: isTestPattern(s.testPattern.pattern) ? s.testPattern.pattern : p.testPattern.type } : p.testPattern,
     log,
     telemetry: {
       ...p.telemetry,
@@ -65,7 +71,8 @@ export function applyRemote(p: Projector, r: SyncResult, now: number = Date.now(
       temperatureC: s.temperatureC ?? p.telemetry.temperatureC,
       sensors: s.temperatures ?? p.telemetry.sensors,
       lensReading: s.lens ?? p.telemetry.lensReading,
-      brightness: power === 'on' ? p.telemetry.brightness || DEFAULT_BRIGHTNESS : 0,
+      // Máy báo được độ sáng thật (Panasonic) thì theo máy; không thì giá trị của app khi bật, 0 khi tắt.
+      brightness: s.brightness ?? (power === 'on' ? p.telemetry.brightness || DEFAULT_BRIGHTNESS : 0),
     },
   }
 }

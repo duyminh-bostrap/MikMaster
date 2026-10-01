@@ -128,3 +128,21 @@ describe('lệnh bật / tắt đã gửi thành công → chờ máy xác nhậ
     expect(r.log[0]).toMatchObject({ level: 'warn' })
   })
 })
+
+describe('độ sáng và test pattern máy báo về', () => {
+  test('máy báo độ sáng → theo máy (kể cả khi đang chờ); không báo → giá trị của app khi bật, 0 khi tắt', () => {
+    expect(applyRemote(base(), ok({ power: 'on', brightness: 40 })).telemetry.brightness).toBe(40)
+    expect(applyRemote(base(), ok({ power: 'standby', brightness: 25 })).telemetry.brightness).toBe(25)
+    expect(applyRemote(base(), ok({ power: 'on' })).telemetry.brightness).toBeGreaterThan(0)
+    expect(applyRemote({ ...base(), power: 'on' as const }, ok({ power: 'standby' })).telemetry.brightness).toBe(0)
+  })
+
+  test('máy báo test pattern → bật / tắt và loại mẫu theo máy; không báo thì giữ nguyên', () => {
+    const on = applyRemote(base(), ok({ power: 'on', testPattern: { enabled: true, pattern: 'color-bars' } }))
+    expect(on.testPattern).toEqual({ enabled: true, type: 'color-bars' })
+    const unknown = applyRemote(on, ok({ power: 'on', testPattern: { enabled: true } })) // mã máy không ánh xạ được → giữ loại cũ
+    expect(unknown.testPattern).toEqual({ enabled: true, type: 'color-bars' })
+    expect(applyRemote(on, ok({ power: 'on', testPattern: { enabled: false } })).testPattern.enabled).toBe(false)
+    expect(applyRemote(on, ok({ power: 'on' })).testPattern).toEqual(on.testPattern)
+  })
+})

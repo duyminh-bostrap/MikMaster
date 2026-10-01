@@ -55,6 +55,12 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
       if (effects) effects.power(ids, power)
       else dispatch({ type: 'projectors/setPower', ids, power })
     },
+    /** Độ sáng: đổi trong app ngay, và gửi tới máy nếu driver có lệnh (Panasonic: LIGHT OUTPUT). */
+    setBrightness: (id: string, percent: number, p: Projector) => {
+      const v = Math.min(100, Math.max(0, Math.round(percent)))
+      dispatch({ type: 'projector/patch', id, patch: { telemetry: { ...p.telemetry, brightness: v } } })
+      effects?.brightness(id, v)
+    },
     setShutter: (ids: string[], shutter: boolean) => {
       dispatch({ type: 'projectors/setShutter', ids, shutter })
       effects?.shutter(ids, shutter)

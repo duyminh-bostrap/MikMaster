@@ -849,3 +849,45 @@ test('the REFRESH button sits right after the connected count in the top bar', a
   await expect(page.getByRole('radiogroup', { name: 'Filter by status' }).locator('xpath=..').getByRole('button', { name: 'Refresh all projectors' })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/refresh-top.png' })
 })
+
+test('live brightness, test pattern and input: shown from the projector status, changes are sent to the projector (gateway mocked)', async ({ page }) => {
+  await createProject(page, 'Control Show')
+  type Cmd = { kind: string; [k: string]: unknown }
+  const commands: Cmd[] = []
+  let status: Record<string, unknown> = { power: 'on', errors: [], brightness: 40, input: 'HDMI 2', testPattern: { enabled: false } }
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: status }))
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'no-signal' } }))
+  await page.route('**/api/devices/command', r => { commands.push(JSON.parse(r.request().postData() ?? '{}').command); return r.fulfill({ json: { ok: true } }) })
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  await card(page, 'PJ-03').click() // Panasonic: có lệnh độ sáng / test pattern / input
+  const right = page.locator('aside').last()
+
+  // Đọc: độ sáng 40 % và input HDMI 2 lấy từ trạng thái máy.
+  await expect(right.getByRole('slider', { name: 'BRIGHTNESS' })).toHaveValue('40', { timeout: 10_000 })
+  await expect(page.getByRole('button', { name: 'HDMI 2', exact: true })).toHaveAttribute('class', /bg-|selected|border-/)
+  // Đặt độ sáng: nút nhanh 75 % → gửi lệnh brightness 75.
+  await right.getByRole('button', { name: 'BRIGHTNESS 75%' }).click()
+  await expect.poll(() => commands.find(c => c.kind === 'brightness')?.percent).toBe(75)
+  // Kéo thanh trượt chỉ gửi MỘT lệnh lúc thả (không gửi từng bước).
+  const before = commands.filter(c => c.kind === 'brightness').length
+  const slider = right.getByRole('slider', { name: 'BRIGHTNESS' })
+  const box = (await slider.boundingBox())!
+  await page.mouse.move(box.x + box.width * 0.2, box.y + box.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(box.x + box.width * 0.4, box.y + box.height / 2, { steps: 10 })
+  await page.mouse.move(box.x + box.width * 0.6, box.y + box.height / 2, { steps: 10 })
+  await page.mouse.up()
+  await expect.poll(() => commands.filter(c => c.kind === 'brightness').length).toBe(before + 1)
+
+  // Đổi input.
+  await page.getByRole('button', { name: 'SDI 1', exact: true }).click()
+  await expect.poll(() => commands.find(c => c.kind === 'input')?.input).toBe('SDI 1')
+
+  // Test pattern: chọn mẫu → bật → lệnh có kèm loại mẫu; máy báo đang hiện mẫu → giao diện theo máy.
+  await page.getByRole('button', { name: /^Color Bars$/ }).click()
+  await expect.poll(() => commands.find(c => c.kind === 'testPattern')).toMatchObject({ kind: 'testPattern', enabled: true, pattern: 'color-bars' })
+  status = { ...status, testPattern: { enabled: true, pattern: 'color-bars' } }
+  await page.screenshot({ path: 'test-results/live-controls.png' })
+})

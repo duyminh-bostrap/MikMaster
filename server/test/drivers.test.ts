@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import { christieDriver } from '../src/drivers/christie.ts'
-import { panasonicDriver, parseTemperature, setPanasonicWebPort } from '../src/drivers/panasonic.ts'
+import { inputFromCode, panasonicDriver, parseLightOutput, parseTemperature, percentToLightOutput, setPanasonicWebPort } from '../src/drivers/panasonic.ts'
 import { parseSimpleStatus } from '../src/drivers/panasonicWeb.ts'
 import crypto from 'node:crypto'
 import http from 'node:http'
@@ -183,6 +183,66 @@ describe('Panasonic NTCONTROL driver', () => {
     } finally { setPanasonicWebPort(80); web.closeAllConnections(); await new Promise(r => web.close(r)); await sim.stop() }
   })
 
+  test('brightness (LIGHT OUTPUT): set sends VXX:LOPI2=+nnnnn (value = % × 10, clamped to 50–1000) and the status reads it back as %', async () => {
+    const sim = new PanasonicSimulator()
+    await sim.start()
+    try {
+      const t = target(sim.port)
+      await panasonicDriver.command(t, { kind: 'power', value: 'on' })
+      await panasonicDriver.command(t, { kind: 'brightness', percent: 50 })
+      await panasonicDriver.command(t, { kind: 'brightness', percent: 0 }) // dưới mức tối thiểu → kẹp 50 (5 %)
+      await panasonicDriver.command(t, { kind: 'brightness', percent: 120 }) // trên 100 → kẹp 1000
+      assert.deepEqual(sim.received.filter(c => c.startsWith('VXX:LOPI2')), ['VXX:LOPI2=+00500', 'VXX:LOPI2=+00050', 'VXX:LOPI2=+01000'])
+      assert.equal(percentToLightOutput(33.3), '+00333')
+      assert.equal(parseLightOutput('LOPI2=+00500'), 50)
+      assert.equal(parseLightOutput('garbage'), undefined)
+    } finally { await sim.stop() }
+  })
+
+  test('status reads brightness and the current test pattern; the pattern commands use OTS codes (unsupported app patterns are refused)', async () => {
+    const sim = new PanasonicSimulator()
+    await sim.start()
+    try {
+      const t = target(sim.port, { port: sim.port })
+      await panasonicDriver.command(t, { kind: 'power', value: 'on' })
+      let s = await panasonicDriver.status(t)
+      assert.equal(s.brightness, 100)
+      assert.deepEqual(s.testPattern, { enabled: false })
+      await panasonicDriver.command(t, { kind: 'testPattern', enabled: true, pattern: 'color-bars' })
+      await panasonicDriver.command(t, { kind: 'testPattern', enabled: true, pattern: 'grid' })
+      await panasonicDriver.command(t, { kind: 'testPattern', enabled: false })
+      assert.deepEqual(sim.received.filter(c => c.startsWith('OTS')), ['OTS:08', 'OTS:07', 'OTS:00'])
+      await rejectsWith(panasonicDriver.command(t, { kind: 'testPattern', enabled: true, pattern: 'red' }), 'unsupported')
+      sim.testPattern = '08'
+      sim.lightOutput = 400
+      await new Promise(r => setTimeout(r, 10)) // (chỉ để rõ ý: kết quả đọc được lưu đệm 10 giây — dùng khoá khác bên dưới)
+      const other = new PanasonicSimulator(); await other.start()
+      try {
+        other.power = true; other.testPattern = '08'; other.lightOutput = 400
+        s = await panasonicDriver.status(target(other.port))
+        assert.equal(s.brightness, 40)
+        assert.deepEqual(s.testPattern, { enabled: true, pattern: 'color-bars' })
+      } finally { await other.stop() }
+    } finally { await sim.stop() }
+  })
+
+  test('input: inputFromCode understands plain, prefixed, slot and DigitalLink codes; IIS sets the input', async () => {
+    assert.equal(inputFromCode('HD1'), 'HDMI 1')
+    assert.equal(inputFromCode('IIS:SD1'), 'SDI 1')
+    assert.equal(inputFromCode('AU1,HD2'), 'HDMI 2')
+    assert.equal(inputFromCode('AU1,DP1'), 'DisplayPort')
+    assert.equal(inputFromCode('DL1:PC1'), 'HDBaseT')
+    assert.equal(inputFromCode('???'), undefined)
+    const sim = new PanasonicSimulator()
+    await sim.start()
+    try {
+      const t = target(sim.port)
+      await panasonicDriver.command(t, { kind: 'power', value: 'on' })
+      await panasonicDriver.command(t, { kind: 'input', input: 'SDI 1' })
+      assert.equal((await panasonicDriver.status(t)).input, 'SDI 1')
+    } finally { await sim.stop() }
+  })
+
   test('parseTemperature accepts plain integers in range only', () => {
     assert.equal(parseTemperature('0030'), 30)
     assert.equal(parseTemperature('+0045'), 45)
@@ -261,8 +321,8 @@ describe('Christie serial driver', () => {
     assert.equal((await christieDriver.status(t)).power, 'standby')
   })
 
-  test('input and OSD are unsupported (unverified)', async () => {
-    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'input', input: 'HDMI 1' }), 'unsupported')
+  test('OSD menu keys are unsupported (unverified); an input without a known (SIN+MAIN n) number is refused', async () => {
+    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'input', input: 'SDI 2' }), 'unsupported')
     await rejectsWith(christieDriver.command(target(sim.port), { kind: 'osd', key: 'menu' }), 'unsupported')
   })
 
@@ -372,4 +432,18 @@ describe('identifyDevice', async () => {
       assert.deepEqual([r.protocol, r.port, r.model, r.name, r.authRequired], ['pjlink-class2', open.port, 'PT-RQ35K', 'HEXO', false])
     } finally { await open.stop(); await locked.stop() }
   })
+
+describe('Christie input selection ((SIN+MAIN n), from the 4K7-HS / 4K10-HS reference — not yet verified on a Griffyn)', () => {
+  const sim = new ChristieSimulator()
+  before(async () => { await sim.start() })
+  after(async () => { await sim.stop() })
+  const t = () => ({ host: '127.0.0.1', port: sim.port, timeoutMs: 800 })
+
+  test('HDMI 2 → (SIN+MAIN 4); inputs without a known number are refused', async () => {
+    await christieDriver.command(t(), { kind: 'input', input: 'HDMI 2' })
+    await christieDriver.command(t(), { kind: 'input', input: 'DisplayPort' })
+    assert.deepEqual(sim.received.filter(f => f.startsWith('(SIN+MAIN')), ['(SIN+MAIN 4)', '(SIN+MAIN 6)'])
+    await rejectsWith(christieDriver.command(t(), { kind: 'input', input: 'SDI 1' }), 'unsupported')
+  })
+})
 })
