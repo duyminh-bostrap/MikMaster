@@ -1,5 +1,6 @@
 import type { CommandDto, LensReadingDto, StatusDto } from '../../../shared/api.ts'
 import { DeviceError, TcpConnection, serialize, splitParens } from '../net/tcp.ts'
+import { christieInputs, christieWebPort } from './christieWeb.ts'
 import type { Driver, DriverTarget, ProbeResult } from './types.ts'
 
 /*
@@ -32,9 +33,6 @@ const LENS_QUERIES = [['LHO', 'shiftH'], ['LVO', 'shiftV'], ['ZOM', 'zoom'], ['F
 
 /** Loại mẫu của app → số `(ITP n)`; mẫu không có tương ứng thì không hỗ trợ. */
 const ITP_PATTERNS: Record<string, number> = { grid: 1, white: 2, black: 3, 'color-bars': 5, red: 6, green: 7, blue: 8 }
-
-/** Đổi input theo (SIN+MAIN n) của tài liệu 4K7-HS/4K10-HS: 3 = HDMI 1, 4 = HDMI 2, 5 = DVI-D, 6 = DisplayPort. CHƯA kiểm trên Griffyn (cấu hình cổng khác nhau). */
-const SIN_MAIN: Record<string, number> = { 'HDMI 1': 3, 'HDMI 2': 4, DVI: 5, DisplayPort: 6 }
 
 const SHUTTER_CLOSED = '1'
 const SHUTTER_OPEN = '0'
@@ -175,9 +173,12 @@ export const christieDriver: Driver = {
       case 'power': parseFrame(await exchange(t, `(PWR ${c.value === 'on' ? 1 : 0})`)); return
       case 'shutter': parseFrame(await exchange(t, `(SHU ${c.closed ? SHUTTER_CLOSED : SHUTTER_OPEN})`)); return
       case 'input': {
-        const n = SIN_MAIN[c.input]
-        if (n === undefined) throw new DeviceError('unsupported', `Christie input "${c.input}" has no known (SIN+MAIN n) number (available: ${Object.keys(SIN_MAIN).join(', ')})`)
-        parseFrame(await exchange(t, `(SIN+MAIN ${n})`))
+        // Griffyn không có (SIN+MAIN n) (đã thử: "Control Not Found"). Trang web của máy chọn input bằng (SIN idx), idx lấy từ danh sách input của máy
+        // (video:getInputInfo) — nên cần tài khoản web của máy; tên input của máy được ánh xạ sang nhãn của app như khi đọc input hiện tại.
+        const inputs = await christieInputs(t, christieWebPort())
+        const match = inputs.find(i => inputFrom(i.name) === c.input)
+        if (!match) throw new DeviceError('unsupported', `The projector has no input "${c.input}" (it lists: ${inputs.map(i => i.name).join(', ') || 'none'})`)
+        parseFrame(await exchange(t, `(SIN ${match.idx})`))
         return
       }
       case 'osd': throw new DeviceError('unsupported', 'Christie OSD navigation has no verified command')

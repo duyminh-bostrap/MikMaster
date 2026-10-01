@@ -20,7 +20,7 @@ const WEB_PORT = 80
 const MAX_IMAGE_BYTES = 4 * 1024 * 1024
 const SESSION_EXPIRED = 116
 
-interface Thumb { name?: string; imageType?: number; path?: string; res?: string; active?: boolean }
+interface Thumb { idx?: number; name?: string; imageType?: number; path?: string; res?: string; active?: boolean }
 
 const sessions = new Map<string, string>()
 
@@ -105,6 +105,21 @@ export async function christiePreview(t: DriverTarget, port = WEB_PORT): Promise
   const type = img.type.startsWith('image/') ? img.type.split(';')[0] : 'image/png'
   return { state: 'image', image: `data:${type};base64,${img.body.toString('base64')}`, ...info }
 }
+
+/**
+ * Danh sách input của máy (cùng nguồn với trang web: `video:getInputInfo`): `idx` là số dùng cho `(SIN idx)` — mã nguồn trang web của Griffyn
+ * chọn input bằng `InputSignal.setValue(idx)` với InputSignal = "SIN". Cần tài khoản web của máy.
+ */
+export async function christieInputs(t: DriverTarget, port = WEB_PORT): Promise<{ idx: number; name: string; active: boolean }[]> {
+  const key = `${t.host}:${port}:${t.username ?? ''}:${t.password ?? ''}`
+  const { thumbs } = await inputInfo(t, port, key)
+  return thumbs.filter(x => Number.isInteger(x.idx) && typeof x.name === 'string').map(x => ({ idx: x.idx!, name: x.name!, active: !!x.active }))
+}
+
+/** Cổng web của máy (chỉ đổi trong test). */
+let overridePort: number | undefined
+export function setChristieWebPort(port: number | undefined): void { overridePort = port }
+export const christieWebPort = (): number => overridePort ?? WEB_PORT
 
 /** Chỉ để test. */
 export function resetChristieSessions(): void { sessions.clear() }

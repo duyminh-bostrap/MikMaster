@@ -116,7 +116,7 @@ export const LIVE_CAPABILITIES: Record<DriverProtocol, readonly Capability[]> = 
   // chưa kiểm trên máy thật (NTCONTROL đòi đăng nhập).
   'panasonic-nt-control': ['power', 'shutter', 'input', 'osd', 'raw', 'preview', 'brightness', 'testPattern'],
   // testPattern / osdDisplay: (ITP n) / (OSD 0|1) theo tài liệu Christie 4K7-HS/4K10-HS; chưa kiểm số mẫu trên Griffyn.
-  // input: (SIN+MAIN n) theo tài liệu 4K7-HS/4K10-HS (3 = HDMI 1, 4 = HDMI 2, 5 = DVI, 6 = DisplayPort); chưa kiểm trên Griffyn.
+  // input: (SIN idx) với idx lấy từ danh sách input của máy (web video:getInputInfo, cần tài khoản web) — theo mã nguồn trang web của Griffyn; chưa thử đổi thật.
   'christie-serial-ip': ['power', 'shutter', 'input', 'raw', 'preview', 'testPattern', 'osdDisplay'],
   'barco-pulse': ['power', 'shutter', 'raw'],
   // Chỉ RAW COMMAND: không có lệnh chuẩn nên không poll, không có power/shutter.

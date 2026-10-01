@@ -1,6 +1,8 @@
 import assert from 'node:assert/strict'
 import { after, before, describe, test } from 'node:test'
 import { christieDriver } from '../src/drivers/christie.ts'
+import { resetChristieSessions, setChristieWebPort } from '../src/drivers/christieWeb.ts'
+import { ChristieWebSimulator } from '../src/sim/christieWebSim.ts'
 import { inputFromCode, panasonicDriver, parseLightOutput, parseTemperature, percentToLightOutput, setPanasonicWebPort } from '../src/drivers/panasonic.ts'
 import { parseSimpleStatus } from '../src/drivers/panasonicWeb.ts'
 import crypto from 'node:crypto'
@@ -321,8 +323,8 @@ describe('Christie serial driver', () => {
     assert.equal((await christieDriver.status(t)).power, 'standby')
   })
 
-  test('OSD menu keys are unsupported (unverified); an input without a known (SIN+MAIN n) number is refused', async () => {
-    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'input', input: 'SDI 2' }), 'unsupported')
+  test('OSD menu keys are unsupported (unverified); changing the input needs the projector web account (nothing is guessed)', async () => {
+    await rejectsWith(christieDriver.command(target(sim.port), { kind: 'input', input: 'HDMI 1' }), 'auth')
     await rejectsWith(christieDriver.command(target(sim.port), { kind: 'osd', key: 'menu' }), 'unsupported')
   })
 
@@ -432,18 +434,25 @@ describe('identifyDevice', async () => {
       assert.deepEqual([r.protocol, r.port, r.model, r.name, r.authRequired], ['pjlink-class2', open.port, 'PT-RQ35K', 'HEXO', false])
     } finally { await open.stop(); await locked.stop() }
   })
+})
 
-describe('Christie input selection ((SIN+MAIN n), from the 4K7-HS / 4K10-HS reference — not yet verified on a Griffyn)', () => {
-  const sim = new ChristieSimulator()
-  before(async () => { await sim.start() })
-  after(async () => { await sim.stop() })
-  const t = () => ({ host: '127.0.0.1', port: sim.port, timeoutMs: 800 })
+describe('Christie input selection ((SIN idx) with idx from the input list of the projector web — as the Griffyn web page does)', () => {
+  const serial = new ChristieSimulator()
+  const web = new ChristieWebSimulator()
+  before(async () => { await serial.start(); await web.start(); setChristieWebPort(web.port) })
+  after(async () => { setChristieWebPort(undefined); resetChristieSessions(); await serial.stop(); await web.stop() })
+  const t = (account = true) => ({ host: '127.0.0.1', port: serial.port, timeoutMs: 1000, ...(account ? { username: 'sim-operator', password: 'sim-pass' } : {}) })
 
-  test('HDMI 2 → (SIN+MAIN 4); inputs without a known number are refused', async () => {
+  test('HDMI 2 → (SIN 26) (the idx the projector lists for "One-Port HDMI1"); HDMI 1 → (SIN 24)', async () => {
     await christieDriver.command(t(), { kind: 'input', input: 'HDMI 2' })
-    await christieDriver.command(t(), { kind: 'input', input: 'DisplayPort' })
-    assert.deepEqual(sim.received.filter(f => f.startsWith('(SIN+MAIN')), ['(SIN+MAIN 4)', '(SIN+MAIN 6)'])
-    await rejectsWith(christieDriver.command(t(), { kind: 'input', input: 'SDI 1' }), 'unsupported')
+    await christieDriver.command(t(), { kind: 'input', input: 'HDMI 1' })
+    assert.deepEqual(serial.received.filter(f => f.startsWith('(SIN ')), ['(SIN 26)', '(SIN 24)'])
+  })
+
+  test('an input the projector does not list is refused, and without the web account nothing is guessed', async () => {
+    await rejectsWith(christieDriver.command(t(), { kind: 'input', input: 'SDI 2' }), 'unsupported')
+    await rejectsWith(christieDriver.command(t(false), { kind: 'input', input: 'HDMI 2' }), 'auth')
+    assert.equal(serial.received.filter(f => f.startsWith('(SIN ')).length, 2) // không có lệnh nào thêm
   })
 })
-})
+
