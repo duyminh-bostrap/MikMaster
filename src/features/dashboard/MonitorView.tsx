@@ -10,10 +10,9 @@ import type { Booth, Projector } from '@/types'
 import { cn } from '@/utils/cn'
 import { formatClock, formatDuration } from '@/utils/format'
 import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, warmupSeries, type LogFilter } from '@/utils/monitor'
-import { temperatureTone } from '@/utils/tones'
+import { TONE_TEXT, temperatureTone } from '@/utils/tones'
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
-const THRESHOLDS = [{ value: 55, color: 'var(--color-warn)' }, { value: 70, color: 'var(--color-danger)' }]
 const TH = 'px-3 py-1.5 text-left font-mono text-[10px] font-normal tracking-[0.1em] text-muted-foreground'
 const TD = 'px-3 py-1.5 align-middle'
 
@@ -47,6 +46,7 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
   const now = useClock(30_000).getTime()
   const [logFilter, setLogFilter] = useState<LogFilter>('issues')
   useHistoryVersion() // vẽ lại khi có mẫu nhiệt độ mới
+  const [focus, setFocus] = useState<string | null>(null) // máy đang được nhấn mạnh (rê chuột vào đường hoặc vào khung màu)
   const group = (p: Projector) => booths.find(b => b.id === p.boothId)?.name ?? ''
 
   if (projectors.length === 0) {
@@ -62,14 +62,9 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
 
   // Màu theo thứ tự máy trong danh sách.
   const colorOf = (p: Projector) => seriesColor(Math.max(0, projectors.findIndex(x => x.id === p.id)))
-  // Mỗi máy đang bật có số đo là một đường; nhãn cuối đường: tên · nhiệt độ hiện tại · thời gian đã bật. Nóng nhất ở trên.
-  const chartSeries = warmupSeries(projectors, historyOf, now).map(w => {
-    const p = w.projector, c = p.telemetry.temperatureC, last = w.points[w.points.length - 1]!
-    return {
-      id: p.id, color: colorOf(p), points: w.points,
-      label: { name: p.name, value: c > 0 ? `${c}°C` : `${last.y}°C`, valueColor: `var(--color-${temperatureTone(c > 0 ? c : last.y)})`, detail: formatDuration(last.x) },
-    }
-  })
+  // Mỗi máy đang bật có số đo là một đường (màu riêng, ghi trong khung bên cạnh); thông tin chi tiết hiện khi trỏ chuột vào đường.
+  const warm = warmupSeries(projectors, historyOf, now)
+  const chartSeries = warm.map(w => ({ id: w.projector.id, name: w.projector.name, color: colorOf(w.projector), points: w.points }))
   const xMax = Math.max(2 * 60_000, ...chartSeries.map(sr => sr.points[sr.points.length - 1]!.x))
 
   const Row = ({ p, children }: { p: Projector; children: ReactNode }) => (
@@ -84,11 +79,52 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
     <div className="grid grid-cols-2 gap-4 max-xl:grid-cols-1" data-testid="monitor">
       <Panel title={t('TEMPERATURE · TIME SINCE POWER ON')} className="col-span-2 min-w-0 max-xl:col-span-1"
         aside={<Aside>{temp.rows.length > 0 ? `${t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })}${onTime.rows.length > 0 ? ` · ${t('longest {d}', { d: formatDuration(onTime.longest) })}` : ''}` : '—'}</Aside>}>
-        {chartSeries.length === 0 ? (
-          <p className="font-mono text-xs text-muted-foreground">{onTime.rows.length > 0 ? t('Collecting temperature samples…') : t('No projector is on, or none reports a temperature.')}</p>
-        ) : (
-          <LineChart series={chartSeries} xMax={xMax} xLabel={ms => (ms === 0 ? t('power on') : formatDuration(ms))} thresholds={THRESHOLDS} onSelect={onOpen} label={t('Temperature since power on')} />
-        )}
+        <div className="grid grid-cols-[minmax(0,1fr)_17rem] gap-4 max-lg:grid-cols-1">
+          {chartSeries.length === 0 ? (
+            <p className="font-mono text-xs text-muted-foreground">{onTime.rows.length > 0 ? t('Collecting temperature samples…') : t('No projector is on, or none reports a temperature.')}</p>
+          ) : (
+            <LineChart series={chartSeries} xMax={xMax} xLabel={ms => (ms === 0 ? t('power on') : formatDuration(ms))} highlight={focus} onHighlight={setFocus}
+              thresholds={[{ value: 55, color: 'var(--color-warn)', label: t('Warning {n}°C', { n: 55 }) }, { value: 70, color: 'var(--color-danger)', label: t('Danger {n}°C', { n: 70 }) }]}
+              label={t('Temperature since power on')}
+              renderTip={(sr, pt) => {
+                const p = warm.find(x => x.projector.id === sr.id)!.projector
+                const st = monitorStatus(p)
+                return (
+                  <>
+                    <p className="mb-1 flex items-center gap-2"><span className="size-2.5 rounded-full" style={{ background: sr.color }} /><span className="font-semibold text-foreground">{p.name}</span><span className="text-[10px] text-muted-foreground">{p.id}</span></p>
+                    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-0.5">
+                      <dt className="text-muted-foreground">{t('TEMP')}</dt><dd className={cn('text-right font-bold', TONE_TEXT[temperatureTone(pt.y)])}>{pt.y}°C</dd>
+                      <dt className="text-muted-foreground">{t('ON FOR')}</dt><dd className="text-right text-foreground">{formatDuration(pt.x)}</dd>
+                      <dt className="text-muted-foreground">{t('AT')}</dt><dd className="text-right text-foreground">{formatClock(new Date((p.poweredOnAt ?? 0) + pt.x))}</dd>
+                      <dt className="text-muted-foreground">{t('STATUS')}</dt><dd className="text-right"><Badge tone={st.tone}>{t(st.label)}</Badge></dd>
+                      <dt className="text-muted-foreground">{t('Group')}</dt><dd className="text-right text-foreground">{group(p)}</dd>
+                    </dl>
+                  </>
+                )
+              }} />
+          )}
+          {/* Khung ghi chú màu: MỌI máy đang xem (kể cả máy chưa có đường: tắt / mất kết nối) kèm trạng thái kết nối và nhiệt độ. */}
+          <aside aria-label={t('Projector colours')} className="self-start rounded-sm border border-border bg-muted/40">
+            <p className="border-b border-border px-3 py-2 font-mono text-[10px] tracking-[0.1em] text-muted-foreground">{t('PROJECTOR COLOURS')}</p>
+            <ul className="max-h-96 overflow-y-auto py-1">
+              {projectors.map(p => {
+                const line = chartSeries.find(sr => sr.id === p.id)
+                const st = monitorStatus(p), c = p.telemetry.temperatureC
+                return (
+                  <li key={p.id} data-legend={p.id}>
+                    <button type="button" onMouseEnter={() => line && setFocus(p.id)} onMouseLeave={() => setFocus(null)} onFocus={() => line && setFocus(p.id)} onBlur={() => setFocus(null)} onClick={() => onOpen(p.id)}
+                      className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-xs transition-colors hover:bg-muted', focus === p.id && 'bg-muted')}>
+                      <span className={cn('size-3 shrink-0 rounded-sm', !line && 'border border-dashed border-muted-foreground/60')} style={line ? { background: line.color } : undefined} aria-hidden />
+                      <span className="min-w-0 flex-1 truncate text-foreground">{p.name}</span>
+                      <Badge tone={st.tone}>{t(st.label)}</Badge>
+                      <span className={cn('w-10 shrink-0 text-right', c > 0 ? TONE_TEXT[temperatureTone(c)] : 'text-muted-foreground')}>{c > 0 ? `${c}°C` : '—'}</span>
+                    </button>
+                  </li>
+                )
+              })}
+            </ul>
+          </aside>
+        </div>
         {(temp.missing > 0 || onTime.off > 0) && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{[onTime.off > 0 && t('{n} projector(s) are not on', { n: onTime.off }), temp.missing > 0 && temp.rows.length > 0 && t('{n} projector(s) report no temperature', { n: temp.missing })].filter(Boolean).join(' · ')}</p>}
       </Panel>
 

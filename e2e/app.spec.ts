@@ -328,7 +328,7 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
   await expect(page).toHaveURL(/projectors\/PJ-03/)
 })
 
-test('Dashboard: one overview chart (temperature vs time since power on, labelled lines), brightness, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
+test('Dashboard: one overview chart (temperature vs time since power on; hover a line for that projector, colour legend beside), brightness, status, log and errors (gateway mocked, no real device)', async ({ page }) => {
   await createProject(page, 'Monitor Show')
   await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
   let unreachable = false
@@ -340,18 +340,30 @@ test('Dashboard: one overview chart (temperature vs time since power on, labelle
   await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  // Một biểu đồ chung: nhiệt độ theo thời gian từ lúc bật máy; mỗi máy một đường + chú thích (nhiệt độ, thời gian bật).
+  // Một biểu đồ chung: nhiệt độ theo thời gian từ lúc bật máy; mỗi máy một đường, khung bên cạnh ghi màu của từng máy.
   const chart = monitor.getByRole('group', { name: 'Temperature since power on' })
   await expect(chart).toBeVisible({ timeout: 10_000 })
   await expect(chart.locator('[data-series]')).toHaveCount(6)
-  // Tên, nhiệt độ hiện tại và thời gian bật ghi ngay cuối mỗi đường (không cần chú thích riêng).
-  const labels = chart.locator('[data-label]')
-  await expect(labels).toHaveCount(6)
-  await expect(labels.first()).toContainText('27°C')
-  await expect(labels.first()).toContainText(/\d+m/)
-  await expect(chart).toContainText('Center Fill')
-  // Bấm nhãn → mở trang máy.
-  await chart.locator('[data-label]', { hasText: 'Center Fill' }).click()
+  const legend = monitor.getByRole('complementary', { name: 'Projector colours' })
+  await expect(legend.locator('li')).toHaveCount(6)
+  await expect(legend).toContainText('Center Fill')
+  await expect(legend).toContainText('27°C')
+  await expect(legend.locator('li').first()).toContainText('ON') // kèm trạng thái kết nối của từng máy
+  // Chưa trỏ vào đường nào → không có khung thông tin; trỏ vào đường của một máy → hiện thông tin máy đó.
+  const tip = page.getByTestId('chart-tip')
+  await expect(tip).toHaveCount(0)
+  const dot = await chart.locator('[data-series="PJ-03"] circle').boundingBox()
+  await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2)
+  await expect(tip).toBeVisible()
+  await expect(tip).toContainText('27°C')
+  await expect(tip).toContainText(/\d+m/)
+  await expect(tip).toContainText('PJ-0') // mã máy đang trỏ vào
+  await page.mouse.move(dot!.x + dot!.width / 2, dot!.y - 150) // ra khỏi đường
+  await expect(tip).toHaveCount(0)
+  // Trỏ vào khung màu → đường tương ứng nổi lên; bấm → mở trang máy.
+  await legend.locator('[data-legend="PJ-03"] button').hover()
+  await expect(chart.locator('[data-series="PJ-02"]')).toHaveAttribute('opacity', '0.18')
+  await legend.locator('[data-legend="PJ-03"] button').click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
   await page.goBack()
   await page.getByRole('radio', { name: 'Dashboard' }).click()
@@ -363,6 +375,10 @@ test('Dashboard: one overview chart (temperature vs time since power on, labelle
   await page.getByRole('button', { name: 'Refresh all projectors' }).click()
   await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('OFFLINE', { timeout: 10_000 })
   await expect(monitor.getByText('No events')).toHaveCount(0)
+  // Khung màu vẫn liệt kê mọi máy, kèm trạng thái mất kết nối (máy chưa có đường thì ô màu nét đứt).
+  const legendAfter = monitor.getByRole('complementary', { name: 'Projector colours' })
+  await expect(legendAfter.locator('li')).toHaveCount(6)
+  await expect(legendAfter.locator('li').first()).toContainText('OFFLINE')
   await monitor.getByRole('radio', { name: 'Errors', exact: true }).click()
   await expect(monitor.getByText(/ACTIVE ERRORS/)).toBeVisible()
   await page.screenshot({ path: 'test-results/monitor.png' })

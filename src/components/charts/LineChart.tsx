@@ -1,19 +1,14 @@
-import { useState } from 'react'
+import { useRef, useState, type ReactNode } from 'react'
 
 export interface LinePoint { x: number; y: number }
-export interface LineSeries {
-  id: string
-  color: string
-  points: readonly LinePoint[]
-  /** Nhãn ghi ngay cuối đường: tên, giá trị hiện tại (có màu riêng) và chi tiết (vd. thời gian bật). */
-  label: { name: string; value: string; valueColor: string; detail: string }
-}
+export interface LineSeries { id: string; name: string; color: string; points: readonly LinePoint[] }
+export interface Threshold { value: number; color: string; label: string }
 
 const W = 1000
-const PAD = { l: 46, r: 262, t: 14, b: 32 }
-const LABEL_GAP = 19
-const MIN_H = 300
-const NAME_MAX = 14
+const H = 360
+const PAD = { l: 46, r: 18, t: 14, b: 32 }
+/** Khoảng cách (đơn vị viewBox) từ con trỏ tới đường để coi là "đang trỏ vào đường đó". */
+const HIT = 16
 
 /** Màu theo thứ tự (HSL, tách biệt trên nền tối và sáng). */
 export const seriesColor = (i: number): string => `hsl(${(i * 47 + 200) % 360} 75% 58%)`
@@ -26,90 +21,122 @@ export function niceStepMs(maxMs: number): number {
   return (STEPS_MIN.find(m => m >= target) ?? 1440) * 60_000
 }
 
-/** Vị trí dọc của các nhãn: giữ thứ tự theo y mong muốn, cách nhau ≥ gap, nằm trong [min, max]. */
-export function spreadLabels(desired: number[], gap: number, min: number, max: number): number[] {
-  const order = desired.map((y, i) => ({ y, i })).sort((a, b) => a.y - b.y)
-  const out = new Array<number>(desired.length)
-  let prev = min - gap
-  for (const o of order) { prev = Math.max(o.y, prev + gap); out[o.i] = prev }
-  // Tràn đáy → đẩy ngược lên.
-  let limit = max
-  for (let k = order.length - 1; k >= 0; k--) { const i = order[k]!.i; out[i] = Math.min(out[i]!, limit); limit = out[i]! - gap }
-  return out
+/** Khoảng cách từ điểm (px,py) tới đoạn (ax,ay)-(bx,by) (đoạn suy biến thành điểm vẫn dùng được). */
+export function distToSegment(px: number, py: number, ax: number, ay: number, bx: number, by: number): number {
+  const dx = bx - ax, dy = by - ay
+  const len2 = dx * dx + dy * dy
+  const t = len2 === 0 ? 0 : Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / len2))
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy))
 }
 
-const short = (s: string) => (s.length > NAME_MAX ? `${s.slice(0, NAME_MAX - 1)}…` : s)
+interface Hover { id: string; point: LinePoint; left: number; top: number; flip: boolean }
 
 /**
- * Biểu đồ đường tổng quan (SVG, không thư viện): trục ngang là thời gian (ms) từ 0, trục dọc °C. Mỗi đường có nhãn ngay cuối
- * (tên · giá trị · chi tiết) xếp không đè nhau nên nhìn là biết máy nào, bao nhiêu độ. Rê chuột / focus vào nhãn để nhấn mạnh đường;
- * bấm nhãn để mở máy. Chiều cao tự tăng theo số máy.
+ * Biểu đồ đường tổng quan (SVG, không thư viện): trục ngang là thời gian (ms) từ 0, trục dọc °C; vùng trên ngưỡng được tô nền.
+ * Rê chuột vào một đường: đường đó nổi lên (các đường khác mờ), có đường kẻ dọc + điểm tròn tại mẫu gần nhất và khung thông tin
+ * (do `renderTip` dựng) — rời khỏi đường thì khung biến mất. `highlight` / `onHighlight` cho phép khung chú thích bên cạnh dùng chung trạng thái.
  */
-export function LineChart({ series, xMax, xLabel, thresholds, onSelect, label }: {
+export function LineChart({ series, xMax, xLabel, thresholds, highlight, onHighlight, renderTip, label }: {
   series: LineSeries[]
   xMax: number
   xLabel: (ms: number) => string
-  thresholds?: { value: number; color: string }[]
-  onSelect?: (id: string) => void
+  thresholds?: Threshold[]
+  highlight?: string | null
+  onHighlight?: (id: string | null) => void
+  renderTip: (series: LineSeries, point: LinePoint) => ReactNode
   label: string
 }) {
-  const [focus, setFocus] = useState<string | null>(null)
-  const H = Math.max(MIN_H, PAD.t + PAD.b + series.length * LABEL_GAP)
+  const svg = useRef<SVGSVGElement>(null)
+  const wrap = useRef<HTMLDivElement>(null)
+  const [hover, setHover] = useState<Hover | null>(null)
+
   const ys = series.flatMap(s => s.points.map(p => p.y))
   const lo = Math.max(0, Math.floor((Math.min(...ys) - 5) / 5) * 5)
-  const hi = Math.max(lo + 20, Math.ceil((Math.max(...ys) + 5) / 5) * 5)
+  const hi = Math.max(lo + 20, Math.ceil((Math.max(...ys, ...(thresholds?.map(th => th.value) ?? [])) + 5) / 5) * 5)
   const plotR = W - PAD.r
   const x = (v: number) => PAD.l + (v / xMax) * (plotR - PAD.l)
   const y = (v: number) => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b)
   const yTicks = Array.from({ length: 5 }, (_, i) => lo + ((hi - lo) / 4) * i)
   const step = niceStepMs(xMax)
   const xTicks = Array.from({ length: Math.floor(xMax / step) + 1 }, (_, i) => i * step)
-  const ends = series.map(s => s.points[s.points.length - 1]!)
-  const labelY = spreadLabels(ends.map(p => y(p.y)), LABEL_GAP, PAD.t + 8, H - PAD.b - 4)
+  const sorted = [...(thresholds ?? [])].sort((a, b) => a.value - b.value)
+
+  function setActive(h: Hover | null) {
+    setHover(h)
+    onHighlight?.(h?.id ?? null)
+  }
+
+  function onMove(e: React.PointerEvent) {
+    const box = svg.current?.getBoundingClientRect()
+    const wbox = wrap.current?.getBoundingClientRect()
+    if (!box || !wbox || box.width === 0) return
+    const vx = ((e.clientX - box.left) / box.width) * W
+    const vy = ((e.clientY - box.top) / box.height) * H
+    let best: { s: LineSeries; d: number } | null = null
+    for (const s of series) {
+      const pts = s.points
+      for (let i = 0; i < pts.length; i++) {
+        const a = pts[i]!, b = pts[i + 1] ?? a
+        const d = distToSegment(vx, vy, x(a.x), y(a.y), x(b.x), y(b.y))
+        if (!best || d < best.d) best = { s, d }
+        if (i === pts.length - 1) break
+      }
+    }
+    if (!best || best.d > HIT) { if (hover) setActive(null); return }
+    const point = best.s.points.reduce((n, p) => (Math.abs(x(p.x) - vx) < Math.abs(x(n.x) - vx) ? p : n))
+    const left = e.clientX - wbox.left, top = e.clientY - wbox.top
+    setActive({ id: best.s.id, point, left, top, flip: left > wbox.width * 0.6 })
+  }
+
+  const focus = hover?.id ?? highlight ?? null
+  const hovered = hover ? series.find(s => s.id === hover.id) : undefined
 
   return (
-    <svg viewBox={`0 0 ${W} ${H}`} role="group" aria-label={label} className="w-full font-mono">
-      {yTicks.map(v => (
-        <g key={v}>
-          <line x1={PAD.l} x2={plotR} y1={y(v)} y2={y(v)} stroke="var(--color-border)" strokeWidth={1} />
-          <text x={PAD.l - 8} y={y(v) + 4} textAnchor="end" fontSize={13} fill="var(--color-muted-foreground)">{Math.round(v)}°</text>
-        </g>
-      ))}
-      {xTicks.map(v => (
-        <g key={v}>
-          <line x1={x(v)} x2={x(v)} y1={PAD.t} y2={H - PAD.b} stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
-          <text x={x(v)} y={H - 9} textAnchor={v === 0 ? 'start' : 'middle'} fontSize={13} fill="var(--color-muted-foreground)">{xLabel(v)}</text>
-        </g>
-      ))}
-      {thresholds?.filter(th => th.value > lo && th.value < hi).map(th => (
-        <g key={th.value}>
-          <line x1={PAD.l} x2={plotR} y1={y(th.value)} y2={y(th.value)} stroke={th.color} strokeWidth={1.25} strokeDasharray="6 5" opacity={0.8} />
-          <text x={plotR - 4} y={y(th.value) - 4} textAnchor="end" fontSize={12} fill={th.color}>{th.value}°C</text>
-        </g>
-      ))}
-      {series.map((s, i) => {
-        const end = ends[i]!
-        const dim = focus != null && focus !== s.id
-        const on = focus === s.id
-        const ly = labelY[i]!
-        return (
-          <g key={s.id} data-series={s.id} opacity={dim ? 0.2 : 1}>
-            {s.points.length > 1 && <polyline points={s.points.map(p => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={on ? 3.5 : 2.5} strokeLinejoin="round" strokeLinecap="round" />}
-            <path d={`M${x(end.x)},${y(end.y)} L${plotR + 8},${ly}`} stroke={s.color} strokeWidth={1} fill="none" opacity={0.6} />
-            <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />
-            <g data-label={s.id} role={onSelect ? 'button' : undefined} tabIndex={onSelect ? 0 : undefined} aria-label={`${s.label.name} ${s.label.value} ${s.label.detail}`}
-              style={{ cursor: onSelect ? 'pointer' : undefined, outline: 'none' }}
-              onMouseEnter={() => setFocus(s.id)} onMouseLeave={() => setFocus(null)} onFocus={() => setFocus(s.id)} onBlur={() => setFocus(null)}
-              onClick={() => onSelect?.(s.id)} onKeyDown={e => { if (e.key === 'Enter') onSelect?.(s.id) }}>
-              <rect x={plotR + 8} y={ly - LABEL_GAP / 2} width={PAD.r - 12} height={LABEL_GAP - 1} fill="transparent" />
-              <circle cx={plotR + 16} cy={ly} r={4.5} fill={s.color} />
-              <text x={plotR + 26} y={ly + 4.5} fontSize={13} fill="var(--color-foreground)" fontWeight={on ? 700 : 500}>{short(s.label.name)}</text>
-              <text x={plotR + 150} y={ly + 4.5} fontSize={13} fill={s.label.valueColor} fontWeight={700}>{s.label.value}</text>
-              <text x={plotR + 202} y={ly + 4.5} fontSize={12} fill="var(--color-muted-foreground)">{s.label.detail}</text>
-            </g>
+    <div ref={wrap} className="relative">
+      <svg ref={svg} viewBox={`0 0 ${W} ${H}`} role="group" aria-label={label} className="w-full touch-none font-mono" onPointerMove={onMove} onPointerLeave={() => setActive(null)}>
+        {sorted.map((th, i) => {
+          const top = y(Math.min(hi, sorted[i + 1]?.value ?? hi))
+          return th.value < hi && <rect key={th.value} x={PAD.l} y={top} width={plotR - PAD.l} height={Math.max(0, y(th.value) - top)} fill={th.color} opacity={0.08} />
+        })}
+        {yTicks.map(v => (
+          <g key={v}>
+            <line x1={PAD.l} x2={plotR} y1={y(v)} y2={y(v)} stroke="var(--color-border)" strokeWidth={1} />
+            <text x={PAD.l - 8} y={y(v) + 4} textAnchor="end" fontSize={13} fill="var(--color-muted-foreground)">{Math.round(v)}°</text>
           </g>
-        )
-      })}
-    </svg>
+        ))}
+        {xTicks.map(v => (
+          <g key={v}>
+            <line x1={x(v)} x2={x(v)} y1={PAD.t} y2={H - PAD.b} stroke="var(--color-border)" strokeWidth={1} opacity={0.5} />
+            <text x={x(v)} y={H - 9} textAnchor={v === 0 ? 'start' : 'middle'} fontSize={13} fill="var(--color-muted-foreground)">{xLabel(v)}</text>
+          </g>
+        ))}
+        {sorted.filter(th => th.value > lo && th.value < hi).map(th => (
+          <g key={th.value}>
+            <line x1={PAD.l} x2={plotR} y1={y(th.value)} y2={y(th.value)} stroke={th.color} strokeWidth={1.25} strokeDasharray="6 5" opacity={0.85} />
+            <text x={PAD.l + 8} y={y(th.value) - 5} fontSize={12} fill={th.color}>{th.label}</text>
+          </g>
+        ))}
+        {hover && <line x1={x(hover.point.x)} x2={x(hover.point.x)} y1={PAD.t} y2={H - PAD.b} stroke="var(--color-muted-foreground)" strokeWidth={1} opacity={0.7} />}
+        {series.map(s => {
+          const end = s.points[s.points.length - 1]
+          if (!end) return null
+          const on = focus === s.id
+          const dim = focus != null && !on
+          return (
+            <g key={s.id} data-series={s.id} opacity={dim ? 0.18 : 1}>
+              {s.points.length > 1 && <polyline points={s.points.map(p => `${x(p.x).toFixed(1)},${y(p.y).toFixed(1)}`).join(' ')} fill="none" stroke={s.color} strokeWidth={on ? 4 : 2.5} strokeLinejoin="round" strokeLinecap="round" />}
+              <circle cx={x(end.x)} cy={y(end.y)} r={on ? 5.5 : 4} fill={s.color} />
+            </g>
+          )
+        })}
+        {hover && hovered && <circle cx={x(hover.point.x)} cy={y(hover.point.y)} r={6.5} fill="var(--color-card)" stroke={hovered.color} strokeWidth={3} />}
+      </svg>
+      {hover && hovered && (
+        <div role="tooltip" data-testid="chart-tip" style={{ left: hover.left, top: hover.top, transform: `translate(${hover.flip ? 'calc(-100% - 14px)' : '14px'}, 14px)` }}
+          className="pointer-events-none absolute z-10 min-w-44 rounded-sm border border-border bg-card px-3 py-2 font-mono text-xs shadow-lg">
+          {renderTip(hovered, hover.point)}
+        </div>
+      )}
+    </div>
   )
 }

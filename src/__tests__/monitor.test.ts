@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest'
-import { spreadLabels } from '@/components/charts/LineChart'
+import { distToSegment, niceStepMs } from '@/components/charts/LineChart'
 import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, warmupSeries } from '@/utils/monitor'
 import { createProjector } from '@/utils/projector'
 import type { Projector } from '@/types'
@@ -92,21 +92,17 @@ describe('warmupSeries (nhiệt độ theo thời gian từ lúc bật)', () => 
   })
 })
 
-describe('spreadLabels (nhãn cuối đường không đè nhau)', () => {
-  test('giữ khoảng cách tối thiểu và thứ tự theo vị trí mong muốn', () => {
-    const out = spreadLabels([100, 102, 101, 300], 20, 0, 400)
-    const sorted = [...out].sort((a, b) => a - b)
-    for (let i = 1; i < sorted.length; i++) expect(sorted[i]! - sorted[i - 1]!).toBeGreaterThanOrEqual(20)
-    expect(out[0]).toBeLessThan(out[2]!) // 100 < 101 < 102
-    expect(out[2]).toBeLessThan(out[1]!)
-    expect(out[3]).toBe(300) // đủ chỗ → giữ nguyên
+describe('biểu đồ: trỏ chuột vào đường', () => {
+  test('distToSegment: khoảng cách tới đoạn thẳng, tới đầu mút, và tới điểm (đoạn suy biến)', () => {
+    expect(distToSegment(5, 3, 0, 0, 10, 0)).toBe(3) // thẳng góc với đoạn
+    expect(distToSegment(-4, 3, 0, 0, 10, 0)).toBe(5) // gần đầu mút trái
+    expect(distToSegment(13, 4, 0, 0, 10, 0)).toBe(5) // gần đầu mút phải
+    expect(distToSegment(3, 4, 0, 0, 0, 0)).toBe(5) // một điểm
   })
 
-  test('nhãn thấp quá thì được đẩy ngược lên, vẫn trong khung', () => {
-    const out = spreadLabels([390, 395, 399], 20, 0, 400)
-    expect(Math.max(...out)).toBeLessThanOrEqual(400)
-    const sorted = [...out].sort((a, b) => a - b)
-    expect(sorted[1]! - sorted[0]!).toBeGreaterThanOrEqual(20)
-    expect(sorted[2]! - sorted[1]!).toBeGreaterThanOrEqual(20)
+  test('niceStepMs: không quá ~6 vạch trên trục ngang', () => {
+    expect(niceStepMs(2 * 60_000)).toBe(60_000)
+    expect(niceStepMs(60 * 60_000)).toBe(10 * 60_000)
+    expect(niceStepMs(100 * 60_000)).toBe(30 * 60_000)
   })
 })
