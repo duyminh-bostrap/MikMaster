@@ -31,18 +31,18 @@ Thứ tự ưu tiên (trên xuống, gặp điều kiện đầu tiên thì dừ
    | `paid` (+ `updates_until`) | Vĩnh viễn | Pro nếu `BUILD_DATE ≤ updates_until` (hoặc `null`), ngược lại **`outdated`** → Free + màn hình báo "gia hạn cập nhật / cài bản cũ" |
    | `trial` | Dùng thử 30 ngày (mỗi tài khoản 1 lần, mỗi máy 1 lần) | Pro |
    | `expired`, `other_machine`, `machine_used`, `none` | Hết hạn / khác máy / máy đã dùng thử / chưa có gì | Free |
-3. **Key Free (`MIKF-…`)** → **Free**, đã đăng ký máy này (xem §3).
+3. **Key Free (`MIKE-…`)** → **Free**, đã đăng ký máy này (xem §3).
 4. Còn lại → **Free** (hiện trang license, bỏ qua được).
 
 - **Free** = chỉ bật / tắt máy và shutter. **Pro** = thêm preview, input, OSD, test pattern, độ sáng, lens, RAW…
 - Mất mạng: quyền đã xác nhận còn giá trị tối đa `ONLINE_GRACE_DAYS` = 30 ngày; quá hạn → Free cho tới khi kết nối lại.
 - Ngày phát hành: app so `BUILD_DATE` (lúc build) với `updates_until`; website so `publishedAt` của release. Build xong, vài phút sau mới phát hành → app rộng tay hơn website đúng phần chênh đó (chấp nhận được). Workflow build nên đặt `MIKMASTER_BUILD_DATE` = thời điểm tạo release.
 
-## 3. Key Free (`MIKF`): còn lệch, cần chốt
+## 3. Key Free (`MIKE`): còn lệch, cần chốt
 
 Website đã làm xong: tạo / thu hồi key trên `/account`, `activate_free_key(p_key, p_machine)` (gọi bằng khoá `anon`, không cần đăng nhập), trả `free | other_machine | revoked | invalid`.
 
-**App chưa làm gì cả** (không có `MIKF`, không gọi `activate_free_key`). Hai bên đang lệch chính sách:
+**App chưa làm gì cả** (không có `MIKE`, không gọi `activate_free_key`). Hai bên đang lệch chính sách:
 
 | | Website (doc §7) | App hiện tại |
 |---|---|---|
@@ -53,7 +53,7 @@ Website đã làm xong: tạo / thu hồi key trên `/account`, `activate_free_k
 - **A. Bắt buộc**: không key, không tài khoản, không license → màn hình chặn, chỉ có ô nhập key Free / đăng nhập. Mỗi tài khoản tối đa 10 máy Free, thu hồi được. Đếm được số máy Free, nhưng người dùng mới gặp rào cản trước khi thử.
 - **B. Tùy chọn**: vẫn vào thẳng Free; nhập key Free chỉ để *đăng ký* máy (đếm số máy, thu hồi từ xa). App không bị khóa nếu không nhập.
 
-Việc app cần làm cho cả hai: `account.ts` thêm `activateFreeKey(key)` (POST `/rest/v1/rpc/activate_free_key`, header `apikey`), lưu kết quả `free` gần nhất trong `state.dat`, kiểm lại định kỳ (phát hiện `revoked`), thêm ô nhập `MIKF-…` ở trang license / Cài đặt → Bản quyền, thông báo cho 3 lỗi (`other_machine`, `revoked`, `invalid`). Thêm trạng thái `LicenseStatusDto.state = 'free'` (hiện chỉ có `licensed | trial | unlicensed | signin | expired | outdated | unverified | revoked`).
+Việc app cần làm cho cả hai: `account.ts` thêm `activateFreeKey(key)` (POST `/rest/v1/rpc/activate_free_key`, header `apikey`), lưu kết quả `free` gần nhất trong `state.dat`, kiểm lại định kỳ (phát hiện `revoked`), thêm ô nhập `MIKE-…` ở trang license / Cài đặt → Bản quyền, thông báo cho 3 lỗi (`other_machine`, `revoked`, `invalid`). Thêm trạng thái `LicenseStatusDto.state = 'free'` (hiện chỉ có `licensed | trial | unlicensed | signin | expired | outdated | unverified | revoked`).
 
 ## 4. Việc còn lại (theo thứ tự)
 
