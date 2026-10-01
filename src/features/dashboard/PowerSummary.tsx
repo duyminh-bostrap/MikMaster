@@ -1,4 +1,5 @@
 import { Moon, Power } from 'lucide-react'
+import type { ReactNode } from 'react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { useT } from '@/i18n'
 import { useSettings } from '@/services/settings'
@@ -8,10 +9,10 @@ import { cn } from '@/utils/cn'
 import { connectionStats } from '@/utils/fleet'
 
 /**
- * Hai ô lớn ở đầu trang All / từng group, cũng chính là hai nút BẬT TẤT CẢ / TẮT TẤT CẢ: số máy đang bật và số máy tắt / chờ
+ * Hàng điều khiển ở đầu trang All / từng group, cũng chính là hai nút BẬT TẤT CẢ / TẮT TẤT CẢ: số máy đang bật và số máy tắt / chờ
  * (đang kết nối); bấm ô bật = bật cả nhóm (lần lượt theo cài đặt để tránh sụt điện), bấm ô tắt = tắt cả nhóm (có hỏi xác nhận).
  */
-export function PowerSummary({ projectors, scopeLabel }: { projectors: Projector[]; scopeLabel: string }) {
+export function PowerSummary({ projectors, scopeLabel, children }: { projectors: Projector[]; scopeLabel: string; /** Cụm điều khiển hàng loạt khác (shutter / OSD / test pattern): nằm bên PHẢI cùng hàng. */ children?: ReactNode }) {
   const t = useT()
   const { setPower } = useProjectActions()
   const { powerOnDelaySec } = useSettings()
@@ -27,9 +28,9 @@ export function PowerSummary({ projectors, scopeLabel }: { projectors: Projector
     }
   }
 
-  const base = 'flex min-w-0 flex-1 items-center gap-4 rounded-sm border px-5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+  const base = 'flex w-64 min-w-0 shrink-0 items-center gap-4 rounded-sm border px-5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50'
   return (
-    <div role="group" aria-label={t('Power summary')} data-testid="power-summary" className="flex shrink-0 gap-3 border-b border-border bg-background px-5 py-3">
+    <div role="group" aria-label={t('Power summary')} data-testid="power-summary" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-3 border-b border-border bg-background px-5 py-3">
       <button type="button" data-testid="summary-on" disabled={n === 0} onClick={() => setPower(ids, 'on')}
         aria-label={stagger ? t('All on — one by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : t('All on')}
         className={cn(base, 'border-ok/50 bg-ok/5 hover:bg-ok/15')}>
@@ -49,6 +50,7 @@ export function PowerSummary({ projectors, scopeLabel }: { projectors: Projector
           <span className="truncate font-mono text-[10px] text-muted-foreground">{t('Click: all off')}</span>
         </span>
       </button>
+      {children && <div className="ml-auto">{children}</div>}
       {confirmDialog}
     </div>
   )

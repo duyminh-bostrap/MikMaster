@@ -86,9 +86,11 @@ export default function DashboardPage() {
       }
     >
       <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} connection={connectionStats(scope)} />
-      <PowerSummary projectors={scope} scopeLabel={scopeLabel} />
-      <FleetMetrics stats={stats} projectors={projectors}
-        actions={<QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />} />
+      {/* Hàng điều khiển: hai ô bật / tắt tất cả bên trái, cụm shutter / OSD / test pattern bên phải. */}
+      <PowerSummary projectors={scope} scopeLabel={scopeLabel}>
+        <QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />
+      </PowerSummary>
+      <FleetMetrics stats={stats} projectors={projectors} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
         {...(inBooth ? {} : { view, onView: setAllView })} />
