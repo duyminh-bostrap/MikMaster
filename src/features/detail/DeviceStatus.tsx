@@ -3,7 +3,7 @@ import { SectionHeader } from '@/components/ui/SectionHeader'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { cn } from '@/utils/cn'
-import { formatClock, formatHours } from '@/utils/format'
+import { formatHours } from '@/utils/format'
 import { appendLog } from '@/utils/projector'
 import { TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import { useProjectActions } from '@/store/hooks'
@@ -19,7 +19,6 @@ const CONNECTION: Record<ConnectionStatus, { label: string; tone: Tone }> = {
   'auth-failed': { label: 'LOGIN REQUIRED', tone: 'warn' },
 }
 
-const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
 
 function Row({ label, value, valueClassName }: { label: string; value: string; valueClassName?: string }) {
   return (
@@ -78,20 +77,6 @@ export function DeviceStatus({ projector: p }: { projector: Projector }) {
           </details>
         )}
       </div>
-
-      <SectionHeader label={t('EVENT LOG')} />
-      {p.log.length === 0 ? (
-        <p className="font-mono text-[10px] text-muted-foreground">{t('No events')}</p>
-      ) : (
-        <ul className="flex max-h-40 flex-col gap-1.5 overflow-y-auto">
-          {p.log.map(e => (
-            <li key={e.id} className="font-mono text-[10px] leading-snug">
-              <span className="text-muted-foreground">{formatClock(new Date(e.at))} </span>
-              <span className={LEVEL_TONE[e.level]}>{e.message}</span>
-            </li>
-          ))}
-        </ul>
-      )}
     </>
   )
 }

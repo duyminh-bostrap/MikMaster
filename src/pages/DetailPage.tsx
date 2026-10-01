@@ -11,9 +11,9 @@ import { PreviewPanel } from '@/features/detail/PreviewPanel'
 import { TestPatternPanel } from '@/features/detail/TestPatternPanel'
 import { AccountMenu } from '@/features/detail/AccountMenu'
 import { Button } from '@/components/ui/Button'
-import { CommandTemplatesPanel } from '@/features/detail/CommandTemplatesPanel'
+import { BrightnessPanel } from '@/features/detail/BrightnessPanel'
 import { InputPanel } from '@/features/detail/InputPanel'
-import { RawConsole } from '@/features/detail/RawConsole'
+import { TerminalDock } from '@/features/detail/TerminalDock'
 import { UnavailableNotice } from '@/features/detail/UnavailableNotice'
 import { useCapabilities } from '@/hooks/useCapabilities'
 import { useOpenProject, useProjector } from '@/store/hooks'
@@ -61,9 +61,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
           ) : <BasicControls projector={projector} />}
           {/* key: form nháp được dựng lại khi chuyển sang máy khác */}
           <NetworkEditor key={projector.id} projector={projector} />
-          <CommandTemplatesPanel key={`${projector.id}:${projector.network.protocol.type}:cmd`} projector={projector} />
           <DeviceStatus projector={projector} />
-          {caps.raw && !locked && <div className="mt-5"><RawConsole projector={projector} /></div>}
         </aside>
 
         <section className="flex min-w-0 flex-1 flex-col overflow-y-auto">
@@ -79,7 +77,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
             </div>
             <fieldset disabled={!caps.testPattern} className="contents">
               <div>
-                {!caps.testPattern && <UnavailableNotice>{t('Add the test pattern ON / OFF commands in ADVANCED (left) — from the projector manual — to use test patterns on this projector.')}</UnavailableNotice>}
+                {!caps.testPattern && <UnavailableNotice>{t('Add the test pattern ON / OFF commands on the Advanced page (logo menu → Advanced…) — from the projector manual — to use test patterns on this projector.')}</UnavailableNotice>}
                 <TestPatternPanel projector={projector} />
               </div>
             </fieldset>
@@ -93,8 +91,13 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
             {!caps.lens && <UnavailableNotice>{why}</UnavailableNotice>}
             <LensPanel projector={projector} />
           </fieldset>
+          <fieldset disabled={!caps.brightness} className="contents">
+            {!caps.brightness && <UnavailableNotice>{t('Brightness control is not available over this connection yet: no command verified against the manufacturer documentation.')}</UnavailableNotice>}
+            <BrightnessPanel projector={projector} />
+          </fieldset>
         </aside>}
       </div>
+      <TerminalDock key={projector.id} projector={projector} raw={caps.raw && !locked} />
     </div>
   )
 }

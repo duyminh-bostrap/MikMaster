@@ -9,6 +9,7 @@ export interface Capabilities {
   osd: boolean
   testPattern: boolean
   lens: boolean
+  brightness: boolean
   input: boolean
   raw: boolean
   /** Có ảnh thật của tín hiệu vào (Christie qua web). Mô phỏng: false (dùng ô mô phỏng). */
@@ -17,12 +18,12 @@ export interface Capabilities {
 
 /**
  * Chế độ mô phỏng: mọi thứ khả dụng. Chế độ thật: chỉ những gì driver đã có lệnh xác minh —
- * lens và test pattern luôn tắt vì chưa có bộ lệnh đã đối chiếu tài liệu hãng.
+ * lens và độ sáng luôn tắt vì chưa có bộ lệnh đã đối chiếu tài liệu hãng (test pattern chỉ bật khi có lệnh).
  */
 export function useCapabilities(p: Projector): Capabilities {
   const { gateway } = useGateway()
   useCommandOverrides(gateway) // render lại khi lệnh chung của hãng (trang Nâng cao) đổi
-  if (!gateway) return { live: false, osd: true, testPattern: true, lens: true, input: true, raw: false, preview: false }
+  if (!gateway) return { live: false, osd: true, testPattern: true, lens: true, brightness: true, input: true, raw: false, preview: false }
   const caps = deviceCapabilities(p)
-  return { live: true, osd: caps.includes('osd'), testPattern: caps.includes('testPattern'), lens: false, input: caps.includes('input'), raw: caps.includes('raw'), preview: caps.includes('preview') }
+  return { live: true, osd: caps.includes('osd'), testPattern: caps.includes('testPattern'), lens: false, brightness: false, input: caps.includes('input'), raw: caps.includes('raw'), preview: caps.includes('preview') }
 }
