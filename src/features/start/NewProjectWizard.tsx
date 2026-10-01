@@ -1,5 +1,6 @@
 import { ArrowRight, Check } from 'lucide-react'
 import { useState } from 'react'
+import { usePref } from '@/services/prefs'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -18,7 +19,6 @@ import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
 import { t } from '@/i18n'
 
-const DEFAULT_RANGE = { from: '192.168.1.1', to: '192.168.1.254' }
 const STEPS = ['PROJECT', 'SCAN'] as const
 type Step = 0 | 1
 
@@ -50,7 +50,7 @@ function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
 export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onLaunch: (snapshot: ProjectSnapshot) => void }) {
   const draft = useNewProjectDraft()
   const [step, setStep] = useState<Step>(0)
-  const [range, setRange] = useState(DEFAULT_RANGE)
+  const [range, setRange] = usePref('scanRange')
   const scan = useNetworkScan(range, draft.addDiscovered)
   const { start: startScan } = scan
   const { clearScanned } = draft

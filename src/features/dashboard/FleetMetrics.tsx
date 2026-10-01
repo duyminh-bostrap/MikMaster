@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/utils/cn'
 import { formatDuration } from '@/utils/format'
 import { longestOnMs, type FleetStats } from '@/utils/fleet'
-import { TONE_BG, TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
+import { TEMP_RANGE, TONE_BG, TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
 
@@ -44,7 +44,7 @@ function TempChart({ projectors }: { projectors: Projector[] }) {
           key={p.id}
           title={`${p.name}: ${p.telemetry.temperatureC}°C`}
           className={cn('w-2.5 shrink-0 rounded-sm opacity-80', TONE_BG[temperatureTone(p.telemetry.temperatureC)])}
-          style={{ height: Math.max(4, Math.round((p.telemetry.temperatureC / 90) * 32)) }}
+          style={{ height: Math.max(4, Math.min(32, Math.round(((p.telemetry.temperatureC - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min)) * 32))) }}
         />
       ))}
     </div>
@@ -64,7 +64,7 @@ function Stat({ value, label, valueClassName }: { value: string | number; label:
 const Divider = () => <div className="h-10 w-px bg-border @max-[1120px]:hidden" />
 
 export function FleetMetrics({ stats, projectors, power, actions }: { stats: FleetStats; projectors: Projector[]; power?: React.ReactNode; actions: React.ReactNode }) {
-  const avgTone = stats.avgTemp > 65 ? 'danger' : stats.avgTemp > 50 ? 'warn' : null
+  const avgTone = stats.avgTemp > 0 ? temperatureTone(stats.avgTemp) : null
   const [now, setNow] = useState(() => Date.now())
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id) }, [])
   const onMs = longestOnMs(projectors, now)

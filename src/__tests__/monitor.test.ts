@@ -113,3 +113,10 @@ describe('biểu đồ: trỏ chuột vào đường', () => {
     expect(niceStepMs(100 * 60_000)).toBe(30 * 60_000)
   })
 })
+
+describe('thang nhiệt độ', () => {
+  test('trên 33°C cảnh báo, trên 40°C nguy hiểm', async () => {
+    const { temperatureTone } = await import('@/utils/tones')
+    expect([25, 33, 34, 40, 41].map(temperatureTone)).toEqual(['ok', 'ok', 'warn', 'warn', 'danger'])
+  })
+})

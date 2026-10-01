@@ -499,3 +499,27 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
   await expect(sidebar(page).getByText('UNSAVED')).toHaveCount(0)
 })
+
+test('UI preferences are remembered for the next visit (scan range, status filter, test pattern, Dashboard view)', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: /Create & Scan/ }).click()
+  await page.getByRole('button', { name: /NEXT: SCAN/ }).click()
+  await expect(page.getByText('Scan complete')).toBeVisible({ timeout: 15_000 })
+  const from = page.locator('input[value="192.168.1.1"]').first()
+  await from.fill('192.168.7.1')
+  await page.getByRole('button', { name: /LAUNCH WITHOUT LOGIN/ }).click()
+  await page.getByRole('radio', { name: /^Alerts/ }).click()
+  await page.getByRole('combobox', { name: 'Test pattern' }).selectOption({ index: 2 })
+  const chosen = await page.getByRole('combobox', { name: 'Test pattern' }).inputValue()
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  // Lần sau: tải lại hẳn trang → các lựa chọn vẫn còn.
+  await page.reload()
+  await page.getByRole('button', { name: /Create & Scan/ }).click()
+  await page.getByRole('button', { name: /NEXT: SCAN/ }).click()
+  await expect(page.locator('input[value="192.168.7.1"]').first()).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Scan complete')).toBeVisible({ timeout: 15_000 })
+  await page.getByRole('button', { name: /LAUNCH WITHOUT LOGIN/ }).click()
+  await expect(page.getByRole('radio', { name: /^Alerts/ })).toHaveAttribute('aria-checked', 'true')
+  await expect(page.getByRole('combobox', { name: 'Test pattern' })).toHaveValue(chosen)
+  await expect(page.getByRole('radio', { name: 'Dashboard' })).toHaveAttribute('aria-checked', 'true') // cách xem tab All cũng được nhớ
+})

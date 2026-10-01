@@ -12,7 +12,7 @@ const MIN = 60_000
 
 type Kind = 'on' | 'restarted' | 'standby' | 'offline'
 const kindOf = (i: number): Kind => (i % 7 === 5 ? 'standby' : i % 11 === 9 ? 'offline' : i % 3 === 1 ? 'restarted' : 'on')
-const targetOf = (p: Projector, i: number) => (i % 9 === 4 ? 72 : 36 + (hash(p.id) % 27))
+const targetOf = (p: Projector, i: number) => (i % 9 === 4 ? 42 : 27 + (hash(p.id) % 12)) // 27–38°C, một máy vượt ngưỡng nguy hiểm
 const onForOf = (p: Projector) => (8 + (hash(p.id) % 50)) * MIN
 
 /** Các lần bật / tắt mẫu của máy thứ `i`. */
@@ -29,7 +29,7 @@ function sampleEvents(p: Projector, i: number, now: number): PowerEvent[] {
 /** Đường nóng dần (hàm mũ) từ nhiệt độ phòng tới nhiệt độ làm việc trong một lần bật, mỗi 30 giây. */
 function warmCurve(p: Projector, target: number, from: number, to: number): Sample[] {
   const h = hash(p.id)
-  const base = 24 + (h % 4)
+  const base = 21 + (h % 3)
   const tau = (8 + (h % 9)) * MIN
   const out: Sample[] = []
   for (let t = from; t <= to; t += 30_000) {
@@ -62,7 +62,7 @@ export function sampleData(ps: Projector[], now: number): SampleSet {
     const at = new Date(now - 60_000).toISOString()
     const log: LogEntry[] = [
       ...ev.map((e, k) => ({ id: `${p.id}-e${k}`, at: new Date(e.t).toISOString(), level: (kind === 'offline' && !e.on ? 'error' : 'info') as LogEntry['level'], message: kind === 'offline' && !e.on ? 'Connection lost (sample)' : e.on ? 'Power on (sample)' : 'Power off (sample)' })).reverse(),
-      ...(target >= 70 ? [{ id: `${p.id}-hot`, at, level: 'warn' as const, message: `Temperature ${target}°C above 70°C (sample)` }] : []),
+      ...(target > 40 ? [{ id: `${p.id}-hot`, at, level: 'warn' as const, message: `Temperature ${target}°C above 40°C (sample)` }] : []),
     ]
     const last = samples[samples.length - 1]
     return {

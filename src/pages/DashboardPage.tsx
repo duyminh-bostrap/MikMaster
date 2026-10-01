@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState } from 'react'
+import { usePref } from '@/services/prefs'
 import { useNavigate } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { GatewayBadge } from '@/components/layout/GatewayBadge'
@@ -26,7 +27,7 @@ import { ProjectorContextMenu, type MenuAnchor } from '@/features/dashboard/Proj
 
 export default function DashboardPage() {
   const { project, booths, projectors } = useOpenProject()
-  const [activeBooth, setActiveBooth] = useBoothFilter(booths)
+  const [activeBooth, setActiveBooth] = useBoothFilter(booths, project.id)
   const navigate = useNavigate()
   const cmd = useProjectCommands()
 
@@ -37,7 +38,7 @@ export default function DashboardPage() {
   )
   const { view } = useDashboardView()
   const [query, setQuery] = useState('')
-  const [status, setStatus] = useState<StatusFilter>('all')
+  const [status, setStatus] = usePref('statusFilter')
   const boothName = useCallback((id: string) => booths.find(b => b.id === id)?.name ?? '', [booths])
   const matching = useMemo(() => scope.filter(p => matchesQuery(p, query, boothName(p.boothId))), [scope, query, boothName])
   const visible = useMemo(() => matching.filter(p => matchesStatus(p, status)), [matching, status])

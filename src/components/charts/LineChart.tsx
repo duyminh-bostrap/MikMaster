@@ -47,11 +47,13 @@ interface Hover { id: string; point: LinePoint; left: number; top: number; flip:
  * Rê chuột vào một đường: đường đó nổi lên (các đường khác mờ), có đường kẻ dọc + điểm tròn tại mẫu gần nhất và khung thông tin
  * (do `renderTip` dựng) — rời khỏi đường thì khung biến mất. `highlight` / `onHighlight` cho phép khung chú thích bên cạnh dùng chung trạng thái.
  */
-export function LineChart({ series, xMax, xLabel, xStep, thresholds, highlight, onHighlight, renderTip, label }: {
+export function LineChart({ series, xMax, xLabel, xStep, yRange, thresholds, highlight, onHighlight, renderTip, label }: {
   series: LineSeries[]
   xMax: number
   /** Bước chia trục ngang (ms); mặc định tự chọn. */
   xStep?: number
+  /** Dải trục dọc cố định (vd. 20–45°C); giá trị vượt ra ngoài thì trục tự nới. Bỏ trống = tự co giãn. */
+  yRange?: { min: number; max: number }
   xLabel: (ms: number) => string
   thresholds?: Threshold[]
   highlight?: string | null
@@ -64,8 +66,8 @@ export function LineChart({ series, xMax, xLabel, xStep, thresholds, highlight, 
   const [hover, setHover] = useState<Hover | null>(null)
 
   const ys = series.flatMap(s => s.segments.flatMap(sg => sg.map(p => p.y)))
-  const lo = Math.max(0, Math.floor((Math.min(...ys) - 5) / 5) * 5)
-  const hi = Math.max(lo + 20, Math.ceil((Math.max(...ys, ...(thresholds?.map(th => th.value) ?? [])) + 5) / 5) * 5)
+  const lo = yRange ? Math.min(yRange.min, Math.floor(Math.min(...ys) / 5) * 5) : Math.max(0, Math.floor((Math.min(...ys) - 5) / 5) * 5)
+  const hi = yRange ? Math.max(yRange.max, Math.ceil(Math.max(...ys) / 5) * 5) : Math.max(lo + 20, Math.ceil((Math.max(...ys, ...(thresholds?.map(th => th.value) ?? [])) + 5) / 5) * 5)
   const plotR = W - PAD.r
   const x = (v: number) => PAD.l + (v / xMax) * (plotR - PAD.l)
   const y = (v: number) => PAD.t + (1 - (v - lo) / (hi - lo)) * (H - PAD.t - PAD.b)

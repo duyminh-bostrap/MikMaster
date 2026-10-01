@@ -18,7 +18,8 @@ describe('dữ liệu mẫu cho Dashboard', () => {
     const keys = new Set(s.projectors.map(p => monitorStatus(p).key))
     for (const k of ['on', 'standby', 'offline'] as const) expect(keys).toContain(k)
     expect([...s.events.values()].some(ev => ev.filter(e => e.on).length >= 2)).toBe(true) // tắt rồi bật lại
-    expect(Math.max(...[...s.history.values()].flat().map(x => x.c))).toBeGreaterThanOrEqual(65)
+    expect(Math.max(...[...s.history.values()].flat().map(x => x.c))).toBeGreaterThan(38) // có máy vượt ngưỡng nguy hiểm 40°C
+    expect(Math.min(...[...s.history.values()].flat().map(x => x.c))).toBeGreaterThanOrEqual(19)
   })
 
   test('nhiệt độ chỉ có trong lúc bật', () => {

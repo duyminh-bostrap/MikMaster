@@ -57,7 +57,7 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
   const allActive = activeBooth === ALL_BOOTHS
 
   return (
-    <aside className="flex h-full w-60 shrink-0 flex-col border-r border-border bg-card">
+    <aside className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-card">
       <div className="border-b border-border px-4 py-3">
         <AppLogoMenu />
       </div>

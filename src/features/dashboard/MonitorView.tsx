@@ -7,13 +7,14 @@ import { ProgressBar } from '@/components/ui/ProgressBar'
 import { LineChart, seriesColor } from '@/components/charts/LineChart'
 import { useClock } from '@/hooks/useClock'
 import { useT } from '@/i18n'
+import { usePref } from '@/services/prefs'
 import { eventsOf, historyOf, useHistoryVersion } from '@/services/telemetryHistory'
 import type { Booth, Projector } from '@/types'
 import { cn } from '@/utils/cn'
 import { formatClock, formatDuration } from '@/utils/format'
 import { sampleData } from '@/utils/sampleData'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, timeline, type LogFilter } from '@/utils/monitor'
-import { TONE_TEXT, temperatureTone } from '@/utils/tones'
+import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, timeline } from '@/utils/monitor'
+import { TEMP_DANGER, TEMP_RANGE, TEMP_WARN, TONE_TEXT, temperatureTone } from '@/utils/tones'
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
 const TH = 'px-3 py-1.5 text-left font-mono text-[10px] font-normal tracking-[0.1em] text-muted-foreground'
@@ -62,7 +63,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
   const projectors = sampleSet?.projectors ?? real
   const history = (id: string) => (sampleSet ? sampleSet.history.get(id) ?? [] : historyOf(id))
   const powerEvents = (id: string) => (sampleSet ? sampleSet.events.get(id) ?? [] : eventsOf(id))
-  const [logFilter, setLogFilter] = useState<LogFilter>('issues')
+  const [logFilter, setLogFilter] = usePref('logFilter')
   useHistoryVersion() // vẽ lại khi có mẫu nhiệt độ mới
   const [focus, setFocus] = useState<string | null>(null) // máy đang được nhấn mạnh (rê chuột vào đường hoặc vào khung màu)
   const group = (p: Projector) => booths.find(b => b.id === p.boothId)?.name ?? ''
@@ -113,12 +114,13 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
     <div className="grid grid-cols-2 gap-4 max-xl:grid-cols-1" data-testid="monitor">
       <Panel title={t('TEMPERATURE · POWER ON / OFF')} className="col-span-2 min-w-0 max-xl:col-span-1"
         aside={<Aside>{[tl && t('first projector on {time} · {d} ago', { time: clockAt(0), d: formatDuration(tl.end - tl.origin) }), temp.rows.length > 0 && t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })].filter(Boolean).join(' · ') || '—'}</Aside>}>
-        <div className="grid grid-cols-[minmax(0,1fr)_17rem] gap-4 max-lg:grid-cols-1">
+        <div className="grid grid-cols-[minmax(0,1fr)_23rem] gap-4 max-lg:grid-cols-1">
           {chartSeries.length === 0 ? (
             <p className="font-mono text-xs text-muted-foreground">{tl ? t('Collecting temperature samples…') : t('No projector has been switched on yet.')}</p>
           ) : (
             <LineChart series={chartSeries} xMax={xMax} xLabel={clockAt} highlight={focus} onHighlight={setFocus}
-              thresholds={[{ value: 55, color: 'var(--color-warn)', label: t('Warning {n}°C', { n: 55 }) }, { value: 70, color: 'var(--color-danger)', label: t('Danger {n}°C', { n: 70 }) }]}
+              yRange={TEMP_RANGE}
+              thresholds={[{ value: TEMP_WARN, color: 'var(--color-warn)', label: t('Warning {n}°C', { n: TEMP_WARN }) }, { value: TEMP_DANGER, color: 'var(--color-danger)', label: t('Danger {n}°C', { n: TEMP_DANGER }) }]}
               label={t('Temperature and power on / off over time')}
               renderTip={(sr, pt) => {
                 const p = projectors.find(x => x.id === sr.id)!
@@ -150,7 +152,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
                     <button type="button" onMouseEnter={() => line && setFocus(p.id)} onMouseLeave={() => setFocus(null)} onFocus={() => line && setFocus(p.id)} onBlur={() => setFocus(null)} onClick={() => onOpen(p.id)}
                       className={cn('flex w-full items-center gap-2 px-3 py-1.5 text-left font-mono text-xs transition-colors hover:bg-muted', focus === p.id && 'bg-muted')}>
                       <span className={cn('size-3 shrink-0 rounded-sm', !line && 'border border-dashed border-muted-foreground/60')} style={line ? { background: line.color } : undefined} aria-hidden />
-                      <span className="min-w-0 flex-1 truncate text-foreground">{p.name}</span>
+                      <span className="min-w-0 flex-1 break-words text-foreground" title={p.name}>{p.name}</span>
                       <ConnectionIcon p={p} />
                       <span className={cn('w-10 shrink-0 text-right', c > 0 ? TONE_TEXT[temperatureTone(c)] : 'text-muted-foreground')}>{c > 0 ? `${c}°C` : '—'}</span>
                     </button>

@@ -1,9 +1,10 @@
 import { Captions, CaptionsOff, Eye, EyeOff, Grid3x3, Moon, Power, SquareDashed, type LucideIcon } from 'lucide-react'
-import { useState, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { TEST_PATTERNS } from '@/constants/testPatterns'
 import { useEdition } from '@/hooks/useEdition'
 import { useT } from '@/i18n'
+import { usePref } from '@/services/prefs'
 import { useSettings } from '@/services/settings'
 import { useProjectActions } from '@/store/hooks'
 import { cn } from '@/utils/cn'
@@ -89,7 +90,7 @@ export function QuickControls({ projectorIds, scopeLabel }: { projectorIds: stri
   const { free } = useEdition() // OSD và test pattern là tính năng Pro
   const { setShutter, setOsdMany, setTestPatternMany } = useProjectActions()
   const [confirmDialog, confirm] = useConfirm()
-  const [pattern, setPattern] = useState<TestPatternType>('grid')
+  const [pattern, setPattern] = usePref('testPattern')
   const n = projectorIds.length
   const disabled = n === 0
   const vars = { n, booth: scopeLabel }
