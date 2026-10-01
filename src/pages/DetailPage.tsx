@@ -99,7 +99,7 @@ function DetailView({ projector }: { projector: NonNullable<ReturnType<typeof us
           </fieldset>
         </aside>}
       </div>
-      <TerminalDock key={projector.id} projector={projector} raw={caps.raw && !locked} />
+      <TerminalDock key={projector.id} projector={projector} raw={caps.raw && !locked} projectName={project.name} />
     </div>
   )
 }

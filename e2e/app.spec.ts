@@ -318,13 +318,15 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
   // Dashboard: các bảng theo dõi.
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  for (const title of ['TEMPERATURE · POWER ON / OFF', 'BRIGHTNESS', 'STATUS', 'LOG & ERRORS']) {
+  for (const title of ['TEMPERATURE · POWER ON / OFF', 'BRIGHTNESS', 'LOG & ERRORS']) {
     await expect(monitor.getByRole('heading', { name: title })).toBeVisible()
   }
-  await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr')).toHaveCount(6) // đủ 6 máy, mọi trạng thái
+  await expect(monitor.getByRole('heading', { name: 'STATUS' })).toHaveCount(0) // không có box Status (trạng thái nằm ở khung màu bên biểu đồ)
   await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
   // Bấm hàng → mở trang máy.
-  await monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr', { hasText: 'PJ-03' }).click()
+  await expect(monitor.getByText('No projector is on.')).toBeVisible()
+  await page.getByRole('radio', { name: 'Groups' }).click()
+  await card(page, 'PJ-03').click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
 })
 
@@ -367,13 +369,12 @@ test('Dashboard: one overview chart (temperature + power on / off over time from
   await expect(page).toHaveURL(/projectors\/PJ-03/)
   await page.goBack()
   await page.getByRole('radio', { name: 'Dashboard' }).click()
-  await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(6)
-  await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('ON')
+  await expect(monitor.getByTestId('brightness-row')).toHaveCount(6)
   // Mất kết nối → hàng đầu của bảng trạng thái là máy cần chú ý, có mục trong nhật ký.
   await expect(monitor.getByText('No events')).toBeVisible()
   unreachable = true
   await page.getByRole('button', { name: 'Refresh all projectors' }).click()
-  await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('OFFLINE', { timeout: 10_000 })
+  await expect(monitor.getByRole('complementary', { name: 'Projector colours' }).getByRole('img', { name: 'Disconnected' })).toHaveCount(6, { timeout: 10_000 })
   await expect(monitor.getByText('No events')).toHaveCount(0)
   // Khung màu vẫn liệt kê mọi máy, kèm trạng thái mất kết nối (máy chưa có đường thì ô màu nét đứt).
   const legendAfter = monitor.getByRole('complementary', { name: 'Projector colours' })
@@ -493,7 +494,7 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2)
   await expect(page.getByTestId('chart-tip')).toBeVisible()
   await page.screenshot({ path: 'test-results/sample-chart.png' })
-  await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(5)
+  await expect(monitor.getByTestId('brightness-row')).toHaveCount(5)
   // Tắt → về dữ liệu thật; project không bị đổi.
   await page.getByRole('button', { name: 'STOP SAMPLE DATA' }).click()
   await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
@@ -522,4 +523,31 @@ test('UI preferences are remembered for the next visit (scan range, status filte
   await expect(page.getByRole('radio', { name: /^Alerts/ })).toHaveAttribute('aria-checked', 'true')
   await expect(page.getByRole('combobox', { name: 'Test pattern' })).toHaveValue(chosen)
   await expect(page.getByRole('radio', { name: 'Dashboard' })).toHaveAttribute('aria-checked', 'true') // cách xem tab All cũng được nhớ
+})
+
+test('save the total log (all projectors) and a single projector\'s log as files', async ({ page }) => {
+  await createProject(page, 'Log Show')
+  // Tạo vài dòng log: bật máy PJ-03 (ghi log) rồi sang trang máy.
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  const monitor = page.getByTestId('monitor')
+  await monitor.getByRole('radio', { name: 'All events' }).click()
+  const all = page.waitForEvent('download')
+  await monitor.getByRole('button', { name: 'SAVE ALL LOGS' }).click()
+  const dl = await all
+  expect(dl.suggestedFilename()).toMatch(/^mikmaster-log-Log-Show-all-\d{8}-\d{4}\.log$/)
+  const text = fs.readFileSync((await dl.path())!, 'utf8')
+  expect(text).toContain('Project : Log Show')
+  expect(text).toContain('Scope   : all projectors (6)')
+
+  // Log riêng của một máy: mở trang máy → TERMINAL → LOG → SAVE LOG.
+  await page.getByRole('radio', { name: 'Groups' }).click()
+  await card(page, 'PJ-03').click()
+  await page.getByRole('button', { name: /TERMINAL/ }).click()
+  const one = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'SAVE LOG' }).click()
+  const dl1 = await one
+  expect(dl1.suggestedFilename()).toMatch(/^mikmaster-log-Log-Show-PJ-03-Center-Fill-\d{8}-\d{4}\.log$/)
+  const text1 = fs.readFileSync((await dl1.path())!, 'utf8')
+  expect(text1).toContain('Scope   : PJ-03 Center Fill (192.168.1.102)')
+  expect(text1).not.toContain('Stage Left')
 })

@@ -54,7 +54,10 @@ export function makeLogEntry(level: LogEntry['level'], message: string): LogEntr
   return { id: `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`, at: new Date().toISOString(), level, message }
 }
 
-/** Log mới nhất ở đầu, giữ tối đa 50 dòng. */
+/** Số dòng log giữ lại cho mỗi máy (cũng là phạm vi của file log xuất ra). */
+export const LOG_LIMIT = 200
+
+/** Log mới nhất ở đầu, giữ tối đa LOG_LIMIT dòng. */
 export function appendLog(p: Projector, level: LogEntry['level'], message: string): LogEntry[] {
-  return [makeLogEntry(level, message), ...p.log].slice(0, 50)
+  return [makeLogEntry(level, message), ...p.log].slice(0, LOG_LIMIT)
 }

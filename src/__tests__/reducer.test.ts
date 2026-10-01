@@ -3,6 +3,7 @@ import { initialProjectState, projectReducer, type ProjectState } from '@/store/
 import { createMockProjectors, MOCK_BOOTHS } from '@/data/mock'
 import { LENS_LIMITS } from '@/constants/lens'
 import { documentFingerprint } from '@/utils/document'
+import { LOG_LIMIT } from '@/utils/projector'
 
 function launched(): ProjectState {
   const projectors = createMockProjectors()
@@ -33,12 +34,12 @@ describe('projectReducer', () => {
     expect([find(next, 'PJ-01').shutter, find(next, 'PJ-02').shutter]).toEqual([true, true])
   })
 
-  test('log giữ tối đa 50 dòng, mới nhất ở đầu', () => {
+  test('log giữ tối đa LOG_LIMIT dòng, mới nhất ở đầu', () => {
     let s = launched()
-    for (let i = 0; i < 60; i++) s = projectReducer(s, { type: 'projector/log', id: 'PJ-01', level: 'info', message: `m${i}` })
+    for (let i = 0; i < LOG_LIMIT + 10; i++) s = projectReducer(s, { type: 'projector/log', id: 'PJ-01', level: 'info', message: `m${i}` })
     const log = find(s, 'PJ-01').log
-    expect(log).toHaveLength(50)
-    expect(log[0]?.message).toBe('m59')
+    expect(log).toHaveLength(LOG_LIMIT)
+    expect(log[0]?.message).toBe(`m${LOG_LIMIT + 9}`)
   })
 
   test('projector/sync đi qua applyRemote', () => {

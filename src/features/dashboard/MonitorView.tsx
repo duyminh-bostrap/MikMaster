@@ -1,4 +1,4 @@
-import { FlaskConical, WifiOff } from 'lucide-react'
+import { Download, FlaskConical, WifiOff } from 'lucide-react'
 import { useMemo, useState, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
@@ -8,31 +8,18 @@ import { LineChart, seriesColor } from '@/components/charts/LineChart'
 import { useClock } from '@/hooks/useClock'
 import { useT } from '@/i18n'
 import { usePref } from '@/services/prefs'
+import { saveTextFile } from '@/services/saveFile'
+import { useOpenProject } from '@/store/hooks'
+import { collectLog, formatLog, logFileName } from '@/utils/logExport'
 import { eventsOf, historyOf, useHistoryVersion } from '@/services/telemetryHistory'
 import type { Booth, Projector } from '@/types'
 import { cn } from '@/utils/cn'
 import { formatClock, formatDuration } from '@/utils/format'
 import { sampleData } from '@/utils/sampleData'
-import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, timeline } from '@/utils/monitor'
+import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, temperatureRows, timeline } from '@/utils/monitor'
 import { TEMP_DANGER, TEMP_RANGE, TEMP_WARN, TONE_TEXT, temperatureTone } from '@/utils/tones'
 
 const LEVEL_TONE = { info: 'text-muted-foreground', warn: 'text-warn', error: 'text-danger' } as const
-const TH = 'px-3 py-1.5 text-left font-mono text-[10px] font-normal tracking-[0.1em] text-muted-foreground'
-const TD = 'px-3 py-1.5 align-middle'
-
-/** Bảng nhỏ: tiêu đề cột + hàng bấm được (mở máy). */
-function Table({ head, children, caption }: { head: string[]; children: ReactNode; caption: string }) {
-  return (
-    <div className="max-h-72 overflow-y-auto">
-      <table className="w-full border-collapse font-mono text-xs">
-        <caption className="sr-only">{caption}</caption>
-        <thead className="sticky top-0 bg-card"><tr className="border-b border-border">{head.map(h => <th key={h} scope="col" className={TH}>{h}</th>)}</tr></thead>
-        <tbody>{children}</tbody>
-      </table>
-    </div>
-  )
-}
-
 /** Trạng thái kết nối dạng icon: đang kết nối = chấm xanh; mất kết nối = icon mất kết nối màu đỏ. */
 function ConnectionIcon({ p }: { p: Projector }) {
   const t = useT()
@@ -42,7 +29,6 @@ function ConnectionIcon({ p }: { p: Projector }) {
     : <span role="img" aria-label={t('Connected')} title={t('Connected')} data-connection="ok" className="inline-block size-2.5 shrink-0 rounded-full bg-ok" />
 }
 
-const Note = ({ children }: { children: ReactNode }) => <p className="border-t border-border px-3 py-1.5 font-mono text-[10px] text-muted-foreground">{children}</p>
 const Aside = ({ children }: { children: ReactNode }) => <span className="font-mono text-[10px] text-muted-foreground">{children}</span>
 
 /**
@@ -56,6 +42,7 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
   onOpen: (id: string) => void
 }) {
   const t = useT()
+  const { project } = useOpenProject()
   const now = useClock(30_000).getTime()
   // Dữ liệu mẫu (chỉ để xem thử): thay máy thật bằng máy mẫu cho toàn bộ Dashboard; không ghi vào project hay lịch sử thật.
   const [sample, setSample] = useState(false)
@@ -75,7 +62,6 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
   const temp = temperatureRows(projectors)
   const bright = brightnessRows(projectors)
   const onTime = onTimeRows(projectors, now)
-  const status = statusRows(projectors)
   const logs = logRows(projectors, logFilter)
   const errors = activeErrors(projectors)
 
@@ -95,13 +81,12 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
     return [...ev].reverse().find(e => e.on && e.x <= ms)?.x
   }
 
-  const Row = ({ p, children }: { p: Projector; children: ReactNode }) => (
-    <tr tabIndex={0} onClick={() => onOpen(p.id)} onKeyDown={e => { if (e.key === 'Enter') onOpen(p.id) }}
-      className="cursor-pointer border-b border-border/60 transition-colors outline-none last:border-0 hover:bg-muted focus-visible:bg-muted">
-      <td className={TD}><span className="font-semibold text-foreground">{p.name}</span><span className="ml-2 text-[10px] text-muted-foreground">{p.id}</span><span className="block text-[10px] text-muted-foreground">{group(p)}</span></td>
-      {children}
-    </tr>
-  )
+  /** File log TỔNG: toàn bộ nhật ký của mọi máy đang xem (không phụ thuộc bộ lọc hiển thị), cũ nhất trước. */
+  function saveAllLogs() {
+    const exportedAt = new Date()
+    const name = project?.name ?? 'project'
+    saveTextFile(logFileName(name, exportedAt), formatLog({ projectName: name, scope: `all projectors (${projectors.length})${sample ? ' — SAMPLE DATA' : ''}`, lines: collectLog(projectors), exportedAt }))
+  }
 
   return (
     <div className="flex flex-col gap-3">
@@ -166,40 +151,35 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
         {(temp.missing > 0 || onTime.off > 0) && <p className="mt-2 font-mono text-[10px] text-muted-foreground">{[onTime.off > 0 && t('{n} projector(s) are not on', { n: onTime.off }), temp.missing > 0 && temp.rows.length > 0 && t('{n} projector(s) report no temperature', { n: temp.missing })].filter(Boolean).join(' · ')}</p>}
       </Panel>
 
-      <Panel title={t('BRIGHTNESS')} className="min-w-0" bodyClassName="p-0"
-        aside={<Aside>{bright.rows.length > 0 ? t('avg {avg}%', { avg: bright.avg }) : '—'}</Aside>}>
-        <Table caption={t('BRIGHTNESS')} head={[t('PROJECTOR'), t('BRIGHTNESS')]}>
-          {bright.rows.map(p => (
-            <Row key={p.id} p={p}><td className={cn(TD, 'w-1/2')}><div className="flex items-center gap-2"><ProgressBar value={p.telemetry.brightness} tone="accent" className="flex-1" /><span className="w-10 text-right text-foreground">{p.telemetry.brightness}%</span></div></td></Row>
-          ))}
-        </Table>
-        {bright.rows.length === 0 && <Note>{t('No projector is on.')}</Note>}
-        {bright.off > 0 && bright.rows.length > 0 && <Note>{t('{n} projector(s) are not on', { n: bright.off })}</Note>}
-      </Panel>
-
-      <Panel title={t('STATUS')} className="min-w-0" bodyClassName="p-0"
-        aside={<Aside>{t('{on} on · {off} off · {bad} need attention', { on: status.counts.on, off: status.counts.standby + status.counts.off, bad: status.counts.login + status.counts.offline + status.counts.error })}</Aside>}>
-        <Table caption={t('STATUS')} head={[t('PROJECTOR'), t('STATUS'), t('INPUT'), '']}>
-          {status.rows.map(p => {
-            const s = monitorStatus(p)
-            return (
-              <Row key={p.id} p={p}>
-                <td className={TD}><Badge tone={s.tone}>{t(s.label)}</Badge></td>
-                <td className={cn(TD, 'text-muted-foreground')}>{p.power === 'on' ? p.input : '—'}</td>
-                <td className={TD}><span className="flex gap-1">{p.shutter && <Badge tone="warn">{t('SHUTTER')}</Badge>}{p.testPattern.enabled && <Badge tone="accent">{t('PATTERN')}</Badge>}</span></td>
-              </Row>
-            )
-          })}
-        </Table>
+      <Panel title={t('BRIGHTNESS')} className="col-span-2 min-w-0 max-xl:col-span-1"
+        aside={<Aside>{bright.rows.length > 0 ? `${t('avg {avg}%', { avg: bright.avg })}${bright.off > 0 ? ` · ${t('{n} projector(s) are not on', { n: bright.off })}` : ''}` : '—'}</Aside>}>
+        {bright.rows.length === 0 ? (
+          <p className="font-mono text-xs text-muted-foreground">{t('No projector is on.')}</p>
+        ) : (
+          <ul aria-label={t('BRIGHTNESS')} className="grid grid-cols-3 gap-x-6 gap-y-1 font-mono text-xs max-2xl:grid-cols-2 max-md:grid-cols-1">
+            {bright.rows.map(p => (
+              <li key={p.id} data-testid="brightness-row">
+                <button type="button" onClick={() => onOpen(p.id)} className="grid w-full grid-cols-[minmax(0,1fr)_5rem_2.5rem] items-center gap-2 rounded-sm px-1 py-0.5 text-left hover:bg-muted">
+                  <span className="min-w-0 truncate text-foreground" title={p.name}>{p.name}</span>
+                  <ProgressBar value={p.telemetry.brightness} tone="accent" />
+                  <span className="text-right text-foreground">{p.telemetry.brightness}%</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Panel>
 
       <Panel title={t('LOG & ERRORS')} className="col-span-2 min-w-0 max-xl:col-span-1" bodyClassName="p-0"
         aside={
+          <div className="flex flex-wrap items-center gap-2">
+          <Button size="xs" onClick={saveAllLogs} title={t('Save the log of every projector as one file')}><Download size={11} />{t('SAVE ALL LOGS')}</Button>
           <div role="radiogroup" aria-label={t('Log filter')} className="flex gap-1">
             {([['issues', 'Warnings + errors'], ['errors', 'Errors'], ['all', 'All events']] as const).map(([v, label]) => (
               <button key={v} type="button" role="radio" aria-checked={logFilter === v} onClick={() => setLogFilter(v)}
                 className={cn('rounded-sm border px-2 py-0.5 font-mono text-[10px] transition-colors', logFilter === v ? 'border-accent/50 bg-accent/10 text-accent' : 'border-transparent text-muted-foreground hover:text-foreground')}>{t(label)}</button>
             ))}
+          </div>
           </div>
         }>
         {errors.length > 0 && (
