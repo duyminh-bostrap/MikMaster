@@ -73,7 +73,7 @@ describe('bộ lọc máy chiếu', () => {
     expect(matchesStatus(p, 'on')).toBe(true)
     expect(matchesStatus(p, 'off')).toBe(false)
     const offline = { ...p, connection: 'disconnected' as const }
-    expect([matchesStatus(offline, 'on'), matchesStatus(offline, 'offline'), matchesStatus(offline, 'alerts')]).toEqual([false, true, true])
+    expect([matchesStatus(offline, 'on'), matchesStatus(offline, 'off'), matchesStatus(offline, 'offline'), matchesStatus(offline, 'alerts')]).toEqual([false, false, true, true]) // mất kết nối không tính là tắt
   })
 
   test('mã máy mới không trùng', () => {

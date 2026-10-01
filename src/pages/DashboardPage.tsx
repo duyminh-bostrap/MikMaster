@@ -6,6 +6,7 @@ import { GatewayBadge } from '@/components/layout/GatewayBadge'
 import { LicenseBadge } from '@/components/layout/LicenseBadge'
 import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
+import { ConnectionSummary } from '@/features/dashboard/ConnectionSummary'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
 import { MonitorView } from '@/features/dashboard/MonitorView'
@@ -85,6 +86,7 @@ export default function DashboardPage() {
       }
     >
       <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} />
+      <ConnectionSummary projectors={scope} status={status} onFilter={setStatus} />
       <FleetMetrics stats={stats} projectors={projectors}
         power={<PowerControls projectorIds={scopeIds} scopeLabel={scopeLabel} />}
         actions={<QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />} />

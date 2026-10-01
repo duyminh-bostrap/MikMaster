@@ -620,3 +620,25 @@ test('Dashboard chart: lines stay connected while a projector is off (drops to t
   await page.getByRole('button', { name: 'USE SAMPLE DATA' }).click()
   await expect(page.getByTestId('monitor').getByRole('radiogroup', { name: 'Chart range' }).getByRole('radio', { name: '1 hour', exact: true })).toHaveAttribute('aria-checked', 'true')
 })
+
+test('All page: a clear summary of how many projectors are connected, on, off / standby and disconnected; tiles filter the list', async ({ page }) => {
+  await createProject(page, 'Summary Show')
+  const summary = page.getByTestId('connection-summary')
+  await expect(summary).toBeVisible()
+  // Giả lập: 6 máy, đều "kết nối", chưa bật.
+  await expect(page.getByTestId('summary-connected')).toContainText('6/6')
+  await expect(page.getByTestId('summary-on')).toContainText('0')
+  await expect(page.getByTestId('summary-off')).toContainText('6')
+  await expect(page.getByTestId('summary-lost')).toContainText('0')
+  // Bật 1 máy → bật +1, tắt −1; tổng vẫn 6.
+  await page.locator('article', { hasText: 'PJ-03' }).getByRole('button', { name: 'Turn on' }).click()
+  await expect(page.getByTestId('summary-on')).toContainText('1')
+  await expect(page.getByTestId('summary-off')).toContainText('5')
+  // Bấm ô "đang bật" → lọc danh sách; bấm lần nữa → bỏ lọc.
+  await page.getByTestId('summary-on').click()
+  await expect(page.getByTestId('summary-on')).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.locator('main article')).toHaveCount(1)
+  await page.getByTestId('summary-on').click()
+  await expect(page.locator('main article')).toHaveCount(6)
+  await page.screenshot({ path: 'test-results/summary.png' })
+})

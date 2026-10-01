@@ -2,38 +2,9 @@ import { useEffect, useState } from 'react'
 import { cn } from '@/utils/cn'
 import { formatDuration } from '@/utils/format'
 import { longestOnMs, type FleetStats } from '@/utils/fleet'
-import { TEMP_RANGE, TONE_BG, TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
+import { TEMP_RANGE, TONE_BG, TONE_TEXT, temperatureTone } from '@/utils/tones'
 import type { Projector } from '@/types'
 import { t } from '@/i18n'
-
-const RADIUS = 22
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS
-
-function healthTone(ratio: number): Tone {
-  if (ratio >= 0.9) return 'ok'
-  if (ratio >= 0.6) return 'warn'
-  return 'danger'
-}
-
-function FleetHealthGauge({ online, total }: { online: number; total: number }) {
-  const ratio = total === 0 ? 0 : online / total
-  const tone = healthTone(ratio)
-  return (
-    <div className="relative size-[60px]">
-      <svg width="60" height="60" viewBox="0 0 60 60" className="-rotate-90" aria-hidden>
-        <circle cx="30" cy="30" r={RADIUS} fill="none" strokeWidth="5" className="stroke-border" />
-        <circle
-          cx="30" cy="30" r={RADIUS} fill="none" strokeWidth="5" strokeLinecap="round"
-          strokeDasharray={`${CIRCUMFERENCE * ratio} ${CIRCUMFERENCE}`}
-          className={cn('transition-[stroke-dasharray] duration-500', { ok: 'stroke-ok', warn: 'stroke-warn', danger: 'stroke-danger', accent: 'stroke-accent', off: 'stroke-off' }[tone])}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold text-foreground">
-        {total === 0 ? '—' : `${Math.round(ratio * 100)}%`}
-      </span>
-    </div>
-  )
-}
 
 function TempChart({ projectors }: { projectors: Projector[] }) {
   const active = projectors.filter(p => p.power !== 'off')
@@ -71,14 +42,6 @@ export function FleetMetrics({ stats, projectors, power, actions }: { stats: Fle
   return (
     <div className="@container shrink-0 border-b border-border bg-muted">
     <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3">
-      <div className="flex items-center gap-3">
-        <FleetHealthGauge online={stats.online} total={stats.total} />
-        <div className="font-mono text-xs">
-          <p className="font-medium text-foreground">{t('{online}/{total} Operational', { online: stats.online, total: stats.total })}</p>
-          <p className="text-muted-foreground">{t('Fleet Health')}</p>
-        </div>
-      </div>
-      <Divider />
       <Stat value={stats.alerts} label={t('Active Alerts')} valueClassName={stats.alerts > 0 ? 'text-danger' : 'text-ok'} />
       <Divider />
       <Stat value={stats.avgTemp > 0 ? `${stats.avgTemp}°C` : '—'} label={t('Avg Temperature')} valueClassName={avgTone ? TONE_TEXT[avgTone] : undefined} />

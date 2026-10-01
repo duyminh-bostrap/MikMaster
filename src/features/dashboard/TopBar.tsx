@@ -12,10 +12,6 @@ export function TopBar({ scopeLabel, unitCount, stats }: { scopeLabel: string; u
         {scopeLabel.toUpperCase()} — {t('{n} UNITS', { n: unitCount })}
       </span>
       <div className="flex items-center gap-4 font-mono text-xs">
-        <span className="flex items-center gap-1.5 text-ok">
-          <StatusDot tone="ok" pulse className="size-1.5" />
-          {stats.online}/{stats.total} {t('ONLINE')}
-        </span>
         {stats.alerts > 0 && (
           <span className="flex items-center gap-1.5 text-danger">
             <StatusDot tone="danger" className="size-1.5" />

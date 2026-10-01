@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest'
 import { isValidIPv4 } from '@/utils/network'
-import { computeFleetStats, longestOnMs } from '@/utils/fleet'
+import { computeFleetStats, connectionStats, longestOnMs } from '@/utils/fleet'
 import { formatDuration } from '@/utils/format'
 import { applyLensDelta, clamp } from '@/utils/lens'
 import { createProjector, getPreviewState } from '@/utils/projector'
@@ -76,5 +76,19 @@ describe('computeFleetStats', () => {
       proj({ power: 'on', connection: 'disconnected', errors: ['Offline'] }),
     ])
     expect([stats.online, stats.alerts]).toEqual([1, 1])
+  })
+})
+
+describe('connectionStats (thanh tóm tắt trang All)', () => {
+  test('mỗi máy rơi đúng một nhóm: bật / tắt (đang kết nối) hoặc không kết nối; bật + tắt = kết nối', () => {
+    const s = connectionStats([
+      proj({ power: 'on', connection: 'connected' }), proj({ power: 'on', connection: 'connected' }),
+      proj({ power: 'standby', connection: 'connected' }), proj({ power: 'off', connection: 'connected' }),
+      proj({ power: 'on', connection: 'disconnected' }), proj({ power: 'standby', connection: 'protocol-error' }), proj({ connection: 'auth-failed' }),
+    ])
+    expect(s).toEqual({ total: 7, connected: 4, disconnected: 3, needLogin: 1, on: 2, off: 2 })
+    expect(s.on + s.off).toBe(s.connected)
+    expect(s.connected + s.disconnected).toBe(s.total)
+    expect(connectionStats([])).toEqual({ total: 0, connected: 0, disconnected: 0, needLogin: 0, on: 0, off: 0 })
   })
 })

@@ -461,6 +461,8 @@ export const VI: Record<string, string> = {
   '1 hour': '1 giờ',
   '{n} projector(s) report no brightness': '{n} máy không báo độ sáng',
   'No projector reports a brightness.': 'Chưa có máy nào báo độ sáng.',
+  'Connection summary': 'Tóm tắt kết nối',
+  'OFF / STANDBY': 'TẮT / CHỜ',
   'USE SAMPLE DATA': 'DÙNG DỮ LIỆU MẪU',
   'STOP SAMPLE DATA': 'TẮT DỮ LIỆU MẪU',
   'SAMPLE DATA — not real measurements': 'DỮ LIỆU MẪU — không phải số đo thật',

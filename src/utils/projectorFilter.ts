@@ -8,7 +8,7 @@ export function matchesStatus(p: Projector, status: StatusFilter): boolean {
   switch (status) {
     case 'all': return true
     case 'on': return p.power === 'on' && p.connection === 'connected'
-    case 'off': return p.power !== 'on'
+    case 'off': return p.power !== 'on' && p.connection === 'connected' // tắt / chờ nhưng vẫn kết nối (mất kết nối là mục Offline)
     case 'alerts': return p.errors.length > 0 || p.connection !== 'connected'
     case 'offline': return p.connection !== 'connected'
   }

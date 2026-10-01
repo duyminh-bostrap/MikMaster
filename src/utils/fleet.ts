@@ -28,6 +28,34 @@ export function computeFleetStats(projectors: Projector[]): FleetStats {
   }
 }
 
+export interface ConnectionStats {
+  total: number
+  /** Đang kết nối được với máy. */
+  connected: number
+  /** Không kết nối được (mất kết nối, lỗi giao thức, cần đăng nhập) = total − connected. */
+  disconnected: number
+  /** Trong số `disconnected`: máy đang đòi đăng nhập. */
+  needLogin: number
+  /** Đang kết nối và đang bật. */
+  on: number
+  /** Đang kết nối nhưng tắt / chờ. (on + off = connected) */
+  off: number
+}
+
+/** Tóm tắt kết nối và bật / tắt cho thanh tóm tắt ở trang All (mỗi máy rơi đúng một nhóm: bật / tắt / không kết nối). */
+export function connectionStats(projectors: Projector[]): ConnectionStats {
+  const connected = projectors.filter(p => p.connection === 'connected')
+  const on = connected.filter(p => p.power === 'on').length
+  return {
+    total: projectors.length,
+    connected: connected.length,
+    disconnected: projectors.length - connected.length,
+    needLogin: projectors.filter(p => p.connection === 'auth-failed').length,
+    on,
+    off: connected.length - on,
+  }
+}
+
 /** Thời gian (ms) của máy đang bật lâu nhất kể từ lúc bật; 0 nếu không máy nào đang bật. Tách riêng vì phụ thuộc đồng hồ. */
 export function longestOnMs(projectors: Projector[], now: number): number {
   return projectors.reduce((max, p) => (p.power === 'on' && p.poweredOnAt !== undefined ? Math.max(max, now - p.poweredOnAt) : max), 0)
