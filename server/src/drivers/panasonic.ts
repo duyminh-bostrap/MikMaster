@@ -139,8 +139,9 @@ export const panasonicDriver: Driver = {
       if (qsh !== undefined) status.shutter = qsh.endsWith('1')
       const qin = await optional(exchange(t, 'QIN'))
       if (qin) status.input = CODE_TO_INPUT[qin.replace(/^IIS:/, '')]
-      await readTemperatures(t, status)
     }
+    // Nhiệt độ đọc CẢ KHI MÁY ĐANG CHỜ: trang web của RQ35K vẫn báo "INTAKE AIR" ở STANDBY (thấy trên máy thật, 2026-10-01).
+    await readTemperatures(t, status)
     return status
   },
 

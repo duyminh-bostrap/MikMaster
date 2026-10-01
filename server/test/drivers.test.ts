@@ -162,6 +162,27 @@ describe('Panasonic NTCONTROL driver', () => {
     } finally { setPanasonicWebPort(80); web.closeAllConnections(); await new Promise(r => web.close(r)); await sim.stop() }
   })
 
+  test('temperature is also read while the projector is in STANDBY (the projector web page reports it then too)', async () => {
+    const user = 'admin1', pass = 'panasonic', nonce = 'abc124'
+    const md5 = (x: string) => crypto.createHash('md5').update(x).digest('hex')
+    const web = http.createServer((req, res) => {
+      const f = Object.fromEntries([...(req.headers.authorization ?? '').matchAll(/(\w+)=(?:"([^"]*)"|([^\s,]+))/g)].map(m => [m[1], m[2] ?? m[3]]))
+      const ok = f.username === user && f.response === md5(`${md5(`${user}:WEB Zone:${pass}`)}:${nonce}:${f.nc}:${f.cnonce}:auth:${md5(`GET:${req.url}`)}`)
+      if (!ok) return void res.writeHead(401, { 'WWW-Authenticate': `Digest realm="WEB Zone", nonce="${nonce}", algorithm="MD5", qop="auth"` }).end('no')
+      res.writeHead(200, { 'Content-Type': 'text/html' }).end('<div class="contents_name">INTAKE AIR</div><span class="temp_string_good">26°C</span><span class="temp_string_good">78°F</span>')
+    })
+    await new Promise<void>(r => web.listen(0, '127.0.0.1', r))
+    const sim = new PanasonicSimulator({ credentials: { username: user, password: pass } }) // máy KHÔNG bật: QPW → 000 (standby)
+    await sim.start()
+    setPanasonicWebPort((web.address() as AddressInfo).port)
+    try {
+      const s = await panasonicDriver.status(target(sim.port, { username: user, password: pass }))
+      assert.equal(s.power, 'standby')
+      assert.equal(s.temperatureC, 26)
+      assert.deepEqual(s.temperatures, [{ name: 'Intake air', c: 26 }])
+    } finally { setPanasonicWebPort(80); web.closeAllConnections(); await new Promise(r => web.close(r)); await sim.stop() }
+  })
+
   test('parseTemperature accepts plain integers in range only', () => {
     assert.equal(parseTemperature('0030'), 30)
     assert.equal(parseTemperature('+0045'), 45)
