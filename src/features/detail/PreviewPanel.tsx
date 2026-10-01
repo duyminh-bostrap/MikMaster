@@ -12,7 +12,7 @@ import { t } from '@/i18n'
 const PREVIEW_MS = 1000
 
 export function PreviewPanel({ projector }: { projector: Projector }) {
-  const { live, supported, hasAccount, proLocked, preshowCapable } = useLivePreview(projector, PREVIEW_MS, { passiveStandby: true })
+  const { live, supported, hasAccount, proLocked, preshowCapable } = useLivePreview(projector, PREVIEW_MS)
   const { gateway } = useGateway()
   const wanted = usePreshowWanted(projector.id)
   const standby = projector.power !== 'on' && projector.connection === 'connected'
@@ -26,9 +26,10 @@ export function PreviewPanel({ projector }: { projector: Projector }) {
   const hdcp = live.kind === 'ok' && live.preview.state === 'hdcp'
 
   let note: string | null = null
-  // Máy tắt: có ảnh (Pre-Show đã bật sẵn trên máy) → báo; chưa có ảnh → gợi ý bật Pre-Show.
-  if (supported && standby && preshowCapable && !wanted) note = image ? t('Pre-Show is already on (set on the projector): the picture is shown while it is off.') : t('The projector is off. Turn on Pre-Show mode to see the picture without projecting.')
-  else if (supported && (projector.power === 'on' || wanted)) {
+  // Máy tắt / chờ vẫn xem được hình (không cần Pre-Show); chỉ khi máy KHÔNG gửi ảnh mới gợi ý bật Pre-Show.
+  const noPicture = !image && !hdcp && !(live.kind === 'error')
+  if (supported && standby && preshowCapable && !wanted && noPicture && live.kind === 'ok') note = t('The projector is off and sends no picture. Turn on Pre-Show mode to see it without projecting.')
+  else if (supported && projector.connection === 'connected') {
     if (!hasAccount) note = t('Sign in with the projector web account (top right) to see the live preview.')
     else if (live.kind === 'error') note = t('Live preview unavailable: {message}', { message: live.message })
     else if (live.kind === 'ok' && live.preview.state === 'no-signal') note = t('No signal on {input}', { input: live.preview.input ?? projector.input })
@@ -51,7 +52,7 @@ export function PreviewPanel({ projector }: { projector: Projector }) {
         ) : hdcp ? <PreviewNotice size="lg">{t('HDCP-protected content')}</PreviewNotice>
         : <PreviewScreen projector={projector} size="lg" />}
         {proLocked && <div className="mt-2"><ProNotice>{t('Live preview is a MikMaster Pro feature. Enter a license key to unlock it.')}</ProNotice></div>}
-        {preshowCapable && standby && (
+        {preshowCapable && standby && (wanted || (noPicture && live.kind === 'ok')) && (
           <div className="mt-2 flex items-center gap-3">
             <Button size="sm" variant="accent" selected={wanted} aria-pressed={wanted} onClick={togglePreshow}>{t('PRE-SHOW MODE')}{wanted ? ` · ${t('ON')}` : ''}</Button>
             <p className="font-mono text-[10px] leading-snug text-muted-foreground">{t('Shows the picture while the projector is off. This changes the projector\'s Pre-Show setting while you watch; MikMaster switches it back when you stop.')}</p>

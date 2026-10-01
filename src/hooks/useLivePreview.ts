@@ -30,10 +30,10 @@ export interface LivePreview {
 
 /**
  * Hình trực tiếp từ máy (Christie: qua web của máy). Tài khoản: của chính máy, nếu chưa có thì dùng đăng nhập nhanh của hãng.
- * Máy tắt / mất kết nối → không hỏi. Sai / thiếu tài khoản → dừng hỏi cho tới khi đổi tài khoản
+ * Máy mất kết nối → không hỏi (máy tắt / chờ vẫn hỏi — xem bên dưới). Sai / thiếu tài khoản → dừng hỏi cho tới khi đổi tài khoản
  * (không gửi lại mật khẩu sai liên tục). `intervalMs`: 1000 ở trang máy, chậm hơn ở thẻ trên Dashboard.
  */
-export function useLivePreview(p: Projector, intervalMs: number, opts: { passiveStandby?: boolean } = {}): LivePreview {
+export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
   const { gateway } = useGateway()
   const quick = useQuickLogins(gateway)
   const { free } = useEdition()
@@ -53,10 +53,10 @@ export function useLivePreview(p: Projector, intervalMs: number, opts: { passive
   const standby = p.power !== 'on' && p.connection === 'connected'
   // Pre-Show: máy đang tắt nhưng người dùng đã bật chế độ → vẫn lấy ảnh (kèm yêu cầu bật Pre-Show).
   const viaPreshow = preshowCapable && wanted && standby
-  // Đọc THỤ ĐỘNG khi máy tắt (chỉ ở trang máy): không gửi lệnh nào, chỉ xem máy có đang gửi ảnh không — đo thực tế trên một PT-RQ35K
-  // đang chờ mà đã bật Pre-Show sẵn: ảnh về ngay chỉ với 'start'. Không có ảnh (BLANK) thì giao diện gợi ý bật Pre-Show.
-  const passive = preshowCapable && !!opts.passiveStandby && standby && !wanted
-  const on = (p.power === 'on' && p.connection === 'connected') || viaPreshow || passive
+  // Máy đang tắt / chờ / khởi động / làm nguội mà vẫn kết nối: VẪN lấy preview (chỉ đọc, không gửi lệnh nào). Trang web của RQ35K và Griffyn
+  // xem được hình ở trạng thái chờ mà không cần bật Pre-Show; đo trên .176: ảnh về ngay chỉ với 'start', và vẫn về sau khi gửi 'preshow:0'.
+  // Máy không có ảnh (BLANK) thì giao diện mới gợi ý bật Pre-Show (cài đặt của máy, chỉ khi người dùng bấm).
+  const on = p.connection === 'connected'
   const [live, setLive] = useState<Live>({ kind: 'idle' })
   const latest = useRef(p)
   latest.current = p
@@ -78,7 +78,7 @@ export function useLivePreview(p: Projector, intervalMs: number, opts: { passive
     // Lệch thời điểm bắt đầu giữa các thẻ để không hỏi cùng lúc.
     timer = setTimeout(tick, Math.random() * Math.min(intervalMs, 1500))
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [gateway, supported, on, viaPreshow, passive, hasAccount, p.id, p.network.ip, username, password, intervalMs])
+  }, [gateway, supported, on, viaPreshow, hasAccount, p.id, p.network.ip, username, password, intervalMs])
 
   return { live, supported, hasAccount, proLocked: capable && free, preshowCapable, preshow: viaPreshow }
 }

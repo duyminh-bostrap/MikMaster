@@ -452,7 +452,7 @@ export const VI: Record<string, string> = {
   'Save the log of every projector as one file': 'Lưu nhật ký của mọi máy thành một file',
   'Save this projector\'s log as a file': 'Lưu nhật ký của máy này thành file',
   'PRE-SHOW MODE': 'PRE-SHOW MODE',
-  'Pre-Show is already on (set on the projector): the picture is shown while it is off.': 'Pre-Show đã bật sẵn (cài trên máy chiếu): hình hiện cả khi máy đang tắt.',
+  'The projector is off and sends no picture. Turn on Pre-Show mode to see it without projecting.': 'Máy đang tắt và không gửi hình. Bật Pre-Show mode để xem mà không chiếu.',
   'The projector is off. Turn on Pre-Show mode to see the picture without projecting.': 'Máy đang tắt. Bật Pre-Show mode để xem hình mà không chiếu.',
   'Shows the picture while the projector is off. This changes the projector\'s Pre-Show setting while you watch; MikMaster switches it back when you stop.': 'Xem hình cả khi máy đang tắt. Việc này đổi cài đặt Pre-Show của máy chiếu trong lúc bạn xem; MikMaster tự trả về như cũ khi bạn dừng.',
   'Pre-Show mode is starting — the picture appears in a few seconds': 'Pre-Show đang bật — vài giây nữa sẽ có hình',

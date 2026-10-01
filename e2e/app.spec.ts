@@ -562,7 +562,7 @@ test('save the total log (all projectors) and a single projector\'s log as files
   expect(text1).not.toContain('Stage Left')
 })
 
-test('Pre-Show mode: a switched-off Panasonic projector can still be previewed (explicit button; the preview requests carry preshow:true, stopping sends preshow:false)', async ({ page }) => {
+test('Pre-Show mode is only a fallback: a switched-off Panasonic that sends no picture gets an explicit PRE-SHOW MODE button (requests then carry preshow:true, stopping sends preshow:false)', async ({ page }) => {
   await createProject(page, 'Preshow Show')
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
   const bodies: Array<{ preshow?: boolean }> = []
@@ -576,13 +576,16 @@ test('Pre-Show mode: a switched-off Panasonic projector can still be previewed (
   await page.getByRole('button', { name: /NO GATEWAY/ }).click()
   await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
   await card(page, 'PJ-03').click() // Center Fill: Panasonic NTCONTROL
-  await expect(page.getByText('The projector is off. Turn on Pre-Show mode to see the picture without projecting.')).toBeVisible({ timeout: 10_000 })
-  expect(bodies).toHaveLength(0) // máy tắt, chưa bật Pre-Show → không hỏi ảnh, không đụng cài đặt máy
+  await expect(page.getByText('The projector is off and sends no picture. Turn on Pre-Show mode to see it without projecting.')).toBeVisible({ timeout: 10_000 })
+  // Máy tắt vẫn được hỏi ảnh (chỉ đọc) nhưng chưa có yêu cầu nào đổi cài đặt Pre-Show.
+  expect(bodies.length).toBeGreaterThan(0)
+  expect(bodies.every(b => b.preshow === undefined)).toBe(true)
   const button = page.getByRole('button', { name: /PRE-SHOW MODE/ })
   await button.click()
   await expect(page.getByAltText('Live preview from the projector')).toBeVisible({ timeout: 10_000 })
   expect(bodies.length).toBeGreaterThan(0)
-  expect(bodies.every(b => b.preshow === true)).toBe(true)
+  expect(bodies.some(b => b.preshow === true)).toBe(true)
+  expect(bodies[bodies.length - 1]!.preshow).toBe(true) // từ lúc bấm, mọi yêu cầu mới mang preshow:true
   await page.screenshot({ path: 'test-results/preshow.png' })
   const before = bodies.length
   await button.click() // dừng → trả máy về như cũ
@@ -807,7 +810,7 @@ test('the Groups / Dashboard switch is the first (left-most) control of the filt
   expect(view!.x).toBeLessThan(filters!.x)
 })
 
-test('Pre-Show already on in the projector: a switched-off Panasonic shows its picture on the projector page with NO request that changes settings', async ({ page }) => {
+test('a switched-off projector that sends a picture is previewed WITHOUT Pre-Show (no request changes settings), on the projector page and on the Dashboard card', async ({ page }) => {
   await createProject(page, 'Passive Show')
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
   const bodies: Array<{ preshow?: boolean }> = []
@@ -821,12 +824,11 @@ test('Pre-Show already on in the projector: a switched-off Panasonic shows its p
   await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
   await card(page, 'PJ-03').click() // Panasonic
   await expect(page.getByAltText('Live preview from the projector')).toBeVisible({ timeout: 10_000 })
-  await expect(page.getByText('Pre-Show is already on (set on the projector): the picture is shown while it is off.')).toBeVisible()
+  await expect(page.getByRole('button', { name: /PRE-SHOW MODE/ })).toHaveCount(0) // có hình rồi: không cần Pre-Show
   expect(bodies.length).toBeGreaterThan(0)
   expect(bodies.every(b => b.preshow === undefined)).toBe(true) // chỉ đọc: không có yêu cầu bật / tắt Pre-Show
-  // Dashboard: thẻ của máy tắt KHÔNG tự mở kết nối preview (chỉ trang máy đọc thụ động).
+  // Dashboard: thẻ của máy tắt cũng hiện hình (chỉ đọc).
   await page.goBack()
-  const before = bodies.length
-  await page.waitForTimeout(3500)
-  expect(bodies.length).toBe(before)
+  await expect(card(page, 'PJ-03').locator('img')).toBeVisible({ timeout: 10_000 })
+  expect(bodies.every(b => b.preshow === undefined)).toBe(true)
 })
