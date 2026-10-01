@@ -1,6 +1,7 @@
 import { EthernetStatus } from '@/components/ui/EthernetStatus'
 import { StatusDot } from '@/components/ui/StatusDot'
 import { useClock } from '@/hooks/useClock'
+import { RefreshAllButton } from './RefreshAllButton'
 import { formatClock } from '@/utils/format'
 import type { ConnectionStats } from '@/utils/fleet'
 import type { FleetStats } from '@/utils/fleet'
@@ -28,6 +29,8 @@ export function TopBar({ scopeLabel, unitCount, stats, connection }: { scopeLabe
           <span className="tabular-nums">{connection.connected}/{connection.total}</span>
           <span className="text-muted-foreground">{t('CONNECTED')}</span>
         </span>
+        {/* Nút làm mới: ngay sau nút kết nối. */}
+        <RefreshAllButton />
         <div className="h-4 w-px bg-border" />
         <span className="tabular-nums text-muted-foreground">{formatClock(now)}</span>
       </div>

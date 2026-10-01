@@ -2,7 +2,6 @@ import { Activity, LayoutList, Search, X } from 'lucide-react'
 import { useEffect, useRef } from 'react'
 import { useT } from '@/i18n'
 import type { AllView } from '@/services/dashboardView'
-import { RefreshAllButton } from './RefreshAllButton'
 import { cn } from '@/utils/cn'
 import { STATUS_FILTERS, type StatusFilter } from '@/utils/projectorFilter'
 
@@ -53,7 +52,6 @@ export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts, v
         ))}
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-3">
-      <RefreshAllButton />
       <div className="relative w-64 max-w-full">
         <Search size={12} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
         <input ref={input} type="search" value={query} onChange={e => onQuery(e.target.value)}

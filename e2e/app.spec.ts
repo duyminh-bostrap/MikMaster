@@ -832,3 +832,20 @@ test('a switched-off projector that sends a picture is previewed WITHOUT Pre-Sho
   await expect(card(page, 'PJ-03').locator('img')).toBeVisible({ timeout: 10_000 })
   expect(bodies.every(b => b.preshow === undefined)).toBe(true)
 })
+
+test('the REFRESH button sits right after the connected count in the top bar', async ({ page }) => {
+  await createProject(page, 'Refresh Order')
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'on', errors: [] } }))
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  const header = page.locator('header', { hasText: 'UNITS' })
+  const connected = await header.getByTestId('top-connected').boundingBox()
+  const refresh = await header.getByRole('button', { name: 'Refresh all projectors' }).boundingBox()
+  const clock = await header.getByText(/^\d\d:\d\d:\d\d$/).boundingBox()
+  expect(refresh!.x).toBeGreaterThanOrEqual(connected!.x + connected!.width) // sau nút kết nối
+  expect(refresh!.x + refresh!.width).toBeLessThanOrEqual(clock!.x) // trước đồng hồ
+  // Không còn nút làm mới ở thanh lọc.
+  await expect(page.getByRole('radiogroup', { name: 'Filter by status' }).locator('xpath=..').getByRole('button', { name: 'Refresh all projectors' })).toHaveCount(0)
+  await page.screenshot({ path: 'test-results/refresh-top.png' })
+})
