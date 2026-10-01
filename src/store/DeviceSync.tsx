@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { liveCapabilities } from '@/services/capabilities'
+import { clearHistory, recordTemperatures } from '@/services/telemetryHistory'
 import { isBusy } from './deviceEffects'
 import { useProjectActions, useProjectState } from './hooks'
 import { useGateway } from './useGateway'
@@ -18,6 +19,10 @@ export function DeviceSync() {
   const latest = useRef(projectors)
   latest.current = projectors
   const active = gateway !== null && project !== null
+
+  // Lịch sử nhiệt độ cho biểu đồ ở Dashboard: ghi mỗi khi trạng thái máy cập nhật (tự giới hạn tần suất); đổi project thì xoá.
+  useEffect(() => { recordTemperatures(projectors) }, [projectors])
+  useEffect(() => { clearHistory() }, [project?.id])
 
   useEffect(() => {
     if (!gateway || !active) return

@@ -322,7 +322,8 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
     await expect(monitor.getByRole('heading', { name: title })).toBeVisible()
   }
   await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr')).toHaveCount(6) // đủ 6 máy, mọi trạng thái
-  await expect(monitor.getByRole('table', { name: 'TEMPERATURE' }).locator('tbody tr')).toHaveCount(0) // giả lập: chưa có số đo nhiệt độ
+  await expect(monitor.getByText('No projector reports a temperature.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
+  await expect(monitor.getByText('No projector has been switched on since MikMaster started watching it.')).toBeVisible()
   // Bấm hàng → mở trang máy.
   await monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr', { hasText: 'PJ-03' }).click()
   await expect(page).toHaveURL(/projectors\/PJ-03/)
@@ -340,13 +341,17 @@ test('Dashboard tables: temperature, brightness, time since power on, status, lo
   await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  const temp = monitor.getByRole('table', { name: 'TEMPERATURE' })
-  await expect(temp.locator('tbody tr')).toHaveCount(6, { timeout: 10_000 })
-  await expect(temp.locator('tbody tr').first()).toContainText('27°C')
+  // Nhiệt độ: biểu đồ đường theo thời gian + chú thích nhiệt độ hiện tại của từng máy.
+  const chart = monitor.getByRole('img', { name: 'Temperature over time' })
+  await expect(chart).toBeVisible({ timeout: 10_000 })
+  await expect(chart.locator('[data-series]')).toHaveCount(6)
+  await expect(monitor.getByRole('list', { name: 'Current temperatures' }).locator('li')).toHaveCount(6)
+  await expect(monitor.getByRole('list', { name: 'Current temperatures' })).toContainText('27°C')
   await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(6)
-  const onFor = monitor.getByRole('table', { name: 'TIME SINCE POWER ON' })
-  await expect(onFor.locator('tbody tr')).toHaveCount(6)
-  await expect(onFor.locator('tbody tr').first()).toContainText(/\d+m/)
+  // Thời gian từ lúc bật: biểu đồ cột ngang.
+  const onFor = monitor.getByTestId('ontime-row')
+  await expect(onFor).toHaveCount(6)
+  await expect(onFor.first()).toContainText(/\d+m/)
   await expect(monitor.getByRole('table', { name: 'STATUS' }).locator('tbody tr').first()).toContainText('ON')
   // Mất kết nối → hàng đầu của bảng trạng thái là máy cần chú ý, có mục trong nhật ký.
   await expect(monitor.getByText('No events')).toBeVisible()
