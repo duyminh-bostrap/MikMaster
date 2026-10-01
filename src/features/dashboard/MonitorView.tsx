@@ -106,10 +106,10 @@ export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
                 className={cn('rounded-sm border px-2 py-0.5 font-mono text-[10px] transition-colors', range === r ? 'border-accent/50 bg-accent/10 text-accent' : 'border-transparent text-muted-foreground hover:text-foreground')}>{r === 'all' ? t('All') : r === '5m' ? t('5 min') : r === '15m' ? t('15 min') : t('1 hour')}</button>
             ))}
           </div>
-          <Aside>{[tl && t('first projector on {time} · {d} ago', { time: clockAt(0), d: formatDuration(tl.end - tl.origin) }), temp.rows.length > 0 && t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })].filter(Boolean).join(' · ') || '—'}</Aside></div>}>
+          <Aside>{[tl && t(tl.originIsPowerOn ? 'first projector on {time} · {d} ago' : 'first reading {time} · {d} ago', { time: clockAt(0), d: formatDuration(tl.end - tl.origin) }), temp.rows.length > 0 && t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })].filter(Boolean).join(' · ') || '—'}</Aside></div>}>
         <div className="grid grid-cols-[minmax(0,1fr)_23rem] gap-4 max-lg:grid-cols-1">
           {chartSeries.length === 0 ? (
-            <p className="font-mono text-xs text-muted-foreground">{tl ? t('Collecting temperature samples…') : t('No projector has been switched on yet.')}</p>
+            <p className="font-mono text-xs text-muted-foreground">{tl ? t('Collecting temperature samples…') : t('No readings yet — the chart fills in as the projectors report (or use sample data).')}</p>
           ) : (
             <LineChart series={chartSeries} xMin={xMin} xMax={xMax} xLabel={clockAt} highlight={focus} onHighlight={setFocus}
               yRange={TEMP_RANGE}

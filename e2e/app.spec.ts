@@ -332,7 +332,7 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
     await expect(monitor.getByRole('heading', { name: title })).toBeVisible()
   }
   await expect(monitor.getByRole('heading', { name: 'STATUS' })).toHaveCount(0) // không có box Status (trạng thái nằm ở khung màu bên biểu đồ)
-  await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
+  await expect(monitor.getByText('No readings yet — the chart fills in as the projectors report (or use sample data).')).toBeVisible() // giả lập: chưa có số đo nhiệt độ
   // Bấm hàng → mở trang máy.
   await expect(monitor.getByText('No projector reports a brightness.')).toBeVisible()
   await page.getByRole('radio', { name: 'Groups' }).click()
@@ -364,7 +364,7 @@ test('Dashboard: one overview chart (temperature + power on / off over time from
   // Chưa trỏ vào đường nào → không có khung thông tin; trỏ vào đường của một máy → hiện thông tin máy đó.
   const tip = page.getByTestId('chart-tip')
   await expect(tip).toHaveCount(0)
-  const dot = await chart.locator('[data-series="PJ-03"] circle').boundingBox()
+  const dot = await chart.locator('[data-series="PJ-03"] circle').last().boundingBox()
   await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2)
   await expect(tip).toBeVisible()
   await expect(tip).toContainText('27°C')
@@ -490,7 +490,7 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await createProject(page, 'Sample Show')
   await page.getByRole('radio', { name: 'Dashboard' }).click()
   const monitor = page.getByTestId('monitor')
-  await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
+  await expect(monitor.getByText('No readings yet — the chart fills in as the projectors report (or use sample data).')).toBeVisible()
   await page.getByRole('button', { name: 'USE SAMPLE DATA' }).click()
   await expect(page.getByText('SAMPLE DATA — not real measurements')).toBeVisible()
   const chart = monitor.getByRole('group', { name: 'Temperature and power on / off over time' })
@@ -507,7 +507,7 @@ test('Dashboard: sample data fills the chart and tables for a quick look without
   await expect(monitor.getByTestId('brightness-row')).toHaveCount(6) // gồm cả máy đang chờ vẫn báo độ sáng
   // Tắt → về dữ liệu thật; project không bị đổi.
   await page.getByRole('button', { name: 'STOP SAMPLE DATA' }).click()
-  await expect(monitor.getByText('No projector has been switched on yet.')).toBeVisible()
+  await expect(monitor.getByText('No readings yet — the chart fills in as the projectors report (or use sample data).')).toBeVisible()
   await expect(sidebar(page).getByText('UNSAVED')).toHaveCount(0)
 })
 
@@ -673,4 +673,22 @@ test('the left menu bar can be collapsed to a slim rail (groups stay usable) and
   await page.getByRole('button', { name: 'Expand the menu' }).click()
   await expect(page.getByTestId('sidebar-slim')).toHaveCount(0)
   expect((await sidebar(page).boundingBox())!.width).toBeGreaterThan(250)
+})
+
+test('Dashboard chart is drawn even when every projector is off: standby with a reading → real temperature, no reading → bottom of the axis', async ({ page }) => {
+  await createProject(page, 'Cold Show')
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => {
+    const ip: string = JSON.parse(r.request().postData() ?? '{}').target?.ip ?? ''
+    // Một nửa số máy đang chờ nhưng vẫn báo nhiệt độ (29°C), nửa kia chờ và không báo gì.
+    return r.fulfill({ json: { power: 'standby', errors: [], ...(Number(ip.split('.').pop()) % 2 === 0 ? { temperatureC: 29 } : {}) } })
+  })
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'no-signal' } }))
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  const chart = page.getByTestId('monitor').getByRole('group', { name: 'Temperature and power on / off over time' })
+  await expect(chart).toBeVisible({ timeout: 10_000 })
+  await expect(chart.locator('[data-series]')).toHaveCount(6) // mọi máy đều có đường dù chưa máy nào bật
+  await page.screenshot({ path: 'test-results/cold-chart.png' })
 })

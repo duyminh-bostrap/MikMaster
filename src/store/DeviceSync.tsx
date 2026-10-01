@@ -21,7 +21,8 @@ export function DeviceSync() {
   const active = gateway !== null && project !== null
 
   // Lịch sử cho biểu đồ ở Dashboard (bật / tắt + nhiệt độ lúc bật): ghi mỗi khi trạng thái máy cập nhật; đổi project thì xoá.
-  useEffect(() => { recordTelemetry(projectors) }, [projectors])
+  // Chỉ khi có gateway (số liệu thật); chế độ mô phỏng không có số đo nên không ghi.
+  useEffect(() => { if (gateway) recordTelemetry(projectors) }, [projectors, gateway])
   useEffect(() => { clearHistory() }, [project?.id])
 
   useEffect(() => {

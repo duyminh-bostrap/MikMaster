@@ -77,8 +77,22 @@ describe('trạng thái và nhật ký', () => {
 
 describe('timeline (bật / tắt + nhiệt độ lúc bật, gốc = máy đầu tiên bật)', () => {
   const now = 10_000_000
-  test('chưa máy nào từng bật → null', () => {
+  test('chưa có dữ liệu nào → null', () => {
     expect(timeline([proj('a')], () => [], () => [], now)).toBeNull()
+  })
+
+  test('mọi máy đang tắt (chưa máy nào từng bật) vẫn vẽ được: gốc = mẫu đầu tiên; máy báo nhiệt độ thì vẽ nhiệt độ, không thì ở đáy trục', () => {
+    const cold = proj('a', { power: 'standby', telemetry: tel(0) })
+    const warm = proj('b', { power: 'off', telemetry: tel(31) })
+    const hist: Record<string, { t: number; c: number; off?: true }[]> = {
+      a: [{ t: now - 6000, c: 0, off: true }, { t: now - 3000, c: 0, off: true }],
+      b: [{ t: now - 5000, c: 32 }, { t: now - 2000, c: 31 }],
+    }
+    const tl = timeline([cold, warm], id => hist[id] ?? [], () => [], now)!
+    expect(tl.origin).toBe(now - 6000)
+    expect(tl.series).toHaveLength(2)
+    expect(tl.series.find(x => x.projector.id === 'a')!.segments[0]!.map(p => p.y)).toEqual([null, null, null]) // đáy trục (kèm điểm "bây giờ")
+    expect(tl.series.find(x => x.projector.id === 'b')!.segments[0]!.map(p => p.y)).toEqual([32, 31, 31])
   })
 
   test('đường nối liền kể cả lúc máy tắt (y = null → đáy trục); chỉ đứt khi mất kết nối; gốc = lần bật sớm nhất', () => {

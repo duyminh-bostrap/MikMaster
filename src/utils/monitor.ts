@@ -81,25 +81,31 @@ export interface TimelineSeries {
   events: { x: number; on: boolean; lost?: boolean }[]
 }
 
-export interface Timeline { origin: number; end: number; series: TimelineSeries[] }
+export interface Timeline { origin: number; end: number; series: TimelineSeries[]; /** gốc là lần bật đầu tiên (true) hay mẫu đầu tiên vì chưa máy nào bật (false) */ originIsPowerOn: boolean }
 
 /** Hai mẫu cách nhau hơn mức này coi là có đoạn mất kết nối ở giữa (vòng đọc trạng thái là ~4 giây). */
 export const GAP_MS = 60_000
 
 /**
- * Biểu đồ theo thời gian thật, gốc = lúc MÁY ĐẦU TIÊN được xác nhận là bật (sự kiện bật sớm nhất của các máy đang xem).
+ * Biểu đồ theo thời gian thật, gốc = lúc MÁY ĐẦU TIÊN được xác nhận là bật (sự kiện bật sớm nhất của các máy đang xem);
+ * chưa máy nào bật thì gốc = mẫu đầu tiên (máy tắt vẫn được vẽ).
  * Mỗi máy một đường: nhiệt độ thật (kể cả khi máy tắt / chờ mà vẫn báo được), rơi xuống đáy khi tắt mà không có số đo, đứt khi mất kết nối. Máy đang kết nối được thêm điểm "bây giờ"
- * từ trạng thái hiện tại. `end` = mốc mới nhất có dữ liệu (biểu đồ chỉ dịch tiếp khi có dữ liệu mới). `null` nếu chưa máy nào từng bật.
+ * từ trạng thái hiện tại. `end` = mốc mới nhất có dữ liệu (biểu đồ chỉ dịch tiếp khi có dữ liệu mới). `null` nếu chưa có dữ liệu nào.
  */
 export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sample[], eventsOf: (id: string) => readonly PowerEvent[], now: number): Timeline | null {
+  // Gốc: lần bật đầu tiên được xác nhận; nếu chưa máy nào bật (mọi máy đang tắt / chờ) thì mẫu đầu tiên — vẫn vẽ được ngay.
   const firstOn = ps.flatMap(p => eventsOf(p.id).filter(e => e.on).map(e => e.t))
-  if (firstOn.length === 0) return null
-  const origin = Math.min(...firstOn)
+  const firstSample = ps.flatMap(p => historyOf(p.id).slice(0, 1).map(s => s.t))
+  const starts = firstOn.length > 0 ? firstOn : firstSample
+  if (starts.length === 0) return null
+  const origin = Math.min(...starts)
   const series: TimelineSeries[] = []
   let end = origin
   for (const projector of ps) {
     const ev = eventsOf(projector.id)
-    if (!ev.some(e => e.on)) continue
+    const hist = historyOf(projector.id)
+    // Máy nào có dữ liệu (kể cả chỉ toàn mẫu "tắt" hoặc nhiệt độ lúc chờ) đều có đường.
+    if (!ev.some(e => e.on) && hist.length === 0) continue
     const segments: TimelinePoint[][] = []
     const push = (t: number, y: number | null) => {
       const x = t - origin
@@ -109,7 +115,7 @@ export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sa
       if (seg && last && x - last.x <= GAP_MS) { if (x > last.x) seg.push({ x, y }) } else segments.push([{ x, y }])
       end = Math.max(end, t)
     }
-    for (const s of historyOf(projector.id)) push(s.t, s.off ? null : s.c)
+    for (const s of hist) push(s.t, s.off ? null : s.c)
     // Điểm "bây giờ": chỉ khi máy đang kết nối.
     if (projector.connection === 'connected') {
       const c = projector.telemetry.temperatureC
@@ -119,5 +125,5 @@ export function timeline(ps: Projector[], historyOf: (id: string) => readonly Sa
     }
     series.push({ projector, segments: segments.filter(sg => sg.length > 0), events: ev.map(e => ({ x: e.t - origin, on: e.on, ...(e.lost ? { lost: true } : {}) })) })
   }
-  return { origin, end: Math.max(end, origin), series }
+  return { origin, end: Math.max(end, origin), series, originIsPowerOn: firstOn.length > 0 }
 }
