@@ -310,6 +310,16 @@ test('All tab: collapse groups one by one; the Dashboard view lists every projec
   await first.getByRole('button', { name: /Group 1/ }).click()
   await expect(first.locator('article')).toHaveCount(0)
   await expect(first).toContainText('5 device') // vẫn thấy số máy khi thu gọn
+  // Thu gọn: chỉ còn hình preview của từng máy; thông tin chỉ hiện khi trỏ chuột vào máy đó.
+  const tiles = first.getByTestId('compact-tile')
+  await expect(tiles).toHaveCount(5)
+  const tile = tiles.filter({ hasText: 'Center Fill' })
+  await expect(tile.getByTestId('compact-info')).toHaveCSS('opacity', '0')
+  await tile.hover()
+  await expect(tile.getByTestId('compact-info')).toHaveCSS('opacity', '1')
+  await expect(tile.getByTestId('compact-info')).toContainText('192.168.1.102')
+  await expect(tiles.filter({ hasText: 'Stage Right' }).getByTestId('compact-info')).toHaveCSS('opacity', '0') // máy khác vẫn ẩn
+  await page.screenshot({ path: 'test-results/collapsed-group.png' })
   await first.getByRole('button', { name: /Group 1/ }).click()
   await expect(first.locator('article')).toHaveCount(5)
   await expect(page.getByRole('button', { name: 'Collapse all groups' })).toHaveCount(0)

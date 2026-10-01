@@ -1,3 +1,4 @@
+import { CompactTile } from '@/components/projector/CompactTile'
 import { ProjectorCard } from '@/components/projector/ProjectorCard'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -49,6 +50,9 @@ export function ProjectorGrid({ projectors, groups, emptyText, onOpen, onContext
     />
   )
   const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(260px,1fr))] gap-4'
+  // Group thu gọn: chỉ hình preview của từng máy; trỏ chuột vào mới hiện thông tin máy đó.
+  const COMPACT = 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-2'
+  const tile = (p: Projector) => <CompactTile key={p.id} projector={p} onOpen={() => onOpen(p.id)} onContextMenu={e => onContextMenu(e, p.id)} dragProps={projectorDragProps(p.id)} />
 
   if (!groups) return <div className={GRID}>{projectors.map(card)}{confirmDialog}</div>
 
@@ -73,7 +77,7 @@ export function ProjectorGrid({ projectors, groups, emptyText, onOpen, onContext
                 <span className="text-muted-foreground">{t('{n} device(s)', { n: s.items.length })} · {t('{n} on', { n: s.items.filter(p => p.power === 'on').length })}</span>
               </button>
             </h3>
-            {!closed && <div className={GRID}>{s.items.map(card)}</div>}
+            <div className={closed ? cn(COMPACT, 'mt-3') : GRID}>{s.items.map(closed ? tile : card)}</div>
           </section>
         )
       })}
