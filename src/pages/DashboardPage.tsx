@@ -86,11 +86,11 @@ export default function DashboardPage() {
       }
     >
       <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} connection={connectionStats(scope)} />
-      {/* Hàng điều khiển: hai ô bật / tắt tất cả bên trái, cụm shutter / OSD / test pattern bên phải. */}
+      {/* 3 cột: ô BẬT · ô TẮT · cột 3 gồm 2 hàng (hàng 1: thống kê cảnh báo, nhiệt độ, thời gian bật; hàng 2: nút shutter / OSD / test pattern). */}
       <PowerSummary projectors={scope} scopeLabel={scopeLabel}>
-        <QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />
+        <FleetMetrics stats={stats} projectors={projectors} />
+        <div className="flex justify-end"><QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} /></div>
       </PowerSummary>
-      <FleetMetrics stats={stats} projectors={projectors} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
         {...(inBooth ? {} : { view, onView: setAllView })} />

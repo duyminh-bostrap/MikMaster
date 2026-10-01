@@ -31,8 +31,8 @@ function Stat({ value, label, valueClassName }: { value: string | number; label:
   )
 }
 
-// Khi hàng bị xuống dòng (vùng nội dung hẹp) các vạch chia sẽ lẻ loi → ẩn theo bề rộng container.
-const Divider = () => <div className="h-10 w-px bg-border @max-[1120px]:hidden" />
+// Hàng thống kê (cột 3, hàng dưới của hàng điều khiển): khi bị xuống dòng các vạch chia sẽ lẻ loi → ẩn theo bề rộng container.
+const Divider = () => <div className="h-7 w-px bg-border @max-[640px]:hidden" />
 
 export function FleetMetrics({ stats, projectors }: { stats: FleetStats; projectors: Projector[] }) {
   const avgTone = stats.avgTemp > 0 ? temperatureTone(stats.avgTemp) : null
@@ -40,8 +40,8 @@ export function FleetMetrics({ stats, projectors }: { stats: FleetStats; project
   useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id) }, [])
   const onMs = longestOnMs(projectors, now)
   return (
-    <div className="@container shrink-0 border-b border-border bg-muted">
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3">
+    <div data-testid="fleet-stats" className="@container min-w-0">
+    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
       <Stat value={stats.alerts} label={t('Active Alerts')} valueClassName={stats.alerts > 0 ? 'text-danger' : 'text-ok'} />
       <Divider />
       <Stat value={stats.avgTemp > 0 ? `${stats.avgTemp}°C` : '—'} label={t('Avg Temperature')} valueClassName={avgTone ? TONE_TEXT[avgTone] : undefined} />

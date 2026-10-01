@@ -9,10 +9,10 @@ import { cn } from '@/utils/cn'
 import { connectionStats } from '@/utils/fleet'
 
 /**
- * Hàng điều khiển ở đầu trang All / từng group, cũng chính là hai nút BẬT TẤT CẢ / TẮT TẤT CẢ: số máy đang bật và số máy tắt / chờ
+ * Hàng điều khiển ở đầu trang All gồm 3 cột: ô BẬT, ô TẮT, và cột 3 (2 hàng, canh phải: thống kê; nút shutter / OSD / test pattern) / từng group, cũng chính là hai nút BẬT TẤT CẢ / TẮT TẤT CẢ: số máy đang bật và số máy tắt / chờ
  * (đang kết nối); bấm ô bật = bật cả nhóm (lần lượt theo cài đặt để tránh sụt điện), bấm ô tắt = tắt cả nhóm (có hỏi xác nhận).
  */
-export function PowerSummary({ projectors, scopeLabel, children }: { projectors: Projector[]; scopeLabel: string; /** Cụm điều khiển hàng loạt khác (shutter / OSD / test pattern): nằm bên PHẢI cùng hàng. */ children?: ReactNode }) {
+export function PowerSummary({ projectors, scopeLabel, children }: { projectors: Projector[]; scopeLabel: string; /** Cột 3: hai hàng — thống kê (cảnh báo, nhiệt độ…) rồi cụm nút shutter / OSD / test pattern. */ children?: ReactNode }) {
   const t = useT()
   const { setPower } = useProjectActions()
   const { powerOnDelaySec } = useSettings()
@@ -28,9 +28,9 @@ export function PowerSummary({ projectors, scopeLabel, children }: { projectors:
     }
   }
 
-  const base = 'flex w-64 min-w-0 shrink-0 items-center gap-4 rounded-sm border px-5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50'
+  const base = 'flex w-56 min-w-0 shrink-0 items-center gap-4 rounded-sm border px-5 py-3 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-50'
   return (
-    <div role="group" aria-label={t('Power summary')} data-testid="power-summary" className="flex shrink-0 flex-wrap items-center gap-x-3 gap-y-3 border-b border-border bg-background px-5 py-3">
+    <div role="group" aria-label={t('Power summary')} data-testid="power-summary" className="flex shrink-0 flex-wrap items-stretch gap-x-3 gap-y-3 border-b border-border bg-background px-5 py-3">
       <button type="button" data-testid="summary-on" disabled={n === 0} onClick={() => setPower(ids, 'on')}
         aria-label={stagger ? t('All on — one by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : t('All on')}
         className={cn(base, 'border-ok/50 bg-ok/5 hover:bg-ok/15')}>
@@ -38,7 +38,7 @@ export function PowerSummary({ projectors, scopeLabel, children }: { projectors:
         <span className="flex min-w-0 flex-col">
           <span className="font-mono text-3xl leading-none font-bold text-ok tabular-nums">{s.on}</span>
           <span className="mt-1 font-mono text-[10px] tracking-[0.1em] text-muted-foreground">{t('POWER ON')}</span>
-          <span className="truncate font-mono text-[10px] text-ok/80">{stagger ? t('Click: all on, {s} s apart', { s: powerOnDelaySec }) : t('Click: all on')}</span>
+          {stagger && <span className="truncate font-mono text-[10px] text-ok/80">{t('{s} s apart', { s: powerOnDelaySec })}</span>}
         </span>
       </button>
       <button type="button" data-testid="summary-off" disabled={n === 0} onClick={() => void allOff()} aria-label={t('All off')}
@@ -47,10 +47,10 @@ export function PowerSummary({ projectors, scopeLabel, children }: { projectors:
         <span className="flex min-w-0 flex-col">
           <span className="font-mono text-3xl leading-none font-bold text-foreground tabular-nums">{s.off}</span>
           <span className="mt-1 font-mono text-[10px] tracking-[0.1em] text-muted-foreground">{t('OFF / STANDBY')}</span>
-          <span className="truncate font-mono text-[10px] text-muted-foreground">{t('Click: all off')}</span>
         </span>
       </button>
-      {children && <div className="ml-auto">{children}</div>}
+      {/* Cột 3: các hàng điều khiển / thống kê (truyền vào). */}
+      {children && <div data-testid="summary-column3" className="flex min-w-[22rem] flex-1 flex-col justify-center gap-2.5">{children}</div>}
       {confirmDialog}
     </div>
   )

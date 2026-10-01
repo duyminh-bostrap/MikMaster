@@ -1,8 +1,9 @@
-import { ChevronRight, LayoutGrid, Plus, Trash2 } from 'lucide-react'
+import { ChevronRight, LayoutGrid, PanelLeftClose, PanelLeftOpen, Plus, Trash2 } from 'lucide-react'
 import { useState } from 'react'
 import { AppLogoMenu } from '@/features/appmenu/AppLogoMenu'
 import { PowerDot, StatusDot } from '@/components/ui/StatusDot'
 import { InlineEdit } from '@/components/ui/InlineEdit'
+import { usePref } from '@/services/prefs'
 import { useIsDirty, useProjectActions } from '@/store/hooks'
 import { ALL_BOOTHS } from '@/hooks/useBoothFilter'
 import { cn } from '@/utils/cn'
@@ -55,11 +56,57 @@ export function Sidebar({ project, booths, projectors, activeBooth, onSelectBoot
 
 
   const allActive = activeBooth === ALL_BOOTHS
+  const [slim, setSlim] = usePref('sidebarCollapsed')
+
+  // Thu gọn: một dải hẹp chỉ có nút mở lại, "All" và mỗi group một ô (chữ cái đầu + số máy); trỏ chuột để xem tên, kéo máy thả vào group vẫn được.
+  if (slim) {
+    const initials = (name: string) => name.trim().split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase() || '?'
+    return (
+      <aside aria-label={t('Groups')} data-testid="sidebar-slim" className="flex h-full w-16 shrink-0 flex-col items-center border-r border-border bg-card py-2">
+        <button type="button" onClick={() => setSlim(false)} aria-label={t('Expand the menu')} title={t('Expand the menu')}
+          className="relative mb-2 flex size-10 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground">
+          <PanelLeftOpen size={16} />
+          {dirty && <span className="absolute top-1 right-1 size-2 rounded-full bg-warn" title={t('UNSAVED')} />}
+        </button>
+        <div className="flex w-full flex-1 flex-col items-center gap-1.5 overflow-y-auto px-1.5">
+          <button type="button" onClick={() => onSelectBooth(ALL_BOOTHS)} title={`${t('All Projectors')} · ${projectors.length}`} aria-label={t('All Projectors')}
+            className={cn('flex w-full flex-col items-center rounded-sm border py-1.5 transition-colors', allActive ? 'border-primary bg-primary/[0.08] text-primary' : 'border-transparent text-muted-foreground hover:bg-muted hover:text-foreground')}>
+            <LayoutGrid size={14} />
+            <span className="mt-0.5 font-mono text-[10px]">{projectors.length}</span>
+          </button>
+          <div className="my-0.5 h-px w-8 bg-border" />
+          {booths.map(booth => {
+            const inBooth = projectors.filter(p => p.boothId === booth.id)
+            const on = inBooth.filter(p => p.power === 'on').length
+            const isActive = activeBooth === booth.id
+            return (
+              <BoothDropZone key={booth.id} className="w-full" onDrop={id => onMoveProjector(id, booth.id)}>
+                {over => (
+                  <button type="button" onClick={() => onSelectBooth(booth.id)} title={`${booth.name} · ${inBooth.length} · ${on}↑`} aria-label={booth.name}
+                    className={cn('relative flex w-full flex-col items-center rounded-sm border py-1.5 transition-colors',
+                      over ? 'border-accent bg-accent/15' : isActive ? 'border-primary bg-primary/[0.08] text-primary' : 'border-transparent text-foreground hover:bg-muted')}>
+                    <span className="font-mono text-xs font-bold">{initials(booth.name)}</span>
+                    <span className="font-mono text-[10px] text-muted-foreground">{inBooth.length}</span>
+                    {on > 0 && <span className="absolute top-1 right-1 size-1.5 rounded-full bg-ok" />}
+                    {inBooth.some(p => p.errors.length > 0) && <span className="absolute top-1 left-1 size-1.5 rounded-full bg-danger" />}
+                  </button>
+                )}
+              </BoothDropZone>
+            )
+          })}
+        </div>
+        <button type="button" onClick={onAddProjector} aria-label={t('ADD PROJECTOR')} title={t('ADD PROJECTOR')}
+          className="mt-2 flex size-9 items-center justify-center rounded-sm border border-accent/30 bg-accent/10 text-accent transition-colors hover:bg-accent/20"><Plus size={14} /></button>
+      </aside>
+    )
+  }
 
   return (
     <aside className="flex h-full w-72 shrink-0 flex-col border-r border-border bg-card">
-      <div className="border-b border-border px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <AppLogoMenu />
+        <button type="button" onClick={() => setSlim(true)} aria-label={t('Collapse the menu')} title={t('Collapse the menu')}
+          className="flex size-7 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"><PanelLeftClose size={15} /></button>
       </div>
 
       <div className="border-b border-border px-4 py-3">

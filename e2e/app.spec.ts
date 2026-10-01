@@ -651,3 +651,26 @@ test('All page: two big tiles = the all-on / all-off buttons (counts of projecto
   await page.getByRole('button', { name: 'STOP' }).click()
   await page.screenshot({ path: 'test-results/summary.png' })
 })
+
+test('the left menu bar can be collapsed to a slim rail (groups stay usable) and expanded again; the choice is remembered', async ({ page }) => {
+  await createProject(page, 'Rail Show')
+  const wide = await sidebar(page).boundingBox()
+  expect(wide!.width).toBeGreaterThan(250)
+  await page.getByRole('button', { name: 'Collapse the menu' }).click()
+  const rail = page.getByTestId('sidebar-slim')
+  await expect(rail).toBeVisible()
+  const slim = await rail.boundingBox()
+  expect(slim!.width).toBeLessThan(80)
+  await expect(page.getByText('Rail Show')).toHaveCount(0) // tên project nằm trong menu rộng
+  // Dải hẹp vẫn chọn được "All" và từng group.
+  await page.getByRole('button', { name: 'Balcony' }).click()
+  await expect(page.getByRole('tab', { name: /^Balcony/ })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('button', { name: 'All Projectors' }).click()
+  // Nhớ cho lần sau.
+  await page.reload()
+  await createProject(page, 'Rail Show 2')
+  await expect(page.getByTestId('sidebar-slim')).toBeVisible()
+  await page.getByRole('button', { name: 'Expand the menu' }).click()
+  await expect(page.getByTestId('sidebar-slim')).toHaveCount(0)
+  expect((await sidebar(page).boundingBox())!.width).toBeGreaterThan(250)
+})

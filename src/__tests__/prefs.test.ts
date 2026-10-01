@@ -19,6 +19,8 @@ describe('prefs (tuỳ chọn giao diện nhớ cho lần sau)', () => {
   })
 
   test('giữ giá trị hợp lệ từng trường, bỏ trường hỏng', () => {
+    expect(parsePrefs({ sidebarCollapsed: true }).sidebarCollapsed).toBe(true)
+    expect(parsePrefs({ sidebarCollapsed: 'yes' }).sidebarCollapsed).toBe(false)
     const p = parsePrefs({ statusFilter: 'alerts', logFilter: 'errors', terminalOpen: true, terminalTab: 'raw', scanRange: { from: '10.0.0.1', to: '10.0.0.50' }, lastGroup: { p1: 'booth-2', p2: 7 }, testPattern: 'bogus' })
     expect(p).toMatchObject({ statusFilter: 'alerts', logFilter: 'errors', terminalOpen: true, terminalTab: 'raw', scanRange: { from: '10.0.0.1', to: '10.0.0.50' }, lastGroup: { p1: 'booth-2' }, testPattern: 'grid' })
   })

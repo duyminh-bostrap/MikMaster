@@ -20,6 +20,8 @@ export interface Prefs {
   /** Khoảng thời gian của biểu đồ nhiệt độ ở Dashboard. */
   chartRange: ChartRange
   terminalOpen: boolean
+  /** Thanh menu bên trái thu gọn thành một dải hẹp. */
+  sidebarCollapsed: boolean
   terminalTab: 'log' | 'raw'
   scanRange: { from: string; to: string }
   /** id project → id group đang xem (tab All = không có mục). */
@@ -32,6 +34,7 @@ export const DEFAULT_PREFS: Prefs = {
   testPattern: 'grid',
   chartRange: 'all',
   terminalOpen: false,
+  sidebarCollapsed: false,
   terminalTab: 'log',
   scanRange: { from: '192.168.1.1', to: '192.168.1.254' },
   lastGroup: {},
@@ -53,6 +56,7 @@ export function parsePrefs(raw: unknown): Prefs {
     testPattern: TEST_PATTERNS.some(p => p.type === o.testPattern) ? (o.testPattern as TestPatternType) : d.testPattern,
     chartRange: CHART_RANGES.includes(o.chartRange as ChartRange) ? (o.chartRange as ChartRange) : d.chartRange,
     terminalOpen: typeof o.terminalOpen === 'boolean' ? o.terminalOpen : d.terminalOpen,
+    sidebarCollapsed: typeof o.sidebarCollapsed === 'boolean' ? o.sidebarCollapsed : d.sidebarCollapsed,
     terminalTab: o.terminalTab === 'raw' ? 'raw' : 'log',
     scanRange: isStr(range?.from) && isStr(range?.to) && IPV4.test(range.from) && IPV4.test(range.to) ? { from: range.from, to: range.to } : d.scanRange,
     lastGroup: typeof last === 'object' && last !== null && !Array.isArray(last)
