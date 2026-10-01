@@ -1,11 +1,10 @@
-import { Captions, CaptionsOff, Eye, EyeOff, Grid3x3, Moon, Power, SquareDashed, type LucideIcon } from 'lucide-react'
+import { Captions, CaptionsOff, Eye, EyeOff, Grid3x3, SquareDashed, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { TEST_PATTERNS } from '@/constants/testPatterns'
 import { useEdition } from '@/hooks/useEdition'
 import { useT } from '@/i18n'
 import { usePref } from '@/services/prefs'
-import { useSettings } from '@/services/settings'
 import { useProjectActions } from '@/store/hooks'
 import { cn } from '@/utils/cn'
 import type { TestPatternType } from '@/types'
@@ -52,31 +51,6 @@ function Group({ label, children }: { label: string; children: ReactNode }) {
     <div className="flex flex-col gap-1">
       <span className="font-mono text-[9px] tracking-[0.1em] text-muted-foreground">{label}</span>
       <div className="flex items-center divide-x divide-border overflow-visible rounded-sm border border-border bg-card">{children}</div>
-    </div>
-  )
-}
-
-/** Nút bật / tắt toàn bộ — đặt đầu thanh số liệu (bên trái). Tắt hỏi xác nhận; bật thì bật lần lượt theo cài đặt. */
-export function PowerControls({ projectorIds, scopeLabel }: { projectorIds: string[]; scopeLabel: string }) {
-  const t = useT()
-  const { setPower } = useProjectActions()
-  const { powerOnDelaySec } = useSettings()
-  const [confirmDialog, confirm] = useConfirm()
-  const n = projectorIds.length
-  const stagger = n > 1 && powerOnDelaySec > 0
-
-  async function allOff() {
-    if (await confirm({ title: t('TURN OFF PROJECTORS'), message: t('Turn off all {n} projectors in "{booth}"? Their image goes dark.', { n, booth: scopeLabel }), confirmLabel: t('TURN OFF') })) {
-      setPower(projectorIds, 'standby')
-    }
-  }
-
-  return (
-    <div className="flex items-center gap-2">
-      <IconButton icon={Power} tone="ok" solid="ok" disabled={n === 0} onClick={() => setPower(projectorIds, 'on')}
-        label={stagger ? t('All on — one by one, {s} s apart (Settings)', { s: powerOnDelaySec }) : t('All on')} badge={stagger ? `${powerOnDelaySec}s` : undefined} />
-      <IconButton icon={Moon} tone="neutral" solid="danger" disabled={n === 0} onClick={() => void allOff()} label={t('All off')} />
-      {confirmDialog}
     </div>
   )
 }

@@ -6,12 +6,12 @@ import { GatewayBadge } from '@/components/layout/GatewayBadge'
 import { LicenseBadge } from '@/components/layout/LicenseBadge'
 import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
-import { ConnectionSummary } from '@/features/dashboard/ConnectionSummary'
+import { PowerSummary } from '@/features/dashboard/PowerSummary'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
 import { MonitorView } from '@/features/dashboard/MonitorView'
 import { setAllView, useDashboardView } from '@/services/dashboardView'
-import { PowerControls, QuickControls } from '@/features/dashboard/QuickControls'
+import { QuickControls } from '@/features/dashboard/QuickControls'
 import { Sidebar } from '@/features/dashboard/Sidebar'
 import { TopBar } from '@/features/dashboard/TopBar'
 import { ALL_BOOTHS, useBoothFilter } from '@/hooks/useBoothFilter'
@@ -19,7 +19,7 @@ import { ProjectorFilterBar } from '@/features/dashboard/ProjectorFilterBar'
 import { useT } from '@/i18n'
 import { useConfirm } from '@/components/ui/ConfirmDialog'
 import { STATUS_FILTERS, matchesQuery, matchesStatus, type StatusFilter } from '@/utils/projectorFilter'
-import { computeFleetStats } from '@/utils/fleet'
+import { computeFleetStats, connectionStats } from '@/utils/fleet'
 import { formatLongDate } from '@/utils/format'
 import { useProjectCommands } from '@/features/appmenu/useProjectCommands'
 import { EditDialog, type EditTarget } from '@/features/dashboard/EditDialogs'
@@ -85,10 +85,9 @@ export default function DashboardPage() {
         />
       }
     >
-      <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} />
-      <ConnectionSummary projectors={scope} status={status} onFilter={setStatus} />
+      <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} connection={connectionStats(scope)} />
+      <PowerSummary projectors={scope} scopeLabel={scopeLabel} />
       <FleetMetrics stats={stats} projectors={projectors}
-        power={<PowerControls projectorIds={scopeIds} scopeLabel={scopeLabel} />}
         actions={<QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} />} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
