@@ -6,7 +6,7 @@ import { PowerDot } from '@/components/ui/StatusDot'
 import { cn } from '@/utils/cn'
 import { formatHours } from '@/utils/format'
 import { powerDisplay } from '@/utils/projector'
-import { TONE_TEXT } from '@/utils/tones'
+import { TEMP_DANGER, TEMP_WARN, TONE_TEXT } from '@/utils/tones'
 import type { Projector } from '@/types'
 import { ProjectorThumb } from './ProjectorThumb'
 import { TempBar } from './TempBar'
@@ -95,6 +95,7 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
           {p.connection === 'protocol-error' && <Badge tone="danger">{t('PROTOCOL')}</Badge>}
           {p.connection === 'auth-failed' && <Badge tone="warn">{t('LOGIN')}</Badge>}
           {hasError && <Badge tone="danger">{p.errors[0]}</Badge>}
+          {p.connection === 'connected' && p.telemetry.temperatureC > TEMP_WARN && <Badge tone={p.telemetry.temperatureC > TEMP_DANGER ? 'danger' : 'warn'}>⚠ {p.telemetry.temperatureC}°C</Badge>}
           {p.shutter && <Badge tone="warn">{t('SHUTTER')}</Badge>}
           {p.testPattern.enabled && <Badge tone="accent">{t('PATTERN')}</Badge>}
         </div>

@@ -748,3 +748,61 @@ test('power state follows the projector: command sent OK → WARMING UP, then ON
   await page.goBack()
   await expect(card(page, 'PJ-03').getByTestId('power-label')).toHaveText('OFF')
 })
+
+test('warnings: errors and high temperature show a warning banner; above 40°C a pop-up appears once (re-armed after cooling down)', async ({ page }) => {
+  await createProject(page, 'Hot Show')
+  let temp = 30
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => {
+    const ip: string = JSON.parse(r.request().postData() ?? '{}').target?.ip ?? ''
+    // Chỉ máy .102 (Center Fill) đổi nhiệt độ; máy .1 (Stage Left) báo lỗi.
+    return r.fulfill({ json: { power: 'on', errors: ip.endsWith('.1') ? ['Lamp failure'] : [], temperatureC: ip.endsWith('.102') ? temp : 28 } })
+  })
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'no-signal' } }))
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  const banner = page.getByTestId('warning-banner')
+  // Lỗi → có dải cảnh báo; chưa nóng → chưa có pop-up.
+  await expect(banner).toContainText('Stage Left', { timeout: 10_000 })
+  await expect(banner.locator('[data-warning="error"]')).toHaveCount(1)
+  await expect(page.getByRole('dialog', { name: 'HIGH TEMPERATURE' })).toHaveCount(0)
+  // 36°C: cảnh báo vàng trong dải, vẫn chưa pop-up.
+  temp = 36
+  await page.getByRole('button', { name: 'Refresh all projectors' }).click()
+  await expect(banner.locator('[data-warning="warm"]')).toHaveCount(1, { timeout: 10_000 })
+  await expect(page.getByRole('dialog', { name: 'HIGH TEMPERATURE' })).toHaveCount(0)
+  // 42°C: pop-up nguy hiểm.
+  temp = 42
+  await page.getByRole('button', { name: 'Refresh all projectors' }).click()
+  const popup = page.getByRole('dialog', { name: 'HIGH TEMPERATURE' })
+  await expect(popup).toBeVisible({ timeout: 10_000 })
+  await expect(popup.getByTestId('hot-alert')).toHaveCount(1)
+  await expect(popup).toContainText('Center Fill')
+  await expect(popup).toContainText('42°C')
+  await expect(banner.locator('[data-warning="hot"]')).toHaveCount(1)
+  await page.screenshot({ path: 'test-results/hot-popup.png' })
+  await popup.getByRole('button', { name: 'DISMISS' }).click()
+  await expect(popup).toHaveCount(0)
+  // Vẫn nóng: không hiện lại. Nguội xuống 37 rồi nóng lại 43: hiện lại.
+  temp = 44
+  await page.getByRole('button', { name: 'Refresh all projectors' }).click()
+  await page.waitForTimeout(1200)
+  await expect(popup).toHaveCount(0)
+  temp = 37
+  await page.getByRole('button', { name: 'Refresh all projectors' }).click()
+  await page.waitForTimeout(800)
+  temp = 43
+  await page.getByRole('button', { name: 'Refresh all projectors' }).click()
+  await expect(popup).toBeVisible({ timeout: 10_000 })
+  // Bấm MỞ → trang của máy đó.
+  await popup.getByRole('button', { name: 'OPEN' }).click()
+  await expect(page).toHaveURL(/projectors\/PJ-03/)
+})
+
+test('the Groups / Dashboard switch is the first (left-most) control of the filter bar', async ({ page }) => {
+  await createProject(page, 'Order Show')
+  const bar = page.locator('div', { has: page.getByRole('radiogroup', { name: 'Filter by status' }) }).filter({ has: page.getByRole('radiogroup', { name: 'View' }) }).last()
+  const view = await bar.getByRole('radiogroup', { name: 'View' }).boundingBox()
+  const filters = await bar.getByRole('radiogroup', { name: 'Filter by status' }).boundingBox()
+  expect(view!.x).toBeLessThan(filters!.x)
+})

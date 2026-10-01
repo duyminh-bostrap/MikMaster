@@ -7,6 +7,7 @@ import { LicenseBadge } from '@/components/layout/LicenseBadge'
 import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
 import { PowerSummary } from '@/features/dashboard/PowerSummary'
+import { WarningBanner } from '@/features/dashboard/WarningBanner'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
 import { MonitorView } from '@/features/dashboard/MonitorView'
@@ -91,6 +92,7 @@ export default function DashboardPage() {
         <FleetMetrics stats={stats} projectors={projectors} />
         <div className="flex justify-end"><QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} /></div>
       </PowerSummary>
+      <WarningBanner projectors={scope} onOpen={openProjector} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
       <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
         {...(inBooth ? {} : { view, onView: setAllView })} />

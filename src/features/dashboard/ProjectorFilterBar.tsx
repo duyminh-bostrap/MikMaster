@@ -32,6 +32,17 @@ export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts, v
 
   return (
     <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-border px-5 py-2">
+      {/* Cách xem (Groups / Dashboard): ngoài cùng bên trái thanh. */}
+      {view && onView && (
+          <div role="radiogroup" aria-label={t('View')} className="mr-2 flex overflow-hidden rounded-sm border border-border">
+            {([['groups', LayoutList, 'Groups'], ['monitor', Activity, 'Dashboard']] as const).map(([v, Icon, label]) => (
+              <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => onView(v)}
+                className={cn('flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] transition-colors', view === v ? 'bg-accent/10 text-accent' : 'text-muted-foreground hover:text-foreground')}>
+                <Icon size={11} />{t(label)}
+              </button>
+            ))}
+          </div>
+      )}
       <div role="radiogroup" aria-label={t('Filter by status')} className="flex flex-wrap gap-1">
         {STATUS_FILTERS.map(s => (
           <button key={s} type="button" role="radio" aria-checked={status === s} onClick={() => onStatus(s)}
@@ -42,18 +53,6 @@ export function ProjectorFilterBar({ query, onQuery, status, onStatus, counts, v
         ))}
       </div>
       <div className="ml-auto flex flex-wrap items-center gap-3">
-      {view && onView && (
-        <>
-          <div role="radiogroup" aria-label={t('View')} className="flex overflow-hidden rounded-sm border border-border">
-            {([['groups', LayoutList, 'Groups'], ['monitor', Activity, 'Dashboard']] as const).map(([v, Icon, label]) => (
-              <button key={v} type="button" role="radio" aria-checked={view === v} onClick={() => onView(v)}
-                className={cn('flex items-center gap-1.5 px-2.5 py-1.5 font-mono text-[10px] transition-colors', view === v ? 'bg-accent/10 text-accent' : 'text-muted-foreground hover:text-foreground')}>
-                <Icon size={11} />{t(label)}
-              </button>
-            ))}
-          </div>
-        </>
-      )}
       <RefreshAllButton />
       <div className="relative w-64 max-w-full">
         <Search size={12} className="pointer-events-none absolute top-1/2 left-2.5 -translate-y-1/2 text-muted-foreground" />
