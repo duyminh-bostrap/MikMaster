@@ -36,23 +36,30 @@ export interface ConnectionStats {
   disconnected: number
   /** Trong số `disconnected`: máy đang đòi đăng nhập. */
   needLogin: number
-  /** Đang kết nối và đang bật. */
+  /** Đang kết nối và đã BẬT hẳn. */
   on: number
-  /** Đang kết nối nhưng tắt / chờ. (on + off = connected) */
+  /** Đang kết nối, lệnh bật đã gửi thành công / máy báo đang khởi động. */
+  warmup: number
+  /** Đang kết nối, đang làm nguội sau khi tắt. */
+  cooling: number
+  /** Đang kết nối và tắt / chờ. (on + warmup + cooling + off = connected) */
   off: number
 }
 
 /** Tóm tắt kết nối và bật / tắt cho thanh tóm tắt ở trang All (mỗi máy rơi đúng một nhóm: bật / tắt / không kết nối). */
 export function connectionStats(projectors: Projector[]): ConnectionStats {
   const connected = projectors.filter(p => p.connection === 'connected')
-  const on = connected.filter(p => p.power === 'on').length
+  const count = (power: string) => connected.filter(p => p.power === power).length
+  const on = count('on'), warmup = count('warmup'), cooling = count('cooling')
   return {
     total: projectors.length,
     connected: connected.length,
     disconnected: projectors.length - connected.length,
     needLogin: projectors.filter(p => p.connection === 'auth-failed').length,
     on,
-    off: connected.length - on,
+    warmup,
+    cooling,
+    off: connected.length - on - warmup - cooling,
   }
 }
 

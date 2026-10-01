@@ -38,6 +38,7 @@ export function PowerSummary({ projectors, scopeLabel, children }: { projectors:
         <span className="flex min-w-0 flex-col">
           <span className="font-mono text-3xl leading-none font-bold text-ok tabular-nums">{s.on}</span>
           <span className="mt-1 font-mono text-[10px] tracking-[0.1em] text-muted-foreground">{t('POWER ON')}</span>
+          {s.warmup > 0 && <span data-testid="summary-warmup" className="truncate font-mono text-[10px] text-warn">{t('{n} warming up', { n: s.warmup })}</span>}
           {stagger && <span className="truncate font-mono text-[10px] text-ok/80">{t('{s} s apart', { s: powerOnDelaySec })}</span>}
         </span>
       </button>
@@ -47,6 +48,7 @@ export function PowerSummary({ projectors, scopeLabel, children }: { projectors:
         <span className="flex min-w-0 flex-col">
           <span className="font-mono text-3xl leading-none font-bold text-foreground tabular-nums">{s.off}</span>
           <span className="mt-1 font-mono text-[10px] tracking-[0.1em] text-muted-foreground">{t('OFF / STANDBY')}</span>
+          {s.cooling > 0 && <span data-testid="summary-cooling" className="truncate font-mono text-[10px] text-accent">{t('{n} cooling down', { n: s.cooling })}</span>}
         </span>
       </button>
       {/* Cột 3: các hàng điều khiển / thống kê (truyền vào). */}

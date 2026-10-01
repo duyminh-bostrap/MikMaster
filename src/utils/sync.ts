@@ -1,7 +1,7 @@
 import type { StatusDto } from '../../shared/api.ts'
 import { INPUT_SOURCES } from '@/constants/inputs'
 import { DEFAULT_BRIGHTNESS, appendLog } from '@/utils/projector'
-import type { ConnectionStatus, InputSource, Projector } from '@/types'
+import type { ConnectionStatus, InputSource, PowerState, Projector } from '@/types'
 
 export type SyncResult = { ok: true; status: StatusDto } | { ok: false; code: string; message: string }
 
@@ -16,7 +16,10 @@ function isInputSource(label: string | undefined): label is InputSource {
 }
 
 /** Áp kết quả đọc/ghi từ thiết bị thật vào model; hàm thuần để reducer gọi. */
-export function applyRemote(p: Projector, r: SyncResult): Projector {
+/** Chờ máy phản ứng với lệnh bật / tắt tối đa chừng này trước khi coi là không có hiệu lực. */
+export const PENDING_GRACE_MS = 20_000
+
+export function applyRemote(p: Projector, r: SyncResult, now: number = Date.now()): Projector {
   if (!r.ok) {
     const connection: ConnectionStatus = LINK_DOWN.has(r.code) ? 'disconnected' : r.code === 'auth' ? 'auth-failed' : LINK_REJECTED.has(r.code) ? 'protocol-error' : p.connection
     const label = FAILURE_LABEL[connection]
@@ -30,14 +33,27 @@ export function applyRemote(p: Projector, r: SyncResult): Projector {
   if (p.connection !== 'connected') log = appendLog({ ...p, log }, 'info', 'Connection restored')
   for (const e of s.errors) if (!p.errors.includes(e)) log = appendLog({ ...p, log }, 'error', e)
 
-  // PJLink/Panasonic/Christie không có trạng thái "off" riêng: máy tắt báo "standby".
-  // Giữ "off" nếu người vận hành vừa tắt để nút OFF không tự nhảy về STBY.
-  const power = s.power === 'on' || s.power === 'warmup' ? 'on' : s.power === undefined ? p.power : p.power === 'off' ? 'off' : 'standby'
+  // Máy báo: on / warmup (đang khởi động) / cooling (đang làm nguội) / standby. PJLink/Panasonic/Christie không có trạng thái "off" riêng:
+  // máy tắt báo "standby"; giữ "off" nếu người vận hành vừa tắt để nút OFF không tự nhảy về STBY.
+  const reported: PowerState | undefined = s.power === undefined ? undefined : s.power === 'standby' ? (p.power === 'off' ? 'off' : 'standby') : s.power
+  let power: PowerState = reported ?? p.power
+  let powerPending = p.powerPending
+  if (powerPending && reported !== undefined) {
+    const reached = powerPending.to === 'on' ? (reported === 'on' || reported === 'warmup') : (reported === 'standby' || reported === 'off' || reported === 'cooling')
+    if (reached) powerPending = undefined // máy đã xác nhận (đang chuyển hoặc đã tới đích): theo trạng thái máy báo
+    else if (now - powerPending.at < PENDING_GRACE_MS) power = p.power // máy chưa kịp phản ứng với lệnh: giữ giai đoạn chuyển tiếp
+    else {
+      // Quá hạn mà máy vẫn ở trạng thái cũ: lệnh không có hiệu lực — theo máy và báo.
+      log = appendLog({ ...p, log }, 'warn', powerPending.to === 'on' ? 'Power on: the projector did not start' : 'Power off: the projector did not shut down')
+      powerPending = undefined
+    }
+  }
 
   return {
     ...p,
     connection: 'connected',
     power,
+    powerPending,
     shutter: s.shutter ?? p.shutter,
     osd: s.osd ?? p.osd,
     input: isInputSource(s.input) ? s.input : p.input,

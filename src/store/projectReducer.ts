@@ -1,5 +1,5 @@
 import { applyLensDelta, buildLensPreset } from '@/utils/lens'
-import { applyPower, appendLog } from '@/utils/projector'
+import { applyPower, applyPowerPending, appendLog } from '@/utils/projector'
 import { withCredentials } from '@/utils/credentials'
 import { documentFingerprint } from '@/utils/document'
 import { applyRemote, type SyncResult } from '@/utils/sync'
@@ -7,7 +7,6 @@ import type {
   Booth,
   LensPosition,
   LensSlot,
-  PowerState,
   Project,
   Projector,
   TestPatternState,
@@ -39,7 +38,8 @@ export type ProjectAction =
   | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
   | { type: 'projectors/setCredentials'; ids: string[]; username?: string; password?: string }
   | { type: 'projectors/move'; ids: string[]; boothId: string; boothName: string }
-  | { type: 'projectors/setPower'; ids: string[]; power: PowerState }
+  /** `pending`: lệnh ĐÃ GỬI THÀNH CÔNG tới máy thật → hiện khởi động / làm nguội và chờ máy xác nhận; không có → đặt trạng thái cuối ngay. */
+  | { type: 'projectors/setPower'; ids: string[]; power: 'on' | 'standby' | 'off'; pending?: boolean }
   | { type: 'projectors/setShutter'; ids: string[]; shutter: boolean }
   | { type: 'projectors/setOsd'; ids: string[]; osd: boolean }
   | { type: 'projector/setTestPattern'; id: string; patch: Partial<TestPatternState> }
@@ -118,8 +118,10 @@ function reduce(state: ProjectState, action: ProjectAction): ProjectState {
       return mapProjectors(state, action.ids, p =>
         p.boothId === action.boothId ? p : { ...p, boothId: action.boothId, log: appendLog(p, 'info', `Moved to group ${action.boothName}`) })
 
-    case 'projectors/setPower':
-      return mapProjectors(state, action.ids, p => applyPower(p, action.power))
+    case 'projectors/setPower': {
+      const now = Date.now()
+      return mapProjectors(state, action.ids, p => (action.pending && action.power !== 'off' ? applyPowerPending(p, action.power, now) : applyPower(p, action.power)))
+    }
 
     case 'projectors/setOsd':
       return mapProjectors(state, action.ids, p => ({ ...p, osd: action.osd }))

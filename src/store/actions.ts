@@ -1,7 +1,7 @@
 import type { Dispatch } from 'react'
 import type { OsdKeyDto } from '../../shared/api.ts'
 import type { SyncResult } from '@/utils/sync'
-import type { InputSource, LensPosition, LensSlot, PowerState, Projector, TestPatternState } from '@/types'
+import type { InputSource, LensPosition, LensSlot, Projector, TestPatternState } from '@/types'
 import { getDeviceCredentials, getSharedCredentials } from '@/services/credentialCache'
 import { fillMissingCredentials } from '@/utils/credentials'
 import type { DeviceEffects } from './deviceEffects'
@@ -37,18 +37,23 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
       dispatch({ type: 'projector/patch', id, patch }),
     moveToBooth: (ids: string[], booth: { id: string; name: string }) =>
       dispatch({ type: 'projectors/move', ids, boothId: booth.id, boothName: booth.name }),
-    setPower: (ids: string[], power: PowerState) => {
+    /**
+     * Có gateway: gửi lệnh tới máy thật; KHI GỬI THÀNH CÔNG giao diện mới chuyển sang WARMING UP (bật) / COOLING DOWN (tắt),
+     * rồi thành ON / OFF khi máy xác nhận (vòng đọc trạng thái). Lỗi gửi → giữ nguyên trạng thái, báo lỗi.
+     * Không có gateway (mô phỏng): đổi trạng thái cuối ngay.
+     */
+    setPower: (ids: string[], power: 'on' | 'standby' | 'off') => {
       if (power === 'on') {
         // Nhiều máy → bật lần lượt theo cài đặt để tránh sụt điện.
         startPowerOnSequence(ids, getSettings().powerOnDelaySec * 1000, id => {
-          dispatch({ type: 'projectors/setPower', ids: [id], power })
-          effects?.power([id], power)
+          if (effects) effects.power([id], power)
+          else dispatch({ type: 'projectors/setPower', ids: [id], power })
         })
         return
       }
       removeFromPowerSequence(ids)
-      dispatch({ type: 'projectors/setPower', ids, power })
-      effects?.power(ids, power)
+      if (effects) effects.power(ids, power)
+      else dispatch({ type: 'projectors/setPower', ids, power })
     },
     setShutter: (ids: string[], shutter: boolean) => {
       dispatch({ type: 'projectors/setShutter', ids, shutter })

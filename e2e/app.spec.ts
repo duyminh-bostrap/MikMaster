@@ -692,3 +692,59 @@ test('Dashboard chart is drawn even when every projector is off: standby with a 
   await expect(chart.locator('[data-series]')).toHaveCount(6) // mọi máy đều có đường dù chưa máy nào bật
   await page.screenshot({ path: 'test-results/cold-chart.png' })
 })
+
+test('power state follows the projector: command sent OK → WARMING UP, then ON when the projector confirms; OFF → COOLING DOWN, then OFF (command failure changes nothing)', async ({ page }) => {
+  await createProject(page, 'Warmup Show')
+  type Reported = 'standby' | 'warmup' | 'on' | 'cooling'
+  let reported: Reported = 'standby'
+  let commandOk = true
+  const commands: string[] = []
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: reported, errors: [] } }))
+  await page.route('**/api/devices/preview', r => r.fulfill({ json: { state: 'no-signal' } }))
+  await page.route('**/api/devices/command', r => {
+    commands.push(JSON.parse(r.request().postData() ?? '{}').command?.value)
+    return commandOk ? r.fulfill({ json: { ok: true } }) : r.fulfill({ status: 502, json: { error: { code: 'connect', message: 'Cannot reach the projector' } } })
+  })
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  await card(page, 'PJ-03').click() // Center Fill (Panasonic)
+  const header = page.getByTestId('header-power')
+  await expect(header).toHaveText('OFF', { timeout: 10_000 })
+
+  // Lệnh gửi lỗi → trạng thái không đổi (vẫn OFF), không có WARMING UP.
+  commandOk = false
+  await page.getByRole('button', { name: 'ON', exact: true }).first().click()
+  await expect.poll(() => commands.length).toBe(1)
+  await page.waitForTimeout(400)
+  await expect(header).toHaveText('OFF')
+  commandOk = true
+
+  // Gửi thành công → WARMING UP (dù máy chưa kịp báo gì), rồi máy báo warmup → vẫn WARMING UP, rồi on → ON.
+  await page.getByRole('button', { name: 'ON', exact: true }).first().click()
+  await expect(header).toHaveText('WARMING UP')
+  await expect(page.getByTestId('power-status')).toContainText('WARMING UP')
+  await page.screenshot({ path: 'test-results/power-warmup.png' })
+  reported = 'warmup'
+  await page.waitForTimeout(5000) // qua ít nhất một vòng đọc trạng thái (4 giây) — vẫn đang khởi động
+  await expect(header).toHaveText('WARMING UP')
+  reported = 'on'
+  await expect(header).toHaveText('ON', { timeout: 15_000 })
+  await page.screenshot({ path: 'test-results/power-on.png' })
+
+  // Tắt: gửi thành công → COOLING DOWN; máy báo cooling → vẫn COOLING DOWN; báo standby → OFF.
+  await page.getByRole('button', { name: 'OFF', exact: true }).first().click()
+  await page.getByRole('dialog', { name: 'TURN OFF PROJECTOR' }).getByRole('button', { name: 'TURN OFF' }).click()
+  await expect(header).toHaveText('COOLING DOWN')
+  await page.screenshot({ path: 'test-results/power-cooling.png' })
+  reported = 'cooling'
+  await page.waitForTimeout(5000)
+  await expect(header).toHaveText('COOLING DOWN')
+  reported = 'standby'
+  await expect(header).toHaveText('OFF', { timeout: 15_000 })
+  expect(commands).toEqual(['on', 'on', 'standby'])
+
+  // Thẻ trên Dashboard cũng theo trạng thái.
+  await page.goBack()
+  await expect(card(page, 'PJ-03').getByTestId('power-label')).toHaveText('OFF')
+})

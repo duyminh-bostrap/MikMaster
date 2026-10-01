@@ -5,6 +5,7 @@ import { Badge } from '@/components/ui/Badge'
 import { PowerDot } from '@/components/ui/StatusDot'
 import { cn } from '@/utils/cn'
 import { TONE_TEXT, temperatureTone } from '@/utils/tones'
+import { powerDisplay } from '@/utils/projector'
 import type { Booth, Project, Projector } from '@/types'
 import { t } from '@/i18n'
 
@@ -33,9 +34,9 @@ export function DetailHeader({ project, booth, projector, onEdit, account }: { p
       </div>
 
       <div className="flex items-center gap-4 font-mono text-xs">
-        <span className={cn('flex items-center gap-1.5 uppercase', projector.power === 'on' ? 'text-ok' : 'text-muted-foreground')}>
+        <span data-testid="header-power" className={cn('flex items-center gap-1.5 uppercase', TONE_TEXT[powerDisplay(projector.power).tone])}>
           <PowerDot power={projector.power} />
-          {projector.power === 'on' ? t('ON') : t('OFF')}
+          {t(powerDisplay(projector.power).label)}
         </span>
         {projector.telemetry.temperatureC > 0 && <span className={TONE_TEXT[tempTone]}>{projector.telemetry.temperatureC}°C</span>}
         <span className="text-accent">{projector.network.ip}</span>

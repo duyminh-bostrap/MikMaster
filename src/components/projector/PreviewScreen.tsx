@@ -48,6 +48,13 @@ export function PreviewScreen({ projector, size }: { projector: Projector; size:
         </div>
       )}
 
+      {(state === 'warmup' || state === 'cooling') && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          {lg && <span className={cn('size-3 animate-pulse rounded-full', state === 'warmup' ? 'bg-warn/70' : 'bg-accent/70')} />}
+          <span className={cn(label, 'animate-pulse', state === 'warmup' ? 'text-warn/80' : 'text-accent/80', lg ? 'text-sm' : 'text-xs')}>{t(state === 'warmup' ? 'WARMING UP' : 'COOLING DOWN')}</span>
+        </div>
+      )}
+
       {state === 'shutter' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           {lg && <Ban size={32} strokeWidth={1.5} className="text-warn/50" />}

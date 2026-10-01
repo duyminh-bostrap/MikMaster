@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/Badge'
 import { PowerDot } from '@/components/ui/StatusDot'
 import { cn } from '@/utils/cn'
 import { formatHours } from '@/utils/format'
+import { powerDisplay } from '@/utils/projector'
+import { TONE_TEXT } from '@/utils/tones'
 import type { Projector } from '@/types'
 import { ProjectorThumb } from './ProjectorThumb'
 import { TempBar } from './TempBar'
@@ -38,16 +40,18 @@ function CardButton({ label, active, activeClass, hoverClass, onClick, last, chi
 
 export const CARD_PREVIEW_MS = 3000
 
-type BarState = 'on' | 'off' | 'offline' | 'login'
+type BarState = 'on' | 'warmup' | 'cooling' | 'off' | 'offline' | 'login'
 
 function barState(p: Projector): BarState {
   if (p.connection === 'auth-failed') return 'login'
   if (p.connection !== 'connected') return 'offline'
-  return p.power === 'on' ? 'on' : 'off'
+  return p.power === 'on' ? 'on' : p.power === 'warmup' ? 'warmup' : p.power === 'cooling' ? 'cooling' : 'off'
 }
 
 const STATUS_BAR: Record<BarState, string> = {
   on: 'border-b-ok/30 border-l-ok bg-ok/15',
+  warmup: 'border-b-warn/30 border-l-warn bg-warn/15',
+  cooling: 'border-b-accent/30 border-l-accent bg-accent/15',
   off: 'border-b-border border-l-off bg-muted',
   offline: 'border-b-danger/30 border-l-danger bg-danger/10',
   login: 'border-b-warn/30 border-l-warn bg-warn/10',
@@ -86,6 +90,8 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
           <span className="truncate font-mono text-xs text-accent/60">{p.network.ip}</span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          {/* Chữ trạng thái nguồn: ON / WARMING UP / COOLING DOWN / OFF (chỉ khi đang liên lạc được với máy). */}
+          {p.connection === 'connected' && <span data-testid="power-label" className={cn('font-mono text-[10px] font-bold tracking-[0.08em]', TONE_TEXT[powerDisplay(p.power).tone])}>{t(powerDisplay(p.power).label)}</span>}
           {p.connection === 'protocol-error' && <Badge tone="danger">{t('PROTOCOL')}</Badge>}
           {p.connection === 'auth-failed' && <Badge tone="warn">{t('LOGIN')}</Badge>}
           {hasError && <Badge tone="danger">{p.errors[0]}</Badge>}
@@ -111,8 +117,8 @@ export function ProjectorCard({ projector: p, onOpen, onPowerOn, onPowerOff, onT
 
       {/* Nút icon: bật (trái), tắt (phải), shutter. Nút đúng trạng thái hiện tại được tô; ý nghĩa ở tooltip. */}
       <div className="flex border-t border-border">
-        <CardButton label={t('Turn on')} active={p.power === 'on'} activeClass="bg-ok/15 text-ok" hoverClass="hover:text-ok" onClick={onPowerOn}><Power size={14} /></CardButton>
-        <CardButton label={t('Turn off')} active={p.power !== 'on'} activeClass="bg-muted text-foreground" hoverClass="hover:text-foreground" onClick={onPowerOff}><Moon size={14} /></CardButton>
+        <CardButton label={t('Turn on')} active={p.power === 'on' || p.power === 'warmup'} activeClass="bg-ok/15 text-ok" hoverClass="hover:text-ok" onClick={onPowerOn}><Power size={14} /></CardButton>
+        <CardButton label={t('Turn off')} active={p.power !== 'on' && p.power !== 'warmup'} activeClass="bg-muted text-foreground" hoverClass="hover:text-foreground" onClick={onPowerOff}><Moon size={14} /></CardButton>
         <CardButton label={p.shutter ? t('Open the shutter') : t('Close the shutter')} active={p.shutter} activeClass="bg-warn/15 text-warn" hoverClass="hover:text-warn" onClick={onToggleShutter} last>
           {p.shutter ? <EyeOff size={14} /> : <Eye size={14} />}
         </CardButton>

@@ -85,10 +85,11 @@ describe('connectionStats (thanh tóm tắt trang All)', () => {
       proj({ power: 'on', connection: 'connected' }), proj({ power: 'on', connection: 'connected' }),
       proj({ power: 'standby', connection: 'connected' }), proj({ power: 'off', connection: 'connected' }),
       proj({ power: 'on', connection: 'disconnected' }), proj({ power: 'standby', connection: 'protocol-error' }), proj({ connection: 'auth-failed' }),
+      proj({ power: 'warmup', connection: 'connected' }), proj({ power: 'cooling', connection: 'connected' }),
     ])
-    expect(s).toEqual({ total: 7, connected: 4, disconnected: 3, needLogin: 1, on: 2, off: 2 })
-    expect(s.on + s.off).toBe(s.connected)
+    expect(s).toEqual({ total: 9, connected: 6, disconnected: 3, needLogin: 1, on: 2, warmup: 1, cooling: 1, off: 2 })
+    expect(s.on + s.warmup + s.cooling + s.off).toBe(s.connected)
     expect(s.connected + s.disconnected).toBe(s.total)
-    expect(connectionStats([])).toEqual({ total: 0, connected: 0, disconnected: 0, needLogin: 0, on: 0, off: 0 })
+    expect(connectionStats([])).toEqual({ total: 0, connected: 0, disconnected: 0, needLogin: 0, on: 0, warmup: 0, cooling: 0, off: 0 })
   })
 })

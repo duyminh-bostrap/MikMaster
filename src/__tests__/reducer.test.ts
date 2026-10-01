@@ -34,6 +34,19 @@ describe('projectReducer', () => {
     expect([find(next, 'PJ-01').shutter, find(next, 'PJ-02').shutter]).toEqual([true, true])
   })
 
+  test('projectors/setPower: không pending → đổi trạng thái cuối ngay; pending (lệnh đã gửi thành công) → WARMING UP / COOLING DOWN + chờ xác nhận', () => {
+    const s = projectReducer(launched(), { type: 'projectors/setPower', ids: ['PJ-01', 'PJ-02'], power: 'standby' }) // điểm xuất phát chắc chắn là tắt
+    const direct = projectReducer(s, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'on' })
+    expect([find(direct, 'PJ-01').power, find(direct, 'PJ-01').powerPending]).toEqual(['on', undefined])
+    const warming = projectReducer(direct, { type: 'projectors/setPower', ids: ['PJ-02'], power: 'on', pending: true })
+    expect([find(warming, 'PJ-02').power, find(warming, 'PJ-02').powerPending?.to]).toEqual(['warmup', 'on'])
+    const cooling = projectReducer(direct, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'standby', pending: true })
+    expect([find(cooling, 'PJ-01').power, find(cooling, 'PJ-01').powerPending?.to]).toEqual(['cooling', 'standby'])
+    // Bật hẳn ngay (không pending) xoá trạng thái chờ.
+    const settled = projectReducer(cooling, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'on' })
+    expect([find(settled, 'PJ-01').power, find(settled, 'PJ-01').powerPending]).toEqual(['on', undefined])
+  })
+
   test('log giữ tối đa LOG_LIMIT dòng, mới nhất ở đầu', () => {
     let s = launched()
     for (let i = 0; i < LOG_LIMIT + 10; i++) s = projectReducer(s, { type: 'projector/log', id: 'PJ-01', level: 'info', message: `m${i}` })

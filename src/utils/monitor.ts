@@ -7,16 +7,18 @@ import type { Tone } from '@/utils/tones'
  * Chỉ tính toán, không phụ thuộc giao diện.
  */
 
-export type MonitorStatus = 'login' | 'offline' | 'error' | 'on' | 'standby' | 'off'
+export type MonitorStatus = 'login' | 'offline' | 'error' | 'warmup' | 'cooling' | 'on' | 'standby' | 'off'
 
 /** Trạng thái hiển thị của một máy; `rank` nhỏ = cần chú ý trước. */
 export function monitorStatus(p: Projector): { key: MonitorStatus; label: string; tone: Tone; rank: number } {
   if (p.connection === 'auth-failed') return { key: 'login', label: 'LOGIN', tone: 'warn', rank: 0 }
   if (p.connection !== 'connected') return { key: 'offline', label: 'OFFLINE', tone: 'danger', rank: 1 }
   if (p.errors.length > 0) return { key: 'error', label: 'ERROR', tone: 'danger', rank: 2 }
-  if (p.power === 'on') return { key: 'on', label: 'ON', tone: 'ok', rank: 3 }
-  if (p.power === 'standby') return { key: 'standby', label: 'STANDBY', tone: 'warn', rank: 4 }
-  return { key: 'off', label: 'OFF', tone: 'off', rank: 5 }
+  if (p.power === 'warmup') return { key: 'warmup', label: 'WARMING UP', tone: 'warn', rank: 3 }
+  if (p.power === 'cooling') return { key: 'cooling', label: 'COOLING DOWN', tone: 'accent', rank: 3 }
+  if (p.power === 'on') return { key: 'on', label: 'ON', tone: 'ok', rank: 4 }
+  if (p.power === 'standby') return { key: 'standby', label: 'STANDBY', tone: 'warn', rank: 5 }
+  return { key: 'off', label: 'OFF', tone: 'off', rank: 6 }
 }
 
 const byName = (a: Projector, b: Projector) => a.name.localeCompare(b.name, undefined, { numeric: true })
@@ -45,7 +47,7 @@ export function onTimeRows(ps: Projector[], now: number): { rows: { projector: P
 
 /** Mọi máy, máy cần chú ý (đăng nhập, mất kết nối, lỗi) trước. */
 export function statusRows(ps: Projector[]): { rows: Projector[]; counts: Record<MonitorStatus, number> } {
-  const counts: Record<MonitorStatus, number> = { login: 0, offline: 0, error: 0, on: 0, standby: 0, off: 0 }
+  const counts: Record<MonitorStatus, number> = { login: 0, offline: 0, error: 0, warmup: 0, cooling: 0, on: 0, standby: 0, off: 0 }
   for (const p of ps) counts[monitorStatus(p).key]++
   const rows = [...ps].sort((a, b) => monitorStatus(a).rank - monitorStatus(b).rank || byName(a, b))
   return { rows, counts }

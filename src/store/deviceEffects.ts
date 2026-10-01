@@ -2,7 +2,7 @@ import type { Dispatch } from 'react'
 import { TEMPLATE_PROTOCOLS, type OsdKeyDto } from '../../shared/api.ts'
 import type { Gateway } from '@/services/gateway'
 import { deviceCapabilities } from '@/services/capabilities'
-import type { InputSource, PowerState, Projector } from '@/types'
+import type { InputSource, Projector } from '@/types'
 import type { ProjectAction } from './projectReducer'
 
 /*
@@ -19,7 +19,7 @@ export function isBusy(id: string): boolean {
 }
 
 export interface DeviceEffects {
-  power(ids: string[], power: PowerState): void
+  power(ids: string[], power: 'on' | 'standby' | 'off'): void
   shutter(ids: string[], closed: boolean): void
   input(id: string, input: InputSource): void
   osd(id: string, key: OsdKeyDto): void
@@ -29,7 +29,7 @@ export interface DeviceEffects {
 }
 
 export function createDeviceEffects(gateway: Gateway, find: (id: string) => Projector | undefined, dispatch: Dispatch<ProjectAction>): DeviceEffects {
-  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'testPattern', send: (p: Projector) => ReturnType<Gateway['command']>) {
+  async function run(id: string, capability: 'power' | 'shutter' | 'input' | 'osd' | 'osdDisplay' | 'testPattern', send: (p: Projector) => ReturnType<Gateway['command']>, hooks: { onSkipped?: () => void; onSent?: () => void } = {}) {
     const p = find(id)
     if (!p) return
     if (!deviceCapabilities(p).includes(capability)) {
@@ -37,10 +37,12 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
       const why = capability === 'testPattern' ? 'no test pattern command set in COMMANDS on the projector page'
         : TEMPLATE_PROTOCOLS.includes(p.network.protocol.type) ? 'no command template configured on the projector page' : `${p.network.protocol.type} has no verified live command`
       dispatch({ type: 'projector/log', id, level: 'warn', message: `"${capability}" is not sent to the device: ${why} (local change only)` })
+      hooks.onSkipped?.() // không có lệnh thật → không có gì để chờ xác nhận: đặt trạng thái cuối ngay
       return
     }
     busyUntil.set(id, Date.now() + HOLD_MS)
     const result = await send(p)
+    if (result.ok) hooks.onSent?.()
     if (!result.ok) {
       busyUntil.delete(id)
       dispatch({ type: 'projector/sync', id, result: { ok: false, code: result.code, message: `${capability}: ${result.message}` } })
@@ -48,7 +50,11 @@ export function createDeviceEffects(gateway: Gateway, find: (id: string) => Proj
   }
 
   return {
-    power: (ids, power) => ids.forEach(id => void run(id, 'power', p => gateway.command(p, { kind: 'power', value: power }))),
+    power: (ids, power) => ids.forEach(id => void run(id, 'power', p => gateway.command(p, { kind: 'power', value: power }), {
+      // Gửi thành công → khởi động / làm nguội (chờ máy xác nhận); không có lệnh thật → đặt trạng thái cuối ngay.
+      onSent: () => dispatch({ type: 'projectors/setPower', ids: [id], power, pending: true }),
+      onSkipped: () => dispatch({ type: 'projectors/setPower', ids: [id], power }),
+    })),
     shutter: (ids, closed) => ids.forEach(id => void run(id, 'shutter', p => gateway.command(p, { kind: 'shutter', closed }))),
     input: (id, input) => void run(id, 'input', p => gateway.command(p, { kind: 'input', input })),
     osd: (id, key) => void run(id, 'osd', p => gateway.command(p, { kind: 'osd', key })),
