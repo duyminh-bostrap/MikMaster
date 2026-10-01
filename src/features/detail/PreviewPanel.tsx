@@ -12,7 +12,7 @@ import { t } from '@/i18n'
 const PREVIEW_MS = 1000
 
 export function PreviewPanel({ projector }: { projector: Projector }) {
-  const { live, supported, hasAccount, proLocked, preshowCapable } = useLivePreview(projector, PREVIEW_MS)
+  const { live, supported, hasAccount, proLocked, preshowCapable } = useLivePreview(projector, PREVIEW_MS, { passiveStandby: true })
   const { gateway } = useGateway()
   const wanted = usePreshowWanted(projector.id)
   const standby = projector.power !== 'on' && projector.connection === 'connected'
@@ -26,7 +26,8 @@ export function PreviewPanel({ projector }: { projector: Projector }) {
   const hdcp = live.kind === 'ok' && live.preview.state === 'hdcp'
 
   let note: string | null = null
-  if (supported && standby && preshowCapable && !wanted) note = t('The projector is off. Turn on Pre-Show mode to see the picture without projecting.')
+  // Máy tắt: có ảnh (Pre-Show đã bật sẵn trên máy) → báo; chưa có ảnh → gợi ý bật Pre-Show.
+  if (supported && standby && preshowCapable && !wanted) note = image ? t('Pre-Show is already on (set on the projector): the picture is shown while it is off.') : t('The projector is off. Turn on Pre-Show mode to see the picture without projecting.')
   else if (supported && (projector.power === 'on' || wanted)) {
     if (!hasAccount) note = t('Sign in with the projector web account (top right) to see the live preview.')
     else if (live.kind === 'error') note = t('Live preview unavailable: {message}', { message: live.message })

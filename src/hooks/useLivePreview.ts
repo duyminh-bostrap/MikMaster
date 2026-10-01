@@ -33,7 +33,7 @@ export interface LivePreview {
  * Máy tắt / mất kết nối → không hỏi. Sai / thiếu tài khoản → dừng hỏi cho tới khi đổi tài khoản
  * (không gửi lại mật khẩu sai liên tục). `intervalMs`: 1000 ở trang máy, chậm hơn ở thẻ trên Dashboard.
  */
-export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
+export function useLivePreview(p: Projector, intervalMs: number, opts: { passiveStandby?: boolean } = {}): LivePreview {
   const { gateway } = useGateway()
   const quick = useQuickLogins(gateway)
   const { free } = useEdition()
@@ -53,7 +53,10 @@ export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
   const standby = p.power !== 'on' && p.connection === 'connected'
   // Pre-Show: máy đang tắt nhưng người dùng đã bật chế độ → vẫn lấy ảnh (kèm yêu cầu bật Pre-Show).
   const viaPreshow = preshowCapable && wanted && standby
-  const on = (p.power === 'on' && p.connection === 'connected') || viaPreshow
+  // Đọc THỤ ĐỘNG khi máy tắt (chỉ ở trang máy): không gửi lệnh nào, chỉ xem máy có đang gửi ảnh không — đo thực tế trên một PT-RQ35K
+  // đang chờ mà đã bật Pre-Show sẵn: ảnh về ngay chỉ với 'start'. Không có ảnh (BLANK) thì giao diện gợi ý bật Pre-Show.
+  const passive = preshowCapable && !!opts.passiveStandby && standby && !wanted
+  const on = (p.power === 'on' && p.connection === 'connected') || viaPreshow || passive
   const [live, setLive] = useState<Live>({ kind: 'idle' })
   const latest = useRef(p)
   latest.current = p
@@ -75,7 +78,7 @@ export function useLivePreview(p: Projector, intervalMs: number): LivePreview {
     // Lệch thời điểm bắt đầu giữa các thẻ để không hỏi cùng lúc.
     timer = setTimeout(tick, Math.random() * Math.min(intervalMs, 1500))
     return () => { cancelled = true; clearTimeout(timer) }
-  }, [gateway, supported, on, viaPreshow, hasAccount, p.id, p.network.ip, username, password, intervalMs])
+  }, [gateway, supported, on, viaPreshow, passive, hasAccount, p.id, p.network.ip, username, password, intervalMs])
 
   return { live, supported, hasAccount, proLocked: capable && free, preshowCapable, preshow: viaPreshow }
 }

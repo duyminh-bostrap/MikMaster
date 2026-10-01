@@ -806,3 +806,27 @@ test('the Groups / Dashboard switch is the first (left-most) control of the filt
   const filters = await bar.getByRole('radiogroup', { name: 'Filter by status' }).boundingBox()
   expect(view!.x).toBeLessThan(filters!.x)
 })
+
+test('Pre-Show already on in the projector: a switched-off Panasonic shows its picture on the projector page with NO request that changes settings', async ({ page }) => {
+  await createProject(page, 'Passive Show')
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  const bodies: Array<{ preshow?: boolean }> = []
+  await page.route('**/api/health', r => r.fulfill({ json: { ok: true, drivers: {}, authRequired: false, authorized: true } }))
+  await page.route('**/api/devices/status', r => r.fulfill({ json: { power: 'standby', errors: [] } }))
+  await page.route('**/api/devices/preview', r => {
+    bodies.push(JSON.parse(r.request().postData() ?? '{}'))
+    return r.fulfill({ json: { state: 'image', image: PNG } }) // máy đang chờ nhưng đã gửi ảnh (Pre-Show bật sẵn)
+  })
+  await page.getByRole('button', { name: /NO GATEWAY/ }).click()
+  await expect(page.getByText(/GATEWAY CONNECTED/)).toBeVisible()
+  await card(page, 'PJ-03').click() // Panasonic
+  await expect(page.getByAltText('Live preview from the projector')).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByText('Pre-Show is already on (set on the projector): the picture is shown while it is off.')).toBeVisible()
+  expect(bodies.length).toBeGreaterThan(0)
+  expect(bodies.every(b => b.preshow === undefined)).toBe(true) // chỉ đọc: không có yêu cầu bật / tắt Pre-Show
+  // Dashboard: thẻ của máy tắt KHÔNG tự mở kết nối preview (chỉ trang máy đọc thụ động).
+  await page.goBack()
+  const before = bodies.length
+  await page.waitForTimeout(3500)
+  expect(bodies.length).toBe(before)
+})
