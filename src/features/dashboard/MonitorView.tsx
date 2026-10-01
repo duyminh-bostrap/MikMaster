@@ -1,5 +1,7 @@
-import { useState, type ReactNode } from 'react'
+import { FlaskConical } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
+import { Button } from '@/components/ui/Button'
 import { Panel } from '@/components/ui/Panel'
 import { ProgressBar } from '@/components/ui/ProgressBar'
 import { LineChart, seriesColor } from '@/components/charts/LineChart'
@@ -9,6 +11,7 @@ import { historyOf, useHistoryVersion } from '@/services/telemetryHistory'
 import type { Booth, Projector } from '@/types'
 import { cn } from '@/utils/cn'
 import { formatClock, formatDuration } from '@/utils/format'
+import { sampleHistory, sampleProjectors } from '@/utils/sampleData'
 import { activeErrors, brightnessRows, logRows, monitorStatus, onTimeRows, statusRows, temperatureRows, warmupSeries, type LogFilter } from '@/utils/monitor'
 import { TONE_TEXT, temperatureTone } from '@/utils/tones'
 
@@ -36,7 +39,7 @@ const Aside = ({ children }: { children: ReactNode }) => <span className="font-m
  * View "Dashboard" của tab All: các bảng theo dõi theo thông số của mọi máy (đang lọc) — nhiệt độ, độ sáng,
  * thời gian bật (tính từ lúc bật bằng phần mềm), trạng thái, và nhật ký / lỗi. Bấm một hàng để mở trang máy.
  */
-export function MonitorView({ projectors, booths, emptyText, onOpen }: {
+export function MonitorView({ projectors: real, booths, emptyText, onOpen }: {
   projectors: Projector[]
   booths: Booth[]
   emptyText: string
@@ -44,6 +47,11 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
 }) {
   const t = useT()
   const now = useClock(30_000).getTime()
+  // Dữ liệu mẫu (chỉ để xem thử): thay máy thật bằng máy mẫu cho toàn bộ Dashboard; không ghi vào project hay lịch sử thật.
+  const [sample, setSample] = useState(false)
+  const projectors = useMemo(() => (sample ? sampleProjectors(real, now) : real), [sample, real, now])
+  const sampleHist = useMemo(() => new Map(projectors.map(p => [p.id, sample ? sampleHistory(p, now) : []])), [sample, projectors, now])
+  const history = (id: string) => (sample ? sampleHist.get(id) ?? [] : historyOf(id))
   const [logFilter, setLogFilter] = useState<LogFilter>('issues')
   useHistoryVersion() // vẽ lại khi có mẫu nhiệt độ mới
   const [focus, setFocus] = useState<string | null>(null) // máy đang được nhấn mạnh (rê chuột vào đường hoặc vào khung màu)
@@ -63,7 +71,7 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
   // Màu theo thứ tự máy trong danh sách.
   const colorOf = (p: Projector) => seriesColor(Math.max(0, projectors.findIndex(x => x.id === p.id)))
   // Mỗi máy đang bật có số đo là một đường (màu riêng, ghi trong khung bên cạnh); thông tin chi tiết hiện khi trỏ chuột vào đường.
-  const warm = warmupSeries(projectors, historyOf, now)
+  const warm = warmupSeries(projectors, history, now)
   const chartSeries = warm.map(w => ({ id: w.projector.id, name: w.projector.name, color: colorOf(w.projector), points: w.points }))
   const xMax = Math.max(2 * 60_000, ...chartSeries.map(sr => sr.points[sr.points.length - 1]!.x))
 
@@ -76,6 +84,13 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
   )
 
   return (
+    <div className="flex flex-col gap-3">
+    <div className="flex flex-wrap items-center justify-end gap-3 font-mono text-[10px] text-muted-foreground">
+      {sample && <Badge tone="accent">{t('SAMPLE DATA — not real measurements')}</Badge>}
+      <Button size="xs" variant={sample ? 'primary' : 'secondary'} aria-pressed={sample} onClick={() => setSample(v => !v)}>
+        <FlaskConical size={11} />{sample ? t('STOP SAMPLE DATA') : t('USE SAMPLE DATA')}
+      </Button>
+    </div>
     <div className="grid grid-cols-2 gap-4 max-xl:grid-cols-1" data-testid="monitor">
       <Panel title={t('TEMPERATURE · TIME SINCE POWER ON')} className="col-span-2 min-w-0 max-xl:col-span-1"
         aside={<Aside>{temp.rows.length > 0 ? `${t('avg {avg}°C · max {max}°C', { avg: temp.avg, max: temp.max })}${onTime.rows.length > 0 ? ` · ${t('longest {d}', { d: formatDuration(onTime.longest) })}` : ''}` : '—'}</Aside>}>
@@ -185,6 +200,7 @@ export function MonitorView({ projectors, booths, emptyText, onOpen }: {
           ))}
         </div>
       </Panel>
+    </div>
     </div>
   )
 }

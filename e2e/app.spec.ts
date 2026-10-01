@@ -473,3 +473,27 @@ test('license: Free edition = power + shutter only, the license page is skippabl
   await expect(page.getByRole('button', { name: 'UNLOCK PRO' })).toHaveCount(0)
   await page.screenshot({ path: 'test-results/pro-logo.png' })
 })
+
+test('Dashboard: sample data fills the chart and tables for a quick look without real projectors (and does not touch the project)', async ({ page }) => {
+  await createProject(page, 'Sample Show')
+  await page.getByRole('radio', { name: 'Dashboard' }).click()
+  const monitor = page.getByTestId('monitor')
+  await expect(monitor.getByText('No projector is on, or none reports a temperature.')).toBeVisible()
+  await page.getByRole('button', { name: 'USE SAMPLE DATA' }).click()
+  await expect(page.getByText('SAMPLE DATA — not real measurements')).toBeVisible()
+  const chart = monitor.getByRole('group', { name: 'Temperature since power on' })
+  await expect(chart.locator('[data-series]')).toHaveCount(5) // 6 máy mẫu, 1 máy ở chế độ chờ
+  const legend = monitor.getByRole('complementary', { name: 'Projector colours' })
+  await expect(legend.locator('li')).toHaveCount(6)
+  await expect(legend).toContainText('STANDBY')
+  // Trỏ vào một đường → khung thông tin của máy đó.
+  const dot = await chart.locator('[data-series]').first().locator('circle').boundingBox()
+  await page.mouse.move(dot!.x + dot!.width / 2, dot!.y + dot!.height / 2)
+  await expect(page.getByTestId('chart-tip')).toBeVisible()
+  await page.screenshot({ path: 'test-results/sample-chart.png' })
+  await expect(monitor.getByRole('table', { name: 'BRIGHTNESS' }).locator('tbody tr')).toHaveCount(5)
+  // Tắt → về dữ liệu thật; project không bị đổi.
+  await page.getByRole('button', { name: 'STOP SAMPLE DATA' }).click()
+  await expect(monitor.getByText('No projector is on, or none reports a temperature.')).toBeVisible()
+  await expect(sidebar(page).getByText('UNSAVED')).toHaveCount(0)
+})
