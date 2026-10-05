@@ -1,16 +1,26 @@
 import { useCallback, useMemo, useState } from 'react'
+import { usePref } from '@/services/prefs'
 import { useNavigate } from 'react-router'
 import { AppFooter } from '@/components/layout/AppFooter'
 import { GatewayBadge } from '@/components/layout/GatewayBadge'
+import { LicenseBadge } from '@/components/layout/LicenseBadge'
 import { AppShell } from '@/components/layout/AppShell'
 import { BoothTabs } from '@/features/dashboard/BoothTabs'
+import { PowerSummary } from '@/features/dashboard/PowerSummary'
+import { WarningBanner } from '@/features/dashboard/WarningBanner'
 import { FleetMetrics } from '@/features/dashboard/FleetMetrics'
 import { ProjectorGrid } from '@/features/dashboard/ProjectorGrid'
+import { MonitorView } from '@/features/dashboard/MonitorView'
+import { setAllView, useDashboardView } from '@/services/dashboardView'
 import { QuickControls } from '@/features/dashboard/QuickControls'
 import { Sidebar } from '@/features/dashboard/Sidebar'
 import { TopBar } from '@/features/dashboard/TopBar'
 import { ALL_BOOTHS, useBoothFilter } from '@/hooks/useBoothFilter'
-import { computeFleetStats } from '@/utils/fleet'
+import { ProjectorFilterBar } from '@/features/dashboard/ProjectorFilterBar'
+import { useT } from '@/i18n'
+import { useConfirm } from '@/components/ui/ConfirmDialog'
+import { STATUS_FILTERS, matchesQuery, matchesStatus, type StatusFilter } from '@/utils/projectorFilter'
+import { computeFleetStats, connectionStats } from '@/utils/fleet'
 import { formatLongDate } from '@/utils/format'
 import { useProjectCommands } from '@/features/appmenu/useProjectCommands'
 import { EditDialog, type EditTarget } from '@/features/dashboard/EditDialogs'
@@ -19,18 +29,34 @@ import { ProjectorContextMenu, type MenuAnchor } from '@/features/dashboard/Proj
 
 export default function DashboardPage() {
   const { project, booths, projectors } = useOpenProject()
-  const [activeBooth, setActiveBooth] = useBoothFilter(booths)
+  const [activeBooth, setActiveBooth] = useBoothFilter(booths, project.id)
   const navigate = useNavigate()
   const cmd = useProjectCommands()
 
+  const t = useT()
   const scope = useMemo(
     () => (activeBooth === ALL_BOOTHS ? projectors : projectors.filter(p => p.boothId === activeBooth)),
     [activeBooth, projectors],
   )
+  const { view } = useDashboardView()
+  const [query, setQuery] = useState('')
+  const [status, setStatus] = usePref('statusFilter')
+  const boothName = useCallback((id: string) => booths.find(b => b.id === id)?.name ?? '', [booths])
+  const matching = useMemo(() => scope.filter(p => matchesQuery(p, query, boothName(p.boothId))), [scope, query, boothName])
+  const visible = useMemo(() => matching.filter(p => matchesStatus(p, status)), [matching, status])
+  const counts = useMemo(() => Object.fromEntries(STATUS_FILTERS.map(s => [s, matching.filter(p => matchesStatus(p, s)).length])) as Record<StatusFilter, number>, [matching])
   const stats = useMemo(() => computeFleetStats(projectors), [projectors])
-  const scopeLabel = activeBooth === ALL_BOOTHS ? 'All Projectors' : (booths.find(b => b.id === activeBooth)?.name ?? '')
+  const inBooth = activeBooth !== ALL_BOOTHS
+  const scopeLabel = inBooth ? boothName(activeBooth) : t('All Projectors')
+  const scopeIds = scope.map(p => p.id)
+  const emptyText = scope.length === 0 ? (inBooth ? t('No projectors in this group') : t('No projectors yet')) : t('No projector matches the filter')
   const openProjector = (id: string) => navigate(`/project/projectors/${id}`)
-  const { moveToBooth } = useProjectActions()
+  const { moveToBooth, removeProjector } = useProjectActions()
+  const [confirmDialog, confirm] = useConfirm()
+  async function removeWithConfirm(id: string, name: string) {
+    const ok = await confirm({ title: t('REMOVE PROJECTOR'), message: t('Remove {name} from this project? The projector itself is not changed.', { name }), confirmLabel: t('REMOVE') })
+    if (ok) removeProjector(id)
+  }
   const [menu, setMenu] = useState<MenuAnchor | null>(null)
   const closeMenu = useCallback(() => setMenu(null), [])
   const menuProjector = menu ? projectors.find(p => p.id === menu.projectorId) : undefined
@@ -55,23 +81,35 @@ export default function DashboardPage() {
           activeBooth={activeBooth} onSelectBooth={setActiveBooth} onOpenProjector={openProjector}
           onSave={cmd.save}
           onEdit={setEditing}
+          onAddProjector={() => setEditing({ kind: 'addProjector', boothId: inBooth ? activeBooth : undefined })}
           onMoveProjector={moveProjector} onProjectorContextMenu={openMenu}
         />
       }
     >
-      <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} />
-      <FleetMetrics stats={stats} projectors={projectors} actions={<QuickControls projectorIds={scope.map(p => p.id)} />} />
+      <TopBar scopeLabel={scopeLabel} unitCount={scope.length} stats={stats} connection={connectionStats(scope)} />
+      {/* 3 cột: ô BẬT · ô TẮT · cột 3 gồm 2 hàng (hàng 1: thống kê cảnh báo, nhiệt độ, thời gian bật; hàng 2: nút shutter / OSD / test pattern). */}
+      <PowerSummary projectors={scope} scopeLabel={scopeLabel}>
+        <FleetMetrics stats={stats} projectors={projectors} />
+        <div className="flex justify-end"><QuickControls projectorIds={scopeIds} scopeLabel={scopeLabel} /></div>
+      </PowerSummary>
+      <WarningBanner projectors={scope} onOpen={openProjector} />
       <BoothTabs booths={booths} projectors={projectors} active={activeBooth} onSelect={setActiveBooth} onMoveProjector={moveProjector} />
+      <ProjectorFilterBar query={query} onQuery={setQuery} status={status} onStatus={setStatus} counts={counts}
+        {...(inBooth ? {} : { view, onView: setAllView })} />
       <main className="flex-1 overflow-y-auto p-5">
-        <ProjectorGrid projectors={scope} onOpen={openProjector} onContextMenu={openMenu} />
+        {!inBooth && view === 'monitor'
+          ? <MonitorView projectors={visible} booths={booths} onOpen={openProjector} emptyText={emptyText} />
+          : <ProjectorGrid projectors={visible} groups={inBooth ? undefined : booths} onOpen={openProjector} onContextMenu={openMenu} emptyText={emptyText} />}
       </main>
       {menu && menuProjector && (
         <ProjectorContextMenu anchor={menu} projector={menuProjector} booths={booths}
           onMove={boothId => moveProjector(menuProjector.id, boothId)} onOpen={() => openProjector(menuProjector.id)}
-          onEdit={() => setEditing({ kind: 'projector', id: menuProjector.id })} onClose={closeMenu} />
+          onEdit={() => setEditing({ kind: 'projector', id: menuProjector.id })}
+          onRemove={() => void removeWithConfirm(menuProjector.id, menuProjector.name)} onClose={closeMenu} />
       )}
       {editing && <EditDialog target={editing} onClose={closeEdit} />}
-      <AppFooter left={`MikMaster v${__APP_VERSION__}`} right={<><GatewayBadge />{formatLongDate(new Date())}</>} />
+      {confirmDialog}
+      <AppFooter left={`MikMaster v${__APP_VERSION__}`} right={<><LicenseBadge /><GatewayBadge />{formatLongDate(new Date())}</>} />
     </AppShell>
   )
 }

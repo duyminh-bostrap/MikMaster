@@ -1,20 +1,24 @@
 import type { Dispatch } from 'react'
 import type { OsdKeyDto } from '../../shared/api.ts'
 import type { SyncResult } from '@/utils/sync'
-import type { InputSource, LensPosition, LensSlot, PowerState, Projector, TestPatternState } from '@/types'
+import type { InputSource, LensPosition, LensSlot, Projector, TestPatternState } from '@/types'
 import { getDeviceCredentials, getSharedCredentials } from '@/services/credentialCache'
 import { fillMissingCredentials } from '@/utils/credentials'
 import type { DeviceEffects } from './deviceEffects'
+import { cancelPowerSequence, removeFromPowerSequence, startPowerOnSequence } from './powerSequence'
+import { getSettings } from '@/services/settings'
 import type { ProjectAction, ProjectState } from './projectReducer'
 
 /** Lớp API mà UI gọi; UI không bao giờ tự dựng action object. */
 export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects: DeviceEffects | null = null) {
   return {
-    launchProject: (payload: Extract<ProjectAction, { type: 'project/launch' }>['payload']) =>
+    launchProject: (payload: Extract<ProjectAction, { type: 'project/launch' }>['payload']) => {
+      cancelPowerSequence() // chuỗi bật máy của project cũ không được chạy tiếp sang project mới
       dispatch({
         type: 'project/launch',
         payload: { ...payload, projectors: fillMissingCredentials(payload.projectors, { device: getDeviceCredentials, shared: getSharedCredentials }) },
-      }),
+      })
+    },
     setCredentials: (ids: string[], creds: { username?: string; password?: string }) =>
       dispatch({ type: 'projectors/setCredentials', ids, ...creds }),
     closeProject: () => dispatch({ type: 'project/close' }),
@@ -28,13 +32,34 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     updateBooth: (id: string, patch: { name?: string }) => dispatch({ type: 'booth/update', id, patch }),
     removeBooth: (id: string, moveTo: string) => dispatch({ type: 'booth/remove', id, moveTo }),
     removeProjector: (id: string) => dispatch({ type: 'projector/remove', id }),
+    addProjector: (projector: Projector) => dispatch({ type: 'projector/add', projector }),
     updateProjector: (id: string, patch: Partial<Omit<Projector, 'id'>>) =>
       dispatch({ type: 'projector/patch', id, patch }),
     moveToBooth: (ids: string[], booth: { id: string; name: string }) =>
       dispatch({ type: 'projectors/move', ids, boothId: booth.id, boothName: booth.name }),
-    setPower: (ids: string[], power: PowerState) => {
-      dispatch({ type: 'projectors/setPower', ids, power })
-      effects?.power(ids, power)
+    /**
+     * Có gateway: gửi lệnh tới máy thật; KHI GỬI THÀNH CÔNG giao diện mới chuyển sang WARMING UP (bật) / COOLING DOWN (tắt),
+     * rồi thành ON / OFF khi máy xác nhận (vòng đọc trạng thái). Lỗi gửi → giữ nguyên trạng thái, báo lỗi.
+     * Không có gateway (mô phỏng): đổi trạng thái cuối ngay.
+     */
+    setPower: (ids: string[], power: 'on' | 'standby' | 'off') => {
+      if (power === 'on') {
+        // Nhiều máy → bật lần lượt theo cài đặt để tránh sụt điện.
+        startPowerOnSequence(ids, getSettings().powerOnDelaySec * 1000, id => {
+          if (effects) effects.power([id], power)
+          else dispatch({ type: 'projectors/setPower', ids: [id], power })
+        })
+        return
+      }
+      removeFromPowerSequence(ids)
+      if (effects) effects.power(ids, power)
+      else dispatch({ type: 'projectors/setPower', ids, power })
+    },
+    /** Độ sáng: đổi trong app ngay, và gửi tới máy nếu driver có lệnh (Panasonic: LIGHT OUTPUT). */
+    setBrightness: (id: string, percent: number, p: Projector) => {
+      const v = Math.min(100, Math.max(0, Math.round(percent)))
+      dispatch({ type: 'projector/patch', id, patch: { telemetry: { ...p.telemetry, brightness: v } } })
+      effects?.brightness(id, v)
     },
     setShutter: (ids: string[], shutter: boolean) => {
       dispatch({ type: 'projectors/setShutter', ids, shutter })
@@ -47,8 +72,20 @@ export function createProjectActions(dispatch: Dispatch<ProjectAction>, effects:
     sendOsd: (id: string, key: OsdKeyDto) => effects?.osd(id, key),
     syncProjector: (id: string, result: SyncResult) => dispatch({ type: 'projector/sync', id, result }),
     logEvent: (id: string, level: 'info' | 'warn' | 'error', message: string) => dispatch({ type: 'projector/log', id, level, message }),
-    setTestPattern: (id: string, patch: Partial<TestPatternState>) =>
-      dispatch({ type: 'projector/setTestPattern', id, patch }),
+    setTestPattern: (id: string, patch: Partial<TestPatternState>) => {
+      dispatch({ type: 'projector/setTestPattern', id, patch })
+      if (patch.enabled !== undefined || patch.type !== undefined) effects?.testPattern([id], patch.enabled, patch.type)
+    },
+    /** Hiện / ẩn OSD: đổi trong app, và gửi tới máy nếu driver có lệnh (Christie); còn lại chỉ đổi trong app. */
+    setOsdMany: (ids: string[], osd: boolean) => {
+      dispatch({ type: 'projectors/setOsd', ids, osd })
+      effects?.osdDisplay(ids, osd)
+    },
+    /** Cả booth: bật / tắt / chọn pattern cho nhiều máy. */
+    setTestPatternMany: (ids: string[], patch: Partial<TestPatternState>) => {
+      dispatch({ type: 'projectors/setTestPattern', ids, patch })
+      if (patch.enabled !== undefined || patch.type !== undefined) effects?.testPattern(ids, patch.enabled, patch.type)
+    },
     adjustLens: (id: string, delta: Partial<LensPosition>) => dispatch({ type: 'lens/adjust', id, delta }),
     resetLensShift: (id: string) => dispatch({ type: 'lens/resetShift', id }),
     saveLensPreset: (id: string, slot: LensSlot, name: string) =>

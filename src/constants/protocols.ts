@@ -12,6 +12,7 @@ export const PROTOCOL_OPTIONS: readonly ProtocolOption[] = [
   { type: 'pjlink-class2', label: 'PJLink Class 2', defaultPort: 4352, auth: 'MD5 Challenge', transport: 'TCP' },
   { type: 'pjlink-class1', label: 'PJLink Class 1', defaultPort: 4352, auth: 'MD5 Challenge', transport: 'TCP' },
   { type: 'christie-serial-ip', label: 'Christie Serial-over-IP', defaultPort: 3002, auth: 'None', transport: 'TCP' },
+  { type: 'barco-pulse', label: 'Barco Pulse (JSON-RPC)', defaultPort: 9090, auth: 'None', transport: 'TCP' },
   { type: 'barco-xlm', label: 'Barco XLM', defaultPort: 1025, auth: 'None', transport: 'TCP' },
   { type: 'epson-escvp21', label: 'Epson ESC/VP.net', defaultPort: 3629, auth: 'Password', transport: 'TCP' },
   { type: 'sony-sdcp', label: 'Sony SDCP', defaultPort: 53484, auth: 'None', transport: 'TCP' },

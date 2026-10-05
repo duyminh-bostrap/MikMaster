@@ -8,6 +8,8 @@ export interface PanasonicSimOptions {
   /** Có đặt → bật chế độ bảo vệ bằng mật khẩu (MD5). */
   credentials?: { username: string; password: string }
   model?: string
+  /** Nhiệt độ khí vào / khí thoát (°C) cho QTM:0 / QTM:1. */
+  temps?: [number, number]
 }
 
 /** Mô phỏng NTCONTROL theo ghi chú giao thức: banner, băm MD5, khung "00"+lệnh, đóng kết nối sau mỗi phản hồi. */
@@ -15,6 +17,9 @@ export class PanasonicSimulator extends SimServer {
   power = false
   shutter = false
   input = 'HD1'
+  /** LIGHT OUTPUT (50–1000) và test pattern (mã 2 chữ số). */
+  lightOutput = 1000
+  testPattern = '00'
   /** Lệnh đã nhận (không gồm hash) — để test kiểm tra đúng chuỗi được gửi. */
   received: string[] = []
   private opts: PanasonicSimOptions
@@ -50,6 +55,27 @@ export class PanasonicSimulator extends SimServer {
     if (cmd === 'PON') { this.power = true; return '00PON' }
     if (cmd === 'POF') { this.power = false; return '00POF' }
     if (cmd === 'QPW') return `00${this.power ? '001' : '000'}`
+    if (/^QTM:[01]$/.test(cmd)) {
+      if (!this.power) return 'ERR3'
+      const [intake, exhaust] = this.opts.temps ?? [30, 45]
+      return `00${String(cmd.endsWith('0') ? intake : exhaust).padStart(4, '0')}`
+    }
+    if (cmd === 'QVX:LOPI2') return this.power ? `00LOPI2=+${String(this.lightOutput).padStart(5, '0')}` : 'ERR3'
+    const lop = /^VXX:LOPI2=([+-]\d{5})$/.exec(cmd)
+    if (lop) {
+      if (!this.power) return 'ERR3'
+      const v = Number(lop[1])
+      if (v < 50 || v > 1000) return 'ERR2'
+      this.lightOutput = v
+      return `00LOPI2=${lop[1]}`
+    }
+    if (cmd === 'QTS') return this.power ? `00${this.testPattern}` : 'ERR3'
+    const ots = /^OTS:(\d{2})$/.exec(cmd)
+    if (ots) {
+      if (!this.power) return 'ERR3'
+      this.testPattern = ots[1]!
+      return `00${cmd}`
+    }
     if (cmd === 'QID') return `00${this.opts.model ?? 'RQ35K'}`
     if (['QSH', 'QIN'].includes(cmd) || /^(OSH|IIS):/.test(cmd) || /^O(MN|EN|CU|CD|CL|CR)$/.test(cmd)) {
       if (!this.power) return 'ERR3'

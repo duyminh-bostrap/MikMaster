@@ -2,7 +2,15 @@ import type { LensState } from './lens'
 import type { ProtocolConfig } from './protocol'
 import type { TestPatternState } from './testPattern'
 
-export type PowerState = 'on' | 'standby' | 'off'
+/**
+ * on / standby / off + hai giai đoạn chuyển tiếp của máy cao cấp:
+ *   warmup  = đang khởi động (đã nhận lệnh bật hoặc máy báo warm-up, chưa sáng hẳn)
+ *   cooling = đang làm nguội sau khi tắt (chưa về standby)
+ */
+export type PowerState = 'on' | 'standby' | 'off' | 'warmup' | 'cooling'
+
+/** Lệnh bật / tắt đã gửi thành công, đang chờ máy xác nhận: `from` là trạng thái trước, `at` là lúc gửi. */
+export interface PowerPending { to: 'on' | 'standby'; from: PowerState; at: number }
 
 export type InputSource =
   | 'HDMI 1'
@@ -24,6 +32,10 @@ export interface Telemetry {
   lampHours: number
   /** 0..100 (%) */
   brightness: number
+  /** Vị trí ống kính máy báo (đơn vị của máy, chỉ đọc) — Christie. */
+  lensReading?: { shiftH?: number; shiftV?: number; zoom?: number; focus?: number }
+  /** Nhiệt độ từng cảm biến, nếu máy báo (Christie). */
+  sensors?: { name: string; c: number }[]
 }
 
 /** Trạng thái liên lạc với thiết bị (tách khỏi Power: máy có thể bật nhưng mất kết nối). */
@@ -42,10 +54,13 @@ export interface Projector {
   id: string
   boothId: string
   name: string
-  location: string
   model: string
   network: NetworkConfig
   power: PowerState
+  /** Lúc app thấy máy chuyển sang bật (ms epoch); xoá khi máy tắt / standby. Chỉ là trạng thái sống, không tính vào "sửa project". */
+  poweredOnAt?: number
+  /** Đang chờ máy xác nhận lệnh bật / tắt (chỉ khi có gateway). */
+  powerPending?: PowerPending
   shutter: boolean
   /** Hiển thị OSD (menu trên màn hình). Thiếu = bật (project lưu từ bản cũ). */
   osd?: boolean

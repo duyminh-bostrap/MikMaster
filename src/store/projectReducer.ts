@@ -1,5 +1,5 @@
 import { applyLensDelta, buildLensPreset } from '@/utils/lens'
-import { applyPower, appendLog } from '@/utils/projector'
+import { applyPower, applyPowerPending, appendLog } from '@/utils/projector'
 import { withCredentials } from '@/utils/credentials'
 import { documentFingerprint } from '@/utils/document'
 import { applyRemote, type SyncResult } from '@/utils/sync'
@@ -7,7 +7,6 @@ import type {
   Booth,
   LensPosition,
   LensSlot,
-  PowerState,
   Project,
   Projector,
   TestPatternState,
@@ -33,14 +32,18 @@ export type ProjectAction =
   | { type: 'booth/update'; id: string; patch: Partial<Pick<Booth, 'name'>> }
   | { type: 'booth/remove'; id: string; moveTo: string }
   | { type: 'projector/remove'; id: string }
+  | { type: 'projector/add'; projector: Projector }
   | { type: 'projector/patch'; id: string; patch: Partial<Omit<Projector, 'id'>> }
   | { type: 'projector/sync'; id: string; result: SyncResult }
   | { type: 'projector/log'; id: string; level: 'info' | 'warn' | 'error'; message: string }
   | { type: 'projectors/setCredentials'; ids: string[]; username?: string; password?: string }
   | { type: 'projectors/move'; ids: string[]; boothId: string; boothName: string }
-  | { type: 'projectors/setPower'; ids: string[]; power: PowerState }
+  /** `pending`: lệnh ĐÃ GỬI THÀNH CÔNG tới máy thật → hiện khởi động / làm nguội và chờ máy xác nhận; không có → đặt trạng thái cuối ngay. */
+  | { type: 'projectors/setPower'; ids: string[]; power: 'on' | 'standby' | 'off'; pending?: boolean }
   | { type: 'projectors/setShutter'; ids: string[]; shutter: boolean }
+  | { type: 'projectors/setOsd'; ids: string[]; osd: boolean }
   | { type: 'projector/setTestPattern'; id: string; patch: Partial<TestPatternState> }
+  | { type: 'projectors/setTestPattern'; ids: string[]; patch: Partial<TestPatternState> }
   | { type: 'lens/adjust'; id: string; delta: Partial<LensPosition> }
   | { type: 'lens/resetShift'; id: string }
   | { type: 'lens/savePreset'; id: string; slot: LensSlot; name: string }
@@ -56,7 +59,7 @@ function mapProjectors(
   return { ...state, projectors: state.projectors.map(p => (target.has(p.id) ? fn(p) : p)) }
 }
 
-export function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
+function reduce(state: ProjectState, action: ProjectAction): ProjectState {
   switch (action.type) {
     case 'project/launch':
       return { ...action.payload, baseline: documentFingerprint(action.payload) }
@@ -83,9 +86,12 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
       return {
         ...state,
         booths: state.booths.filter(b => b.id !== action.id),
-        projectors: state.projectors.map(p => (p.boothId === action.id ? { ...p, boothId: target.id, log: appendLog(p, 'info', `Moved to booth ${target.name}`) } : p)),
+        projectors: state.projectors.map(p => (p.boothId === action.id ? { ...p, boothId: target.id, log: appendLog(p, 'info', `Moved to group ${target.name}`) } : p)),
       }
     }
+
+    case 'projector/add':
+      return state.projectors.some(p => p.id === action.projector.id) ? state : { ...state, projectors: [...state.projectors, action.projector] }
 
     case 'projector/remove':
       return { ...state, projectors: state.projectors.filter(p => p.id !== action.id) }
@@ -110,13 +116,21 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
 
     case 'projectors/move':
       return mapProjectors(state, action.ids, p =>
-        p.boothId === action.boothId ? p : { ...p, boothId: action.boothId, log: appendLog(p, 'info', `Moved to booth ${action.boothName}`) })
+        p.boothId === action.boothId ? p : { ...p, boothId: action.boothId, log: appendLog(p, 'info', `Moved to group ${action.boothName}`) })
 
-    case 'projectors/setPower':
-      return mapProjectors(state, action.ids, p => applyPower(p, action.power))
+    case 'projectors/setPower': {
+      const now = Date.now()
+      return mapProjectors(state, action.ids, p => (action.pending && action.power !== 'off' ? applyPowerPending(p, action.power, now) : applyPower(p, action.power)))
+    }
+
+    case 'projectors/setOsd':
+      return mapProjectors(state, action.ids, p => ({ ...p, osd: action.osd }))
 
     case 'projectors/setShutter':
       return mapProjectors(state, action.ids, p => ({ ...p, shutter: action.shutter }))
+
+    case 'projectors/setTestPattern':
+      return mapProjectors(state, action.ids, p => ({ ...p, testPattern: { ...p.testPattern, ...action.patch } }))
 
     case 'projector/setTestPattern':
       return mapProjectors(state, [action.id], p => ({ ...p, testPattern: { ...p.testPattern, ...action.patch } }))
@@ -150,4 +164,24 @@ export function projectReducer(state: ProjectState, action: ProjectAction): Proj
     case 'lens/unloadPreset':
       return mapProjectors(state, [action.id], p => ({ ...p, lens: { ...p.lens, activePreset: null } }))
   }
+}
+
+/**
+ * Đồng hồ "đã bật bao lâu": ghi lúc máy chuyển sang bật (bằng lệnh của app hay do vòng poll thấy máy đã bật), xoá khi tắt / standby.
+ * Mở project → tính lại từ bây giờ (mốc lưu trong file cũ không còn đúng).
+ */
+export function projectReducer(state: ProjectState, action: ProjectAction): ProjectState {
+  const next = reduce(state, action)
+  if (next === state) return state
+  const now = Date.now()
+  const fresh = action.type === 'project/launch'
+  let changed = false
+  const projectors = next.projectors.map(p => {
+    const since = p.power === 'on' ? (fresh ? now : p.poweredOnAt ?? now) : undefined
+    if (since === p.poweredOnAt) return p
+    changed = true
+    const { poweredOnAt: _old, ...rest } = p
+    return since === undefined ? rest : { ...rest, poweredOnAt: since }
+  })
+  return changed ? { ...next, projectors } : next
 }

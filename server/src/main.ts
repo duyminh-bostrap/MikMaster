@@ -3,6 +3,9 @@ import { randomBytes } from 'node:crypto'
 import { createServer } from './http.ts'
 import { isLoopbackBind } from './security.ts'
 import type { StaticSource } from './static.ts'
+import { createAccountManager } from './account.ts'
+import { closeAllPanasonicStreams } from './drivers/panasonicWeb.ts'
+import { computeMachineCode, createLicenseManager } from './license.ts'
 import { createProjectStore } from './store.ts'
 
 /** Khởi động gateway + giao diện; dùng chung cho `pnpm serve` (mã nguồn) và file chạy đóng gói (.exe). */
@@ -20,10 +23,14 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
   const appUrl = loopback ? `http://mikmaster.localhost${port === 80 ? '' : `:${port}`}` : `http://${host}:${port}`
 
   const store = createProjectStore(opts.dataDir)
+  const machineCode = computeMachineCode(opts.dataDir)
+  const account = createAccountManager(opts.dataDir, { machineCode })
+  const license = createLicenseManager(opts.dataDir, { machineCode, account })
   const server = createServer({
-    staticSource: opts.staticSource, token, store,
+    staticSource: opts.staticSource, token, store, license, account,
     onQuit: () => {
       console.log('Stopped from the web app.')
+      closeAllPanasonicStreams() // trả Pre-Show về như cũ trên các máy đã bật
       server.close()
       server.closeAllConnections()
       process.exit(0)
@@ -44,6 +51,9 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
     console.log(`MikMaster is running:  ${appUrl}`)
     if (loopback) console.log(`                  also: http://127.0.0.1:${port}  (Safari)`)
     console.log(`Projects stored in ${opts.dataDir} (passwords encrypted)`)
+    const lic = license.status()
+    if (account.configured) console.log('Accounts: enabled (sign in, or enter a license key)')
+    console.log(`License: ${lic.state === 'licensed' ? `licensed to ${lic.licensee}` : lic.state === 'trial' ? `trial, ${lic.trialDaysLeft} day(s) left` : `${lic.state} — limited to ${lic.freeLimit} projectors, no control`}`)
     if (token) {
       console.log(generated ? `Token (generated): ${token}` : 'Token authentication enabled (MIKMASTER_TOKEN).')
       console.log(`Open: ${appUrl}/?token=<token>   (the browser remembers it)`)
@@ -51,6 +61,9 @@ export function startGateway(opts: { staticSource?: StaticSource; dataDir: strin
     // Chỉ khi có cửa sổ console (Windows .exe, terminal); app macOS chạy nền → tắt bằng menu Quit.
     if (process.stdout.isTTY) console.log('Keep this window open while you use MikMaster. Press Ctrl+C (or Quit in the app menu) to stop.')
     if (opts.openBrowser) openUrl(appUrl)
+    // Kiểm tra bản quyền qua mạng khi khởi động và mỗi 6 giờ (chỉ khi có địa chỉ kiểm tra); lỗi mạng chỉ bỏ qua lần đó.
+    void license.checkNow()
+    setInterval(() => void license.checkNow(), 6 * 3_600_000).unref()
   })
 }
 

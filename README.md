@@ -1,6 +1,6 @@
 # MikMaster
 
-Web app desktop điều khiển và quản lý nhiều máy chiếu AV. Phân cấp: **Project → Booth → Projector**.
+Web app desktop điều khiển và quản lý nhiều máy chiếu AV. Phân cấp: **Project → Group → Projector**.
 
 Stack: React 19 · TypeScript · Vite · Tailwind CSS v4 · React Router (hash) · pnpm.
 
@@ -41,7 +41,7 @@ utils/        credentials, document (theo dõi thay đổi), sync, lens, fleet�
 ```bash
 pnpm start       # build + chạy gateway + mở http://mikmaster.localhost:8787
 pnpm serve       # lần sau, không build lại
-pnpm build:exe   # đóng gói: release/MikMaster.exe (Windows) / MikMaster.dmg (Mac) — máy khác không cần cài Node
+pnpm build:exe   # đóng gói: release/MikMaster.exe (Windows) / MikMaster-Setup.pkg + MikMaster.dmg (Mac) — máy khác không cần cài Node
 ```
 
 Hướng dẫn đầy đủ (cài Node, cài như app, dữ liệu, dùng từ máy khác, tự chạy khi bật máy): [`docs/setup.md`](docs/setup.md).
@@ -53,7 +53,7 @@ PJLink, **Panasonic NTCONTROL (PT-RQ35K)**, **Christie serial-over-IP (Griffyn)*
 có thì chạy `LIVE`, không thì `SIMULATED`.
 
 ```bash
-pnpm server      # http://127.0.0.1:8787 (vite proxy /api)
+pnpm run server      # http://127.0.0.1:8787 (vite proxy /api)
 pnpm sim         # máy giả lập để thử khi chưa có phần cứng (macOS: pnpm sim:mac-alias một lần)
 pnpm test:server
 ```

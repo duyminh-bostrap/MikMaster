@@ -1,3 +1,4 @@
+import { BarcoPulseSimulator } from './barcoPulseSim.ts'
 import { ChristieSimulator } from './christieSim.ts'
 import { PanasonicSimulator } from './panasonicSim.ts'
 import { PjlinkSimulator } from './pjlinkSim.ts'
@@ -12,6 +13,7 @@ const plan: Array<[string, (host: string) => SimServer]> = [
   ['127.0.0.21', host => new PjlinkSimulator({ host, port: 4352, name: 'Sim PJLink', model: 'SIM-PJ' })],
   ['127.0.0.22', host => new PanasonicSimulator({ host, port: 1024, model: 'RQ35K' })],
   ['127.0.0.23', host => new ChristieSimulator({ host, port: 3002 })],
+  ['127.0.0.24', host => new BarcoPulseSimulator({ host, port: 9090 })],
 ]
 
 let missingAlias = false

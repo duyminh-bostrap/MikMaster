@@ -1,6 +1,6 @@
 ﻿; Bộ cài Windows cho MikMaster (Inno Setup 6): MikMaster-Setup.exe
 ; Build (sau `pnpm build:exe` trên Windows):
-;   iscc /DAppVersion=0.3.1 build-assets\installer.iss      → release\MikMaster-Setup.exe
+;   iscc /DAppVersion=0.3.0 build-assets\installer.iss      → release\MikMaster-Setup.exe
 ;
 ; - Cài cho người dùng hiện tại, không cần quyền admin: %LOCALAPPDATA%\Programs\MikMaster
 ; - Start menu (+ Desktop tuỳ chọn), mở MikMaster khi cài xong, gỡ trong Settings → Apps

@@ -3,6 +3,7 @@ import { initialProjectState, projectReducer, type ProjectState } from '@/store/
 import { createMockProjectors, MOCK_BOOTHS } from '@/data/mock'
 import { LENS_LIMITS } from '@/constants/lens'
 import { documentFingerprint } from '@/utils/document'
+import { LOG_LIMIT } from '@/utils/projector'
 
 function launched(): ProjectState {
   const projectors = createMockProjectors()
@@ -33,12 +34,25 @@ describe('projectReducer', () => {
     expect([find(next, 'PJ-01').shutter, find(next, 'PJ-02').shutter]).toEqual([true, true])
   })
 
-  test('log giữ tối đa 50 dòng, mới nhất ở đầu', () => {
+  test('projectors/setPower: không pending → đổi trạng thái cuối ngay; pending (lệnh đã gửi thành công) → WARMING UP / COOLING DOWN + chờ xác nhận', () => {
+    const s = projectReducer(launched(), { type: 'projectors/setPower', ids: ['PJ-01', 'PJ-02'], power: 'standby' }) // điểm xuất phát chắc chắn là tắt
+    const direct = projectReducer(s, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'on' })
+    expect([find(direct, 'PJ-01').power, find(direct, 'PJ-01').powerPending]).toEqual(['on', undefined])
+    const warming = projectReducer(direct, { type: 'projectors/setPower', ids: ['PJ-02'], power: 'on', pending: true })
+    expect([find(warming, 'PJ-02').power, find(warming, 'PJ-02').powerPending?.to]).toEqual(['warmup', 'on'])
+    const cooling = projectReducer(direct, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'standby', pending: true })
+    expect([find(cooling, 'PJ-01').power, find(cooling, 'PJ-01').powerPending?.to]).toEqual(['cooling', 'standby'])
+    // Bật hẳn ngay (không pending) xoá trạng thái chờ.
+    const settled = projectReducer(cooling, { type: 'projectors/setPower', ids: ['PJ-01'], power: 'on' })
+    expect([find(settled, 'PJ-01').power, find(settled, 'PJ-01').powerPending]).toEqual(['on', undefined])
+  })
+
+  test('log giữ tối đa LOG_LIMIT dòng, mới nhất ở đầu', () => {
     let s = launched()
-    for (let i = 0; i < 60; i++) s = projectReducer(s, { type: 'projector/log', id: 'PJ-01', level: 'info', message: `m${i}` })
+    for (let i = 0; i < LOG_LIMIT + 10; i++) s = projectReducer(s, { type: 'projector/log', id: 'PJ-01', level: 'info', message: `m${i}` })
     const log = find(s, 'PJ-01').log
-    expect(log).toHaveLength(50)
-    expect(log[0]?.message).toBe('m59')
+    expect(log).toHaveLength(LOG_LIMIT)
+    expect(log[0]?.message).toBe(`m${LOG_LIMIT + 9}`)
   })
 
   test('projector/sync đi qua applyRemote', () => {
@@ -50,7 +64,7 @@ describe('projectReducer', () => {
     const s = launched()
     const moved = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: 'booth-c', boothName: 'Rear Screen' })
     expect(find(moved, 'PJ-01').boothId).toBe('booth-c')
-    expect(find(moved, 'PJ-01').log[0]?.message).toBe('Moved to booth Rear Screen')
+    expect(find(moved, 'PJ-01').log[0]?.message).toBe('Moved to group Rear Screen')
     const same = projectReducer(s, { type: 'projectors/move', ids: ['PJ-01'], boothId: find(s, 'PJ-01').boothId, boothName: 'x' })
     expect(find(same, 'PJ-01')).toBe(find(s, 'PJ-01'))
   })

@@ -3,6 +3,7 @@ import { cn } from '@/utils/cn'
 import { getPreviewState } from '@/utils/projector'
 import type { Projector } from '@/types'
 import { TestPatternOverlay } from './TestPatternOverlay'
+import { t } from '@/i18n'
 
 const VIGNETTE = 'pointer-events-none absolute inset-0 bg-[radial-gradient(ellipse_at_center,transparent_40%,rgb(0_0_0/0.5)_100%)]'
 
@@ -43,26 +44,33 @@ export function PreviewScreen({ projector, size }: { projector: Projector; size:
       {state === 'standby' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           {lg && <span className="size-3 rounded-full bg-warn/60" />}
-          <span className={cn(label, 'text-warn/60', lg ? 'text-sm' : 'text-xs')}>OFF</span>
+          <span className={cn(label, 'text-warn/60', lg ? 'text-sm' : 'text-xs')}>{t('OFF')}</span>
+        </div>
+      )}
+
+      {(state === 'warmup' || state === 'cooling') && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+          {lg && <span className={cn('size-3 animate-pulse rounded-full', state === 'warmup' ? 'bg-warn/70' : 'bg-accent/70')} />}
+          <span className={cn(label, 'animate-pulse', state === 'warmup' ? 'text-warn/80' : 'text-accent/80', lg ? 'text-sm' : 'text-xs')}>{t(state === 'warmup' ? 'WARMING UP' : 'COOLING DOWN')}</span>
         </div>
       )}
 
       {state === 'shutter' && (
         <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
           {lg && <Ban size={32} strokeWidth={1.5} className="text-warn/50" />}
-          <span className={cn(label, 'text-warn/60', lg ? 'text-sm' : 'text-xs')}>SHUTTER CLOSED</span>
+          <span className={cn(label, 'text-warn/60', lg ? 'text-sm' : 'text-xs')}>{t('SHUTTER CLOSED')}</span>
         </div>
       )}
 
       {state === 'nolink' && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn(label, 'text-danger/60', lg ? 'text-sm' : 'text-xs')}>NO LINK</span>
+          <span className={cn(label, 'text-danger/60', lg ? 'text-sm' : 'text-xs')}>{t('NO LINK')}</span>
         </div>
       )}
 
       {state === 'off' && (
         <div className="absolute inset-0 flex items-center justify-center">
-          <span className={cn(label, 'text-muted-foreground/40', lg ? 'text-sm' : 'text-xs')}>{lg ? 'NO OUTPUT' : 'OFF'}</span>
+          <span className={cn(label, 'text-muted-foreground/40', lg ? 'text-sm' : 'text-xs')}>{lg ? t('NO OUTPUT') : t('OFF')}</span>
         </div>
       )}
 

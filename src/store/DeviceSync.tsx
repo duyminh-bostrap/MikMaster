@@ -1,5 +1,7 @@
 import { useEffect, useRef } from 'react'
 import { liveCapabilities } from '@/services/capabilities'
+import { checkHighTemperature, resetAlerts } from '@/services/alerts'
+import { clearHistory, recordTelemetry } from '@/services/telemetryHistory'
 import { isBusy } from './deviceEffects'
 import { useProjectActions, useProjectState } from './hooks'
 import { useGateway } from './useGateway'
@@ -18,6 +20,13 @@ export function DeviceSync() {
   const latest = useRef(projectors)
   latest.current = projectors
   const active = gateway !== null && project !== null
+
+  // Lịch sử cho biểu đồ ở Dashboard (bật / tắt + nhiệt độ lúc bật): ghi mỗi khi trạng thái máy cập nhật; đổi project thì xoá.
+  // Chỉ khi có gateway (số liệu thật); chế độ mô phỏng không có số đo nên không ghi.
+  useEffect(() => { if (gateway) recordTelemetry(projectors) }, [projectors, gateway])
+  useEffect(() => { clearHistory(); resetAlerts() }, [project?.id])
+  // Pop-up khi máy vượt 40°C (chỉ với số đo thật từ gateway).
+  useEffect(() => { if (gateway) checkHighTemperature(projectors) }, [projectors, gateway])
 
   useEffect(() => {
     if (!gateway || !active) return

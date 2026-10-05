@@ -1,7 +1,10 @@
-import type { ApiErrorCode, CommandDto, HealthDto, PingDto, ProjectSnapshotDto, ProjectSummaryDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
+import { previewBrandOf } from '../../shared/api.ts'
+import type { ApiErrorCode, CommandDto, CommandOverridesDto, HealthDto, IdentifyDto, LicenseStatusDto, PingDto, PreviewDto, ProjectSnapshotDto, ProjectSummaryDto, QuickLoginsDto, ScanFoundDto, StatusDto, TargetDto } from '../../shared/api.ts'
 import type { Projector } from '@/types'
 
 export type GatewayResult<T> = { ok: true; value: T } | { ok: false; code: ApiErrorCode | 'network'; message: string }
+
+export interface AccountResult { license: LicenseStatusDto; /** Đăng ký xong nhưng cần xác nhận email trước khi đăng nhập. */ confirmEmail?: boolean }
 
 export interface ScanHandlers {
   onProgress: (pct: number, ip: string) => void
@@ -15,8 +18,29 @@ export interface Gateway {
   status(p: Projector): Promise<GatewayResult<StatusDto>>
   command(p: Projector, command: CommandDto): Promise<GatewayResult<null>>
   raw(p: Projector, text: string): Promise<GatewayResult<string>>
+  /** Ảnh tín hiệu vào hiện tại (Christie: qua web của máy, cần tài khoản web). */
+  /** `preshow`: true = bật Pre-Show (xem ảnh cả khi máy tắt, Panasonic); false = tắt lại; bỏ trống = không đụng cài đặt máy. */
+  preview(p: Projector, opts?: { preshow?: boolean }): Promise<GatewayResult<PreviewDto>>
+  /** Tài khoản đăng nhập nhanh theo hãng (lưu mã hoá ở gateway). */
+  getQuickLogins(): Promise<GatewayResult<QuickLoginsDto>>
+  saveQuickLogins(logins: QuickLoginsDto): Promise<GatewayResult<unknown>>
+  /** Tài khoản (Supabase, qua gateway). Kết quả luôn kèm trạng thái bản quyền mới. */
+  accountSignIn(email: string, password: string): Promise<GatewayResult<AccountResult>>
+  accountSignUp(email: string, password: string): Promise<GatewayResult<AccountResult>>
+  accountSignOut(): Promise<GatewayResult<AccountResult>>
+  /** Lệnh sửa ở trang Nâng cao, theo hãng (lưu ở gateway). */
+  getCommandOverrides(): Promise<GatewayResult<CommandOverridesDto>>
+  saveCommandOverrides(o: CommandOverridesDto): Promise<GatewayResult<CommandOverridesDto>>
+  /** Bản quyền phần mềm. */
+  getLicense(): Promise<GatewayResult<LicenseStatusDto>>
+  installLicense(key: string): Promise<GatewayResult<LicenseStatusDto>>
+  removeLicense(): Promise<GatewayResult<LicenseStatusDto>>
+  /** Kiểm tra bản quyền qua mạng ngay (tải file trạng thái đã ký). */
+  checkLicenseOnline(): Promise<GatewayResult<LicenseStatusDto>>
   /** Tắt gateway (và MikMaster). */
   quit(): Promise<GatewayResult<unknown>>
+  /** Nhận diện máy ở một IP: giao thức, cổng, hãng, model. */
+  identify(ip: string, creds?: { username?: string; password?: string }): Promise<GatewayResult<IdentifyDto>>
   /** ICMP ping + thử mở cổng điều khiển TCP. */
   ping(p: Projector): Promise<GatewayResult<PingDto>>
   listProjects(): Promise<GatewayResult<ProjectSummaryDto[]>>
@@ -29,7 +53,8 @@ export interface Gateway {
 
 export function toTarget(p: Projector): TargetDto {
   const { type, port, username, password, commands } = p.network.protocol
-  return { ip: p.network.ip, protocol: { type, port, username, password, commands } }
+  const brand = previewBrandOf(type, p.model)
+  return { ip: p.network.ip, protocol: { type, port, username, password, commands }, ...(brand ? { brand } : {}) }
 }
 
 const TOKEN_KEY = 'mikmaster.gatewayToken'
@@ -57,7 +82,8 @@ async function call<T>(base: string, token: string | null, path: string, body?: 
     if (token) headers.Authorization = `Bearer ${token}`
     const res = await fetch(base + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) })
     const json = await res.json().catch(() => null)
-    if (res.ok) return { ok: true, value: json as T }
+    // 200 nhưng thân không phải JSON (bị proxy / trang khác che): coi là lỗi, không đưa `null` vào giao diện.
+    if (res.ok) return json === null ? { ok: false, code: 'network', message: 'Unexpected answer from the gateway' } : { ok: true, value: json as T }
     const err = json?.error
     return { ok: false, code: err?.code ?? 'network', message: err?.message ?? `Gateway error (${res.status})` }
   } catch {
@@ -76,7 +102,20 @@ export function createHttpGateway(base = '', token: string | null = null): Gatew
       const r = await call<{ reply: string }>(base, token, '/api/devices/raw', { target: toTarget(p), text })
       return r.ok ? { ok: true, value: r.value.reply } : r
     },
+    preview: (p, opts) => call<PreviewDto>(base, token, '/api/devices/preview', { target: toTarget(p), ...(opts?.preshow !== undefined ? { preshow: opts.preshow } : {}) }),
+    getQuickLogins: () => call<QuickLoginsDto>(base, token, '/api/quick-logins', undefined, 'GET'),
+    saveQuickLogins: logins => call<unknown>(base, token, '/api/quick-logins', logins, 'PUT'),
+    accountSignIn: (email, password) => call<AccountResult>(base, token, '/api/account/login', { email, password }),
+    accountSignUp: (email, password) => call<AccountResult>(base, token, '/api/account/signup', { email, password }),
+    accountSignOut: () => call<AccountResult>(base, token, '/api/account/logout', {}),
+    getCommandOverrides: () => call<CommandOverridesDto>(base, token, '/api/command-overrides', undefined, 'GET'),
+    saveCommandOverrides: o => call<CommandOverridesDto>(base, token, '/api/command-overrides', o, 'PUT'),
+    getLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'GET'),
+    installLicense: key => call<LicenseStatusDto>(base, token, '/api/license', { key }, 'PUT'),
+    removeLicense: () => call<LicenseStatusDto>(base, token, '/api/license', undefined, 'DELETE'),
+    checkLicenseOnline: () => call<LicenseStatusDto>(base, token, '/api/license/check', {}),
     quit: () => call<unknown>(base, token, '/api/app/quit', {}),
+    identify: (ip, creds) => call<IdentifyDto>(base, token, '/api/devices/identify', { ip, ...creds }),
     ping: p => call<PingDto>(base, token, '/api/devices/ping', { target: toTarget(p) }),
     listProjects: () => call<ProjectSummaryDto[]>(base, token, '/api/projects', undefined, 'GET'),
     loadProject: id => call<ProjectSnapshotDto>(base, token, `/api/projects/${encodeURIComponent(id)}`, undefined, 'GET'),
@@ -110,7 +149,7 @@ export type Detection =
   /** Có gateway nhưng thiếu / sai token. */
   | { kind: 'locked'; hadToken: boolean }
 
-/** `none` nếu không có gateway (chưa chạy `pnpm server`) → app dùng chế độ mô phỏng. */
+/** `none` nếu không có gateway (chưa chạy `pnpm run server`) → app dùng chế độ mô phỏng. */
 export async function detectGateway(base = '', explicitToken?: string): Promise<Detection> {
   try {
     const token = explicitToken ?? loadToken()

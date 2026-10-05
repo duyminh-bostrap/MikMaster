@@ -1,27 +1,46 @@
-import type { CommandDto, StatusDto } from '../../../shared/api.ts'
+import type { CommandDto, LensReadingDto, StatusDto } from '../../../shared/api.ts'
 import { DeviceError, TcpConnection, serialize, splitParens } from '../net/tcp.ts'
+import { christieInputs, christieWebPort } from './christieWeb.ts'
 import type { Driver, DriverTarget, ProbeResult } from './types.ts'
 
 /*
  * Christie serial-over-IP (Griffyn, cổng 3002).
  *
- * Nguồn: thư viện christie-mseries (dòng M) và kết quả tìm kiếm tài liệu Christie; tài liệu
- * riêng của Griffyn CHƯA truy cập được và CHƯA thử trên máy thật.
+ * Nguồn: thư viện christie-mseries (dòng M) và kết quả tìm kiếm tài liệu Christie.
+ * ĐÃ hỏi thử (chỉ lệnh "?") trên Griffyn 4K50-RGB thật, firmware griffyn 1.3.7 (2026-09-29):
+ * PWR? SHU? SIN? CHA? ITP? OSD? và nhóm trạng thái SST+TEMP / SST+SYST / SST+LGHT / SST+CONF / SST+SIGN.
+ *   Không có trên Griffyn (ERR00101 "Control Not Found"): LPP, LOP, BRT, CON — độ sáng laser chưa tìm được lệnh.
+ *   `(SST+TEMP?)` → nhiều khung `(SST+TEMP!002 000 "30 °C" "Air Intake Temperature \(Temp 2\)")`
+ *   `(SST+SYST?)` → … `(SST+SYST!000 000 "466:50 \(h:m\)" "Projector Hours")` …
  *
- *   Lệnh    : "(PWR1)" đặt, "(PWR?)" hỏi — mã 3 chữ, có thể kèm subcode 4 chữ "(FUNC+SUBC ...)"
- *   Phản hồi: `(PWR!000 "Standby Mode")` — mã, dấu "!", giá trị số, mô tả trong nháy kép
+ *   Lệnh    : "(PWR 1)" đặt (dữ liệu cách mã một dấu cách), "(PWR?)" hỏi — mã 3 chữ, có thể kèm subcode "(FUNC+SUBC ...)"
+ *   Phản hồi: `(PWR!000 "Standby Mode")` hoặc `(PWR! 001 "On")` — mã, "!", giá trị số độ dài cố định, mô tả
+ *   (Tài liệu tổng hợp do người dùng cung cấp, 2026-09: xác nhận PWR 1/0, SHU 1 = đóng / 0 = mở, cổng 3002.)
+ *
+ * Tài liệu chính thức "4K7-HS and 4K10-HS Technical Reference — Serial Commands" (020-102782-02, 2021) do người dùng cung cấp:
+ * dòng máy khác Griffyn nhưng cùng họ lệnh. Dùng ở đây: `(OSD <0|1>)` hiện / ẩn OSD (Griffyn trả lời `(OSD?)` → `(OSD!000)`),
+ * `(ITP <n>)` test pattern (0 tắt, 1 lưới, 2 trắng, 3 đen, 4 ô cờ, 5 thanh màu, 6 đỏ, 7 xanh lá, 8 xanh dương, 9 vàng, 10 tím, 11 lục lam,
+ * 12 boresight, 13 toàn màn hình). Menu Test Pattern của Griffyn 4K50-RGB (ảnh người dùng): Off, Grid, Gray Scale 16, Flat White/Gray/Black, Checker, 17 Point, Edge Blend, Color Bars, Multi-color, các Ramp, Grid vuông/chéo, Prism, Boresight, Convergence, Integrator Rod… — KHÔNG có mẫu đỏ / xanh lá / xanh dương phẳng. Số mẫu CHƯA kiểm trên Griffyn (mới xác nhận `(ITP?)` → `(ITP!000 "Off")`).
+ * Có trong tài liệu nhưng CHƯA làm: `(LMA n)` / `(LMS n)` nạp / lưu 5 bộ nhớ lens (0–4), `(KEY n)` phím menu, `(LCB+HOME 1)` lens về giữa,
+ * `(SIN+MAIN n)` chọn input — số input của 4K7-HS (3 = HDMI 1…) KHÁC Griffyn (`(SIN!001 "One-Port HDMI0")`) nên không dùng.
  *
  * Các điểm chưa chắc, cố ý tách riêng để sửa một chỗ khi có tài liệu Griffyn:
  *   - POWER_STATE: ý nghĩa các giá trị số ngoài 0/1 → suy từ phần mô tả.
  *   - SHUTTER_CLOSED: (SHU1) = đóng, (SHU0) = mở.
  */
+/** Đã hỏi thử trên Griffyn 4K50 thật: `(LHO!-003)` `(LVO!-604)` `(ZOM!-050)` `(FCS!273)`. */
+const LENS_QUERIES = [['LHO', 'shiftH'], ['LVO', 'shiftV'], ['ZOM', 'zoom'], ['FCS', 'focus']] as const satisfies readonly (readonly [string, keyof LensReadingDto])[]
+
+/** Loại mẫu của app → số `(ITP n)`; mẫu không có tương ứng thì không hỗ trợ. */
+const ITP_PATTERNS: Record<string, number> = { grid: 1, white: 2, black: 3, 'color-bars': 5 }
+
 const SHUTTER_CLOSED = '1'
 const SHUTTER_OPEN = '0'
 
 interface Reply { code: string; value: string; description: string }
 
 function parseFrame(frame: string): Reply {
-  const m = /^\(([A-Z]{3}(?:\+[A-Z]{4})?)!(\S*)(?:\s+"(.*)")?\s*\)$/.exec(frame)
+  const m = /^\(([A-Z]{3}(?:\+[A-Z0-9]{4})?)!\s*([^\s")]*)(?:\s+"(.*)")?\s*\)$/.exec(frame)
   if (!m) throw new DeviceError('device', `Projector replied ${frame.slice(0, 80)}`)
   return { code: m[1]!, value: m[2] ?? '', description: m[3] ?? '' }
 }
@@ -34,6 +53,72 @@ function exchange(t: DriverTarget, text: string): Promise<string> {
       return await conn.read()
     } finally { conn.close() }
   })
+}
+
+/** Nhóm trạng thái SST trả về nhiều khung, không có khung kết thúc → đọc tới khi máy ngừng gửi. */
+const SST_IDLE_MS = 250
+
+function exchangeMany(t: DriverTarget, text: string): Promise<string[]> {
+  return serialize(`${t.host}:${t.port}`, async () => {
+    const conn = await TcpConnection.open(t.host, t.port, t.timeoutMs, splitParens)
+    try {
+      conn.write(text)
+      const frames = [await conn.read()]
+      for (;;) {
+        const next = await conn.read(SST_IDLE_MS).catch(() => undefined)
+        if (next === undefined) return frames
+        frames.push(next)
+      }
+    } finally { conn.close() }
+  })
+}
+
+export interface SstItem { index: string; value: string; label: string }
+
+/** `(SST+TEMP!002 000 "30 °C" "Air Intake Temperature \(Temp 2\)")` → { index, value, label } (bỏ khung lỗi). */
+export function parseSst(frame: string): SstItem | null {
+  const q = '"((?:[^"\\\\]|\\\\.)*)"'
+  const m = new RegExp(`^\\(SST\\+[A-Z]{4}!(\\d+)\\s+\\d+\\s+${q}\\s+${q}\\s*\\)$`).exec(frame)
+  if (!m) return null
+  const unescape = (x: string) => x.replace(/\\(.)/g, '$1').trim()
+  return { index: m[1]!, value: unescape(m[2]!), label: unescape(m[3]!) }
+}
+
+async function sst(t: DriverTarget, group: string): Promise<SstItem[]> {
+  const frames = await exchangeMany(t, `(SST+${group}?)`)
+  return frames.map(parseSst).filter((x): x is SstItem => x !== null)
+}
+
+/** Nhiệt độ các cảm biến; nhiệt độ chính = khí vào (Air Intake), không có thì cảm biến đầu tiên. */
+export function temperaturesFrom(items: SstItem[]): { main?: number; sensors: { name: string; c: number }[] } {
+  const sensors = items.flatMap(i => {
+    // Máy gửi "°" dạng UTF-8; kết nối đọc latin1 nên có thể thành "Â°".
+    const m = /(-?\d+(?:\.\d+)?)\s*(?:Â?°)?\s*C\b/.exec(i.value)
+    return m ? [{ name: i.label.replace(/\s*Temperature\b/i, '').trim(), c: Number(m[1]) }] : []
+  })
+  const main = (sensors.find(s => /intake/i.test(s.name)) ?? sensors[0])?.c
+  return { main, sensors }
+}
+
+/** Giờ nguồn sáng: "Laser On Hours" (SST+LGHT, "260.3") hoặc "Projector Hours" (SST+SYST, "466:50 (h:m)"). */
+export function hoursFrom(items: SstItem[], label: RegExp): number | undefined {
+  const item = items.find(i => label.test(i.label))
+  const m = item && /^\s*(\d+)/.exec(item.value)
+  return m ? Number(m[1]) : undefined
+}
+
+/**
+ * `(SIN!001 "One-Port HDMI0")` → nhãn input của app. Cổng Christie đánh số từ 0 (HDMI0 = "HDMI Port 1").
+ * Chỉ để ĐỌC; đổi input cần bảng số SIN của từng cấu hình cổng — chưa xác minh.
+ */
+export function inputFrom(description: string): string | undefined {
+  const m = /(HDMI|SDI|DP|DisplayPort|HDBaseT)\s*(\d)?\s*$/i.exec(description)
+  if (!m) return undefined
+  const kind = m[1]!.toUpperCase(), n = Number(m[2] ?? 0) + 1
+  if (kind === 'HDMI') return n <= 2 ? `HDMI ${n}` : undefined
+  if (kind === 'SDI') return n <= 2 ? `SDI ${n}` : undefined
+  if (kind === 'DP' || kind === 'DISPLAYPORT') return 'DisplayPort'
+  return 'HDBaseT'
 }
 
 async function query(t: DriverTarget, code: string): Promise<Reply> {
@@ -60,16 +145,51 @@ export const christieDriver: Driver = {
         throw err
       })
       if (shu) status.shutter = shu.value.replace(/^0+(?=\d)/, '') === SHUTTER_CLOSED
+      const sin = await query(t, 'SIN').catch(() => undefined)
+      if (sin) status.input = inputFrom(sin.description)
+      const osd = await query(t, 'OSD').catch(() => undefined)
+      if (osd && /^\d+$/.test(osd.value)) status.osd = Number(osd.value) === 1
     }
+    // Vị trí ống kính (chỉ hỏi "?", không bao giờ gửi lệnh di chuyển): `(LHO!-003)` → -3.
+    const lens: LensReadingDto = {}
+    for (const [code, key] of LENS_QUERIES) {
+      const r = await query(t, code).catch(() => undefined)
+      const n = r && /^[+-]?\d+$/.test(r.value) ? Number(r.value) : NaN
+      if (Number.isFinite(n)) lens[key] = n
+    }
+    if (Object.keys(lens).length > 0) status.lens = lens
+    // Số liệu phụ: lỗi (máy cũ không có nhóm SST) chỉ làm thiếu số liệu, không hỏng trạng thái.
+    const temps = await sst(t, 'TEMP').then(temperaturesFrom, () => undefined)
+    if (temps?.main !== undefined) status.temperatureC = temps.main
+    if (temps?.sensors.length) status.temperatures = temps.sensors
+    const hours = await sst(t, 'LGHT').then(i => hoursFrom(i, /laser on hours/i), () => undefined)
+      ?? await sst(t, 'SYST').then(i => hoursFrom(i, /projector hours/i), () => undefined)
+    if (hours !== undefined) status.lampHours = hours
     return status
   },
 
   async command(t, c: CommandDto) {
     switch (c.kind) {
-      case 'power': parseFrame(await exchange(t, `(PWR${c.value === 'on' ? 1 : 0})`)); return
-      case 'shutter': parseFrame(await exchange(t, `(SHU${c.closed ? SHUTTER_CLOSED : SHUTTER_OPEN})`)); return
-      case 'input': throw new DeviceError('unsupported', 'Christie input/channel mapping is not verified for Griffyn')
+      case 'power': parseFrame(await exchange(t, `(PWR ${c.value === 'on' ? 1 : 0})`)); return
+      case 'shutter': parseFrame(await exchange(t, `(SHU ${c.closed ? SHUTTER_CLOSED : SHUTTER_OPEN})`)); return
+      case 'input': {
+        // Griffyn không có (SIN+MAIN n) (đã thử: "Control Not Found"). Trang web của máy chọn input bằng (SIN idx), idx lấy từ danh sách input của máy
+        // (video:getInputInfo) — nên cần tài khoản web của máy; tên input của máy được ánh xạ sang nhãn của app như khi đọc input hiện tại.
+        const inputs = await christieInputs(t, christieWebPort())
+        const match = inputs.find(i => inputFrom(i.name) === c.input)
+        if (!match) throw new DeviceError('unsupported', `The projector has no input "${c.input}" (it lists: ${inputs.map(i => i.name).join(', ') || 'none'})`)
+        parseFrame(await exchange(t, `(SIN ${match.idx})`))
+        return
+      }
       case 'osd': throw new DeviceError('unsupported', 'Christie OSD navigation has no verified command')
+      case 'osdDisplay': parseFrame(await exchange(t, `(OSD ${c.visible ? 1 : 0})`)); return
+      case 'testPattern': {
+        if (!c.enabled) { parseFrame(await exchange(t, '(ITP 0)')); return }
+        const n = ITP_PATTERNS[c.pattern ?? 'grid']
+        if (n === undefined) throw new DeviceError('unsupported', `Christie has no "${c.pattern}" test pattern (available: ${Object.keys(ITP_PATTERNS).join(', ')})`)
+        parseFrame(await exchange(t, `(ITP ${n})`))
+        return
+      }
     }
   },
 

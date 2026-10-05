@@ -1,7 +1,7 @@
 // Đóng gói MikMaster thành MỘT file chạy (Node Single Executable Application):
 // gateway + giao diện web nhúng sẵn; máy chạy không cần cài Node hay pnpm.
 //
-//   pnpm build:exe          → release/MikMaster.exe (Windows), release/MikMaster.dmg (macOS), release/MikMaster (Linux)
+//   pnpm build:exe          → release/MikMaster.exe (Windows), release/MikMaster.dmg + release/MikMaster-Setup.pkg (macOS), release/MikMaster (Linux)
 //
 // File chạy được build cho đúng hệ điều hành đang chạy lệnh (Windows → .exe). Bản .exe build sẵn
 // trên máy Windows của GitHub Actions: workflow "Build executables".
@@ -46,6 +46,8 @@ await build({
   outfile: path.join(work, 'gateway.cjs'),
   bundle: true, platform: 'node', format: 'cjs', target: 'node22',
   legalComments: 'none', logLevel: 'warning',
+  // Ngày phát hành của bản build: bản quyền "cập nhật đến ngày X" so sánh với ngày này (server/src/buildInfo.ts).
+  define: { __MIKMASTER_BUILD_DATE__: JSON.stringify(process.env.MIKMASTER_BUILD_DATE ?? new Date().toISOString()) },
 })
 
 step('Embedding the web app')
@@ -146,10 +148,17 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
   fs.symlinkSync('/Applications', path.join(staging, 'Applications'))
   const dmg = path.join(out, 'MikMaster.dmg')
   fs.rmSync(dmg, { force: true })
+  // hdiutil tự ước lượng dung lượng từ -srcfolder đôi khi thiếu ("No space left on device") → đặt -size dư ra.
+  let bytes = 0
+  // Chỉ đếm .app — không đi theo symlink /Applications.
+  for (const e of fs.readdirSync(path.join(staging, 'MikMaster.app'), { recursive: true, withFileTypes: true })) {
+    if (e.isFile()) bytes += fs.statSync(path.join(e.parentPath, e.name)).size
+  }
+  const sizeMb = Math.ceil(bytes / 1024 / 1024 * 1.25) + 32
   // hdiutil trên máy macOS của CI thỉnh thoảng lỗi "Resource busy" → thử lại vài lần.
   for (let attempt = 1; ; attempt++) {
     try {
-      run('hdiutil', ['create', '-volname', 'MikMaster', '-srcfolder', staging, '-ov', '-format', 'UDZO', dmg])
+      run('hdiutil', ['create', '-volname', 'MikMaster', '-srcfolder', staging, '-size', `${sizeMb}m`, '-fs', 'HFS+', '-ov', '-format', 'UDZO', dmg])
       break
     } catch (err) {
       if (attempt >= 3) throw err
@@ -157,5 +166,37 @@ ${Object.entries(plist).map(([k, v]) => `  <key>${k}</key>${value(v)}`).join('\n
       Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5000 * attempt)
     }
   }
+
+  // Bộ cài .pkg (bấm đúp → Installer → cài vào /Applications), tương đương MikMaster-Setup.exe bên Windows.
+  // preinstall tắt gateway của bản cũ đang chạy nền — nếu không, mở bản mới sẽ chỉ mở lại bản cũ ("Port 8787 is already in use").
+  step('Creating MikMaster-Setup.pkg')
+  const scripts = path.join(work, 'pkg-scripts')
+  fs.mkdirSync(scripts, { recursive: true })
+  fs.writeFileSync(path.join(scripts, 'preinstall'), [
+    '#!/bin/sh',
+    'pkill -f "MikMaster.app/Contents/Resources/mikmaster-gateway" 2>/dev/null',
+    'exit 0',
+    '',
+  ].join('\n'), { mode: 0o755 })
+  const setupPkg = path.join(out, 'MikMaster-Setup.pkg')
+  fs.rmSync(setupPkg, { force: true })
+  // Không cho Installer "relocate": mặc định gói .pkg tìm bản .app cùng bundle id ở BẤT KỲ đâu trên máy (vd. release/MikMaster.app
+  // của lần build cũ) và cập nhật bản đó thay vì cài vào /Applications.
+  const pkgRoot = path.join(work, 'pkg-root')
+  fs.mkdirSync(pkgRoot, { recursive: true })
+  run('ditto', [app, path.join(pkgRoot, 'MikMaster.app')])
+  const componentPlist = path.join(work, 'component.plist')
+  fs.writeFileSync(componentPlist, `<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0"><array><dict>
+  <key>RootRelativeBundlePath</key><string>MikMaster.app</string>
+  <key>BundleIsRelocatable</key><false/>
+  <key>BundleIsVersionChecked</key><false/>
+  <key>BundleHasStrictIdentifier</key><false/>
+  <key>BundleOverwriteAction</key><string>upgrade</string>
+</dict></array></plist>
+`)
+  run('pkgbuild', ['--root', pkgRoot, '--component-plist', componentPlist, '--install-location', '/Applications', '--scripts', scripts,
+    '--identifier', 'com.mikmaster.app.pkg', '--version', pkg.version, setupPkg])
   return dmg
 }

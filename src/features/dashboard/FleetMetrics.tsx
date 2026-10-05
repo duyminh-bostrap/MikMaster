@@ -1,37 +1,10 @@
+import { useEffect, useState } from 'react'
 import { cn } from '@/utils/cn'
-import { formatHours } from '@/utils/format'
-import type { FleetStats } from '@/utils/fleet'
-import { TONE_BG, TONE_TEXT, temperatureTone, type Tone } from '@/utils/tones'
+import { formatDuration } from '@/utils/format'
+import { longestOnMs, type FleetStats } from '@/utils/fleet'
+import { TEMP_RANGE, TONE_BG, TONE_TEXT, temperatureTone } from '@/utils/tones'
 import type { Projector } from '@/types'
-
-const RADIUS = 22
-const CIRCUMFERENCE = 2 * Math.PI * RADIUS
-
-function healthTone(ratio: number): Tone {
-  if (ratio >= 0.9) return 'ok'
-  if (ratio >= 0.6) return 'warn'
-  return 'danger'
-}
-
-function FleetHealthGauge({ online, total }: { online: number; total: number }) {
-  const ratio = total === 0 ? 0 : online / total
-  const tone = healthTone(ratio)
-  return (
-    <div className="relative size-[60px]">
-      <svg width="60" height="60" viewBox="0 0 60 60" className="-rotate-90" aria-hidden>
-        <circle cx="30" cy="30" r={RADIUS} fill="none" strokeWidth="5" className="stroke-border" />
-        <circle
-          cx="30" cy="30" r={RADIUS} fill="none" strokeWidth="5" strokeLinecap="round"
-          strokeDasharray={`${CIRCUMFERENCE * ratio} ${CIRCUMFERENCE}`}
-          className={cn('transition-[stroke-dasharray] duration-500', { ok: 'stroke-ok', warn: 'stroke-warn', danger: 'stroke-danger', accent: 'stroke-accent', off: 'stroke-off' }[tone])}
-        />
-      </svg>
-      <span className="absolute inset-0 flex items-center justify-center font-mono text-[11px] font-bold text-foreground">
-        {total === 0 ? '—' : `${Math.round(ratio * 100)}%`}
-      </span>
-    </div>
-  )
-}
+import { t } from '@/i18n'
 
 function TempChart({ projectors }: { projectors: Projector[] }) {
   const active = projectors.filter(p => p.power !== 'off')
@@ -42,7 +15,7 @@ function TempChart({ projectors }: { projectors: Projector[] }) {
           key={p.id}
           title={`${p.name}: ${p.telemetry.temperatureC}°C`}
           className={cn('w-2.5 shrink-0 rounded-sm opacity-80', TONE_BG[temperatureTone(p.telemetry.temperatureC)])}
-          style={{ height: Math.max(4, Math.round((p.telemetry.temperatureC / 90) * 32)) }}
+          style={{ height: Math.max(4, Math.min(32, Math.round(((p.telemetry.temperatureC - TEMP_RANGE.min) / (TEMP_RANGE.max - TEMP_RANGE.min)) * 32))) }}
         />
       ))}
     </div>
@@ -58,35 +31,29 @@ function Stat({ value, label, valueClassName }: { value: string | number; label:
   )
 }
 
-// Khi hàng bị xuống dòng (vùng nội dung hẹp) các vạch chia sẽ lẻ loi → ẩn theo bề rộng container.
-const Divider = () => <div className="h-10 w-px bg-border @max-[1120px]:hidden" />
+// Hàng thống kê (cột 3, hàng dưới của hàng điều khiển): khi bị xuống dòng các vạch chia sẽ lẻ loi → ẩn theo bề rộng container.
+const Divider = () => <div className="h-7 w-px bg-border @max-[640px]:hidden" />
 
-export function FleetMetrics({ stats, projectors, actions }: { stats: FleetStats; projectors: Projector[]; actions: React.ReactNode }) {
-  const avgTone = stats.avgTemp > 65 ? 'danger' : stats.avgTemp > 50 ? 'warn' : null
+export function FleetMetrics({ stats, projectors }: { stats: FleetStats; projectors: Projector[] }) {
+  const avgTone = stats.avgTemp > 0 ? temperatureTone(stats.avgTemp) : null
+  const [now, setNow] = useState(() => Date.now())
+  useEffect(() => { const id = setInterval(() => setNow(Date.now()), 30_000); return () => clearInterval(id) }, [])
+  const onMs = longestOnMs(projectors, now)
   return (
-    <div className="@container shrink-0 border-b border-border bg-muted">
-    <div className="flex flex-wrap items-center gap-x-4 gap-y-3 px-5 py-3">
-      <div className="flex items-center gap-3">
-        <FleetHealthGauge online={stats.online} total={stats.total} />
-        <div className="font-mono text-xs">
-          <p className="font-medium text-foreground">{stats.online}/{stats.total} Operational</p>
-          <p className="text-muted-foreground">Fleet Health</p>
-        </div>
-      </div>
+    <div data-testid="fleet-stats" className="@container min-w-0">
+    <div className="flex flex-wrap items-center justify-end gap-x-3 gap-y-2">
+      <Stat value={stats.alerts} label={t('Active Alerts')} valueClassName={stats.alerts > 0 ? 'text-danger' : 'text-ok'} />
       <Divider />
-      <Stat value={stats.alerts} label="Active Alerts" valueClassName={stats.alerts > 0 ? 'text-danger' : 'text-ok'} />
-      <Divider />
-      <Stat value={stats.avgTemp > 0 ? `${stats.avgTemp}°C` : '—'} label="Avg Temperature" valueClassName={avgTone ? TONE_TEXT[avgTone] : undefined} />
+      <Stat value={stats.avgTemp > 0 ? `${stats.avgTemp}°C` : '—'} label={t('Avg Temperature')} valueClassName={avgTone ? TONE_TEXT[avgTone] : undefined} />
       <Divider />
       <div className="flex flex-col gap-1">
         <TempChart projectors={projectors} />
         <span className="font-mono text-xs text-muted-foreground">
-          Hottest: {stats.hottest ? `${stats.hottest.name} ${stats.hottest.telemetry.temperatureC}°C` : '—'}
+          {t('Hottest:')} {stats.hottest ? `${stats.hottest.name} ${stats.hottest.telemetry.temperatureC}°C` : '—'}
         </span>
       </div>
       <Divider />
-      <Stat value={formatHours(stats.totalLampHours)} label="Total Lamp Hours" />
-      <div className="ml-auto">{actions}</div>
+      <Stat value={onMs > 0 ? formatDuration(onMs) : '—'} label={t('Time Since Power On')} />
     </div>
     </div>
   )

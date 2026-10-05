@@ -7,6 +7,7 @@ import { useProjectActions } from '@/store/hooks'
 import type { Projector } from '@/types'
 import { LensAxisControl } from './LensAxisControl'
 import { LensPresetSection } from './LensPresetSection'
+import { t } from '@/i18n'
 
 /** Cột phải của trang Detail: Lens Shift / Zoom / Focus + Presets. */
 export function LensPanel({ projector: p }: { projector: Projector }) {
@@ -15,10 +16,10 @@ export function LensPanel({ projector: p }: { projector: Projector }) {
 
   return (
     <>
-      <SectionHeader label="LENS SHIFT" />
+      <SectionHeader label={t('LENS SHIFT')} />
       <div className="mb-4 flex items-center justify-between">
         <DirectionPad
-          label="Lens shift"
+          label={t('Lens shift')}
           center={<span className="size-2 rounded-full bg-border" />}
           onPress={dir => {
             if (dir === 'up') adjustLens(p.id, { shiftY: LENS_STEP })
@@ -30,13 +31,13 @@ export function LensPanel({ projector: p }: { projector: Projector }) {
         <div className="ml-3 flex flex-col gap-1.5 font-mono text-xs">
           <div className="flex justify-between gap-4"><span className="text-[10px] text-muted-foreground">H</span><span className="tabular-nums">{formatSigned(shiftX)}</span></div>
           <div className="flex justify-between gap-4"><span className="text-[10px] text-muted-foreground">V</span><span className="tabular-nums">{formatSigned(shiftY)}</span></div>
-          <Button size="xs" className="text-muted-foreground" onClick={() => resetLensShift(p.id)}>RESET</Button>
+          <Button size="xs" className="text-muted-foreground" onClick={() => resetLensShift(p.id)}>{t('RESET')}</Button>
         </div>
       </div>
 
       <div className="mb-5 grid grid-cols-2 gap-4">
-        <LensAxisControl label="ZOOM" value={zoom} decLabel="−" incLabel="+" tone="accent" onDec={() => adjustLens(p.id, { zoom: -LENS_STEP })} onInc={() => adjustLens(p.id, { zoom: LENS_STEP })} />
-        <LensAxisControl label="FOCUS" value={focus} decLabel="NEAR" incLabel="FAR" tone="warn" onDec={() => adjustLens(p.id, { focus: -LENS_STEP })} onInc={() => adjustLens(p.id, { focus: LENS_STEP })} />
+        <LensAxisControl label={t('ZOOM')} value={zoom} decLabel="−" incLabel="+" tone="accent" onDec={() => adjustLens(p.id, { zoom: -LENS_STEP })} onInc={() => adjustLens(p.id, { zoom: LENS_STEP })} />
+        <LensAxisControl label={t('FOCUS')} value={focus} decLabel="NEAR" incLabel="FAR" tone="warn" onDec={() => adjustLens(p.id, { focus: -LENS_STEP })} onInc={() => adjustLens(p.id, { focus: LENS_STEP })} />
       </div>
 
       <LensPresetSection projector={p} />

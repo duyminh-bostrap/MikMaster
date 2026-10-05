@@ -1,5 +1,6 @@
 import { ArrowRight, Check } from 'lucide-react'
 import { useState } from 'react'
+import { usePref } from '@/services/prefs'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Field, TextInput } from '@/components/ui/Field'
@@ -7,7 +8,7 @@ import { Panel } from '@/components/ui/Panel'
 import { saveDeviceCredentials, saveSharedCredentials } from '@/services/credentialCache'
 import type { ProjectSnapshot } from '@/services/projectRepository'
 import { cn } from '@/utils/cn'
-import { lacksPassword, type Credentials } from '@/utils/credentials'
+import { loginGroups, type Credentials } from '@/utils/credentials'
 import { BoothEditor } from './BoothEditor'
 import { DeviceList } from './DeviceList'
 import { LaunchPanel } from './LaunchPanel'
@@ -16,8 +17,8 @@ import { ManualAddForm } from './ManualAddForm'
 import { ScanPanel } from './ScanPanel'
 import { useNetworkScan } from './useNetworkScan'
 import { useNewProjectDraft } from './useNewProjectDraft'
+import { t } from '@/i18n'
 
-const DEFAULT_RANGE = { from: '192.168.1.1', to: '192.168.1.254' }
 const STEPS = ['PROJECT', 'SCAN'] as const
 type Step = 0 | 1
 
@@ -36,7 +37,7 @@ function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
                 i === step ? 'border-primary bg-primary text-primary-foreground' : done ? 'border-primary/60 text-primary' : 'border-border')}>
                 {done ? <Check size={10} strokeWidth={3} /> : i + 1}
               </span>
-              {label}
+              {t(label)}
             </button>
           </li>
         )
@@ -49,7 +50,7 @@ function Stepper({ step, onGo }: { step: Step; onGo: (s: Step) => void }) {
 export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onLaunch: (snapshot: ProjectSnapshot) => void }) {
   const draft = useNewProjectDraft()
   const [step, setStep] = useState<Step>(0)
-  const [range, setRange] = useState(DEFAULT_RANGE)
+  const [range, setRange] = usePref('scanRange')
   const scan = useNetworkScan(range, draft.addDiscovered)
   const { start: startScan } = scan
   const { clearScanned } = draft
@@ -62,12 +63,13 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
   }
   const back = () => (step === 0 ? onBack() : setStep(0))
 
-  const loginTargets = draft.devices.filter(d => d.selected && lacksPassword(d.projector)).length
+  const groups = loginGroups(draft.devices.filter(d => d.selected).map(d => d.projector))
 
-  function launch(login?: Credentials) {
-    const payload = draft.buildLaunchPayload(login)
-    // Ghi cache để mở lại project trong phiên này không phải nhập lại.
-    if (login) saveSharedCredentials(login)
+  function launch(logins?: Record<string, Credentials>) {
+    const payload = draft.buildLaunchPayload(logins)
+    // Ghi cache để mở lại project trong phiên này không phải nhập lại. Tài khoản dùng chung (điền sẵn cho máy mới) chỉ khi có đúng một loại.
+    const given = Object.values(logins ?? {}).filter(c => c.username || c.password)
+    if (given.length === 1 && groups.filter(g => g.required).length <= 1) saveSharedCredentials(given[0]!)
     for (const p of payload.projectors) {
       const { username, password, port } = p.network.protocol
       if (username || password) saveDeviceCredentials(p.network.ip, port, { username, password })
@@ -77,18 +79,18 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
 
   return (
     <div className={cn('w-full', step === 1 ? 'max-w-6xl' : 'max-w-xl')}>
-      <StepHeader title="New Project" onBack={back}
-        aside={step === 1 && draft.devices.length > 0 ? <Badge tone="accent">{draft.devices.length} found · {draft.selectedCount} selected</Badge> : undefined} />
+      <StepHeader title={t('New Project')} onBack={back}
+        aside={step === 1 && draft.devices.length > 0 ? <Badge tone="accent">{t('{found} found · {selected} selected', { found: draft.devices.length, selected: draft.selectedCount })}</Badge> : undefined} />
       <Stepper step={step} onGo={setStep} />
 
       {step === 0 && (
         <form className="flex flex-col gap-4" onSubmit={e => { e.preventDefault(); next() }}>
-          <Panel title="PROJECT" bodyClassName="flex flex-col gap-3">
-            <Field label="PROJECT NAME">{id => <TextInput id={id} autoFocus value={draft.name} placeholder="e.g. Grand Tech Summit 2026" onChange={e => draft.setName(e.target.value)} />}</Field>
+          <Panel title={t('PROJECT')} bodyClassName="flex flex-col gap-3">
+            <Field label={t('PROJECT NAME')}>{id => <TextInput id={id} autoFocus value={draft.name} placeholder={t('e.g. Grand Tech Summit 2026')} onChange={e => draft.setName(e.target.value)} />}</Field>
           </Panel>
           <BoothEditor booths={draft.booths} onAdd={draft.addBooth} onRemove={draft.removeBooth} />
-          <p className="-mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">Booths are optional — every device starts in the first booth, and you can rename or move devices later on the dashboard.</p>
-          <Button type="submit" size="md" variant="primary" className="self-end px-6">NEXT: SCAN<ArrowRight size={13} strokeWidth={2.5} /></Button>
+          <p className="-mt-2 font-mono text-[10px] leading-relaxed text-muted-foreground">{t('Groups are optional — every device starts in the first group, and you can rename or move devices later on the dashboard.')}</p>
+          <Button type="submit" size="md" variant="primary" className="self-end px-6">{t('NEXT: SCAN')}<ArrowRight size={13} strokeWidth={2.5} /></Button>
         </form>
       )}
 
@@ -102,9 +104,9 @@ export function NewProjectWizard({ onBack, onLaunch }: { onBack: () => void; onL
           </div>
           <div className="flex flex-col gap-4">
             {(scan.status === 'done' || draft.devices.length > 0) && (
-              <LaunchPanel selected={draft.selectedCount} loginTargets={loginTargets} onLaunch={launch} />
+              <LaunchPanel selected={draft.selectedCount} groups={groups} onLaunch={launch} />
             )}
-            <ManualAddForm onAdd={draft.addManual} />
+            <ManualAddForm onAdd={draft.addManual} takenNames={draft.devices.map(d => d.projector.name)} />
           </div>
         </div>
       )}

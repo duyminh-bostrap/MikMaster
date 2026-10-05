@@ -3,7 +3,7 @@
   "configurations": [
     { "name": "Build (pnpm build)", "type": "node-terminal", "request": "launch", "command": "pnpm build" },
     { "name": "Web dev (vite)", "type": "node-terminal", "request": "launch", "command": "pnpm dev" },
-    { "name": "Gateway", "type": "node-terminal", "request": "launch", "command": "pnpm server" },
+    { "name": "Gateway", "type": "node-terminal", "request": "launch", "command": "pnpm run server" },
     { "name": "Simulators (pnpm sim)", "type": "node-terminal", "request": "launch", "command": "pnpm sim" },
     { "name": "Test: web + gateway", "type": "node-terminal", "request": "launch", "command": "pnpm test && pnpm test:server" },
     { "name": "Vitest: file hiện tại", "type": "node-terminal", "request": "launch", "command": "pnpm exec vitest run ${relativeFile}" }

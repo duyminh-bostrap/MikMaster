@@ -62,3 +62,26 @@ describe('project file', () => {
     expect(suggestedFileName('   ')).toBe('project.mikmaster.json')
   })
 })
+
+describe('file từ các bản cũ (0.2.x / 0.3.x)', () => {
+  test('còn venue, location của booth / máy, thiếu osd / commands → vẫn mở được, trường cũ bị bỏ qua', () => {
+    const old = JSON.stringify({
+      format: 'mikmaster-project', version: 1, exportedAt: '2026-09-29T10:00:00Z',
+      project: { id: 'proj-1', name: 'Old Show', venue: 'Hanoi Opera House', createdAt: '2026-09-29' },
+      booths: [{ id: 'booth-a', name: 'Main Stage', location: 'FOH Zone' }],
+      projectors: [{
+        id: 'PJ-01', boothId: 'booth-a', name: 'Stage Left', location: 'FOH', model: 'Panasonic PT-RQ35K',
+        network: { ip: '192.168.1.21', protocol: { type: 'panasonic-nt-control', port: 1024, username: 'admin1' } },
+        power: 'on', shutter: false, input: 'HDMI 1', testPattern: { enabled: false, type: 'grid' },
+        telemetry: { temperatureC: 40, lampHours: 100, brightness: 85 }, errors: [], connection: 'connected', log: [],
+        lens: { position: { shiftX: 0, shiftY: 0, zoom: 75, focus: 70 }, presets: [null, null, null, null], activePreset: null },
+      }],
+    })
+    const s = parseProjectFile(old)
+    expect(s.project).toEqual({ id: 'proj-1', name: 'Old Show', createdAt: '2026-09-29' })
+    expect(s.booths).toEqual([{ id: 'booth-a', name: 'Main Stage' }])
+    expect(s.projectors[0]).toMatchObject({ id: 'PJ-01', boothId: 'booth-a', name: 'Stage Left', network: { ip: '192.168.1.21', protocol: { type: 'panasonic-nt-control', port: 1024, username: 'admin1' } } })
+    expect(s.projectors[0]!.osd).toBeUndefined() // thiếu = OSD bật như trước
+    expect('location' in s.projectors[0]!).toBe(false) // location của máy đã bỏ từ 0.4
+  })
+})

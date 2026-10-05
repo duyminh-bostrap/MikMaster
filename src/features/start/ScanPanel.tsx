@@ -5,6 +5,7 @@ import { Panel } from '@/components/ui/Panel'
 import { TextInput } from '@/components/ui/Field'
 import { cn } from '@/utils/cn'
 import type { ScanRange, ScanStatus } from './useNetworkScan'
+import { t } from '@/i18n'
 
 const CELLS = 60
 
@@ -24,8 +25,8 @@ export function ScanPanel({ range, onRangeChange, status, progress, currentIp, e
     ? foundIps.map(ip => ipToInt(ip)).filter((n): n is number => n !== null && n >= check.from && n <= check.to).map(n => (n - check.from) / Math.max(1, check.count - 1))
     : []
   const aside =
-    status === 'scanning' ? <span className="animate-status font-mono text-xs text-ok">● SCANNING</span>
-    : status === 'done' ? <span className="font-mono text-xs text-ok">✓ COMPLETE</span>
+    status === 'scanning' ? <span className="animate-status font-mono text-xs text-ok">{t('● SCANNING')}</span>
+    : status === 'done' ? <span className="font-mono text-xs text-ok">{t('✓ COMPLETE')}</span>
     : null
 
   return (
@@ -37,15 +38,15 @@ export function ScanPanel({ range, onRangeChange, status, progress, currentIp, e
           </div>
           <RangeInputs range={range} onChange={onRangeChange} />
           <p className={cn('font-mono text-[10px]', check.ok ? 'text-muted-foreground' : 'text-danger')} role={check.ok ? undefined : 'alert'}>
-            {check.ok ? `${check.count} address${check.count === 1 ? '' : 'es'}` : check.error}
+            {check.ok ? t('{n} address(es)', { n: check.count }) : t(check.error)}
           </p>
-          <Button size="md" variant="primary" className="px-5" disabled={!check.ok} onClick={onStart}><Radar size={12} strokeWidth={2.5} />START NETWORK SCAN</Button>
+          <Button size="md" variant="primary" className="px-5" disabled={!check.ok} onClick={onStart}><Radar size={12} strokeWidth={2.5} />{t('START NETWORK SCAN')}</Button>
         </div>
       ) : (
         <div className="flex flex-col gap-3">
           <div>
             <div className="mb-1.5 flex justify-between font-mono text-xs">
-              <span className="text-muted-foreground">{status === 'scanning' ? `Probing ${currentIp}…` : 'Scan complete'}</span>
+              <span className="text-muted-foreground">{status === 'scanning' ? t('Probing {ip}…', { ip: currentIp }) : t('Scan complete')}</span>
               <span className="text-primary">{progress}%</span>
             </div>
             <div className="h-1.5 overflow-hidden rounded-full bg-muted">
@@ -61,13 +62,13 @@ export function ScanPanel({ range, onRangeChange, status, progress, currentIp, e
                 return <div key={i} className={cn('size-2.5 rounded-sm transition-all duration-200', scanned && hasDevice ? 'bg-accent shadow-[0_0_4px_rgb(6_182_212/0.4)]' : scanned ? 'bg-elevated-hover' : 'bg-[#0d1117]')} />
               })}
             </div>
-            <p className="mt-2 font-mono text-xs text-muted-foreground"><span className="text-accent">■</span> device found &nbsp; <span className="text-elevated-hover">■</span> scanned</p>
+            <p className="mt-2 font-mono text-xs text-muted-foreground"><span className="text-accent">■</span> {t('device found')} &nbsp; <span className="text-elevated-hover">■</span> {t('scanned')}</p>
           </div>
 
           {error && <p role="alert" className="font-mono text-xs text-danger">{error}</p>}
           {status === 'done' && (
             <div className="flex flex-wrap items-center gap-3">
-              <Button onClick={onStart} disabled={!check.ok}><RotateCcw size={11} />RESCAN</Button>
+              <Button onClick={onStart} disabled={!check.ok}><RotateCcw size={11} />{t('RESCAN')}</Button>
               <RangeInputs range={range} onChange={onRangeChange} compact />
             </div>
           )}
@@ -89,11 +90,11 @@ function RangeInputs({ range, onChange, compact = false }: { range: ScanRange; o
   const check = checkScanRange(range.from, range.to)
   return (
     <div className="flex items-center gap-2 font-mono text-xs text-muted-foreground">
-      {!compact && 'From'}
-      <TextInput aria-label="Scan from" value={range.from} invalid={ipToInt(range.from) === null} className={input} spellCheck={false}
+      {!compact && t('From')}
+      <TextInput aria-label={t('Scan from')} value={range.from} invalid={ipToInt(range.from) === null} className={input} spellCheck={false}
         onChange={e => changeFrom(e.target.value.trim())} />
       <span>–</span>
-      <TextInput aria-label="Scan to" value={range.to} invalid={ipToInt(range.to) === null || (!check.ok && ipToInt(range.from) !== null)} className={input} spellCheck={false}
+      <TextInput aria-label={t('Scan to')} value={range.to} invalid={ipToInt(range.to) === null || (!check.ok && ipToInt(range.from) !== null)} className={input} spellCheck={false}
         onChange={e => onChange({ ...range, to: e.target.value.trim() })} />
     </div>
   )

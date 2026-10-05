@@ -13,6 +13,7 @@ import { ChristieSimulator } from '../src/sim/christieSim.ts'
 import { PanasonicSimulator } from '../src/sim/panasonicSim.ts'
 import { PjlinkSimulator } from '../src/sim/pjlinkSim.ts'
 import { isAllowedHost } from '../src/security.ts'
+import { extractNumber } from '../src/readings.ts'
 
 let server: http.Server
 let base: string
@@ -38,10 +39,10 @@ async function post(path: string, body: unknown) {
 const panaTarget = (extra = {}) => ({ ip: '127.0.0.1', protocol: { type: 'panasonic-nt-control', port: pana.port, ...extra } })
 
 describe('HTTP API', () => {
-  test('health lists driver capabilities (no lens / test pattern)', async () => {
+  test('health lists driver capabilities (no lens)', async () => {
     const body = await (await fetch(`${base}/api/health`)).json() as any
     assert.equal(body.ok, true)
-    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'raw'])
+    assert.deepEqual(body.drivers['christie-serial-ip'], ['power', 'shutter', 'input', 'raw', 'preview', 'testPattern', 'osdDisplay'])
     for (const caps of Object.values<string[]>(body.drivers)) assert.ok(!caps.includes('lens'))
   })
 
@@ -174,6 +175,19 @@ describe('project storage', () => {
   })
   after(async () => { await new Promise(r => s.close(r)); fs.rmSync(dir, { recursive: true, force: true }) })
 
+  test('quick logins per brand: saved encrypted on disk, read back in clear', async () => {
+    assert.deepEqual(await (await fetch(`${u}/api/quick-logins`)).json(), {})
+    const body = { panasonic: { username: 'op', password: 'secret-p' }, christie: { username: 'viewer', password: 'secret-c' } }
+    const r = await fetch(`${u}/api/quick-logins`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+    assert.equal(r.status, 200)
+    assert.deepEqual(await (await fetch(`${u}/api/quick-logins`)).json(), body)
+    const onDisk = fs.readFileSync(path.join(dir, 'quick-logins.json'), 'utf8')
+    assert.ok(!onDisk.includes('secret-p') && !onDisk.includes('secret-c'))
+    assert.ok(onDisk.includes('"op"'))
+    const bad = await fetch(`${u}/api/quick-logins`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ christie: { username: 1 } }) })
+    assert.equal(bad.status, 400)
+  })
+
   test('save → list → load round trip returns the plaintext password', async () => {
     assert.equal((await put('show-1', snap('show-1', 'hunter2'))).status, 200)
     const list = await (await fetch(`${u}/api/projects`)).json() as any[]
@@ -256,7 +270,7 @@ describe('command templates over HTTP', () => {
   })
 
   test('templates never unlock commands for protocols that have a real driver', async () => {
-    const r = await post('/api/devices/command', { target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, commands: { powerOn: 'x', powerOff: 'y' } } }, command: { kind: 'input', input: 'HDMI 1' } })
+    const r = await post('/api/devices/command', { target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, commands: { powerOn: 'x', powerOff: 'y' } } }, command: { kind: 'osd', key: 'menu' } })
     assert.equal(r.status, 501)
   })
 })
@@ -315,5 +329,134 @@ describe('quit', () => {
     await new Promise(r => setTimeout(r, 200))
     assert.equal(quit, true)
     await new Promise(r => s.close(r))
+  })
+})
+
+describe('test pattern via user commands', () => {
+  const pj = (commands?: object) => ({ ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: christie.port, ...(commands ? { commands } : {}) } })
+
+  test('protocol without a built-in test pattern (PJLink) and without commands → 501', async () => {
+    const pjlink = { ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: 4352 } }
+    assert.equal((await post('/api/devices/command', { target: pjlink, command: { kind: 'testPattern', enabled: true } })).status, 501)
+    assert.equal((await post('/api/devices/command', { target: pjlink, command: { kind: 'osdDisplay', visible: true } })).status, 501)
+  })
+
+  test('Christie built-in: (ITP n) per pattern, (ITP 0) off, unsupported pattern → 501-style error, (OSD n)', async () => {
+    const before = christie.received.length
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: true, pattern: 'color-bars' } })).status, 200)
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: false } })).status, 200)
+    assert.equal((await post('/api/devices/command', { target: pj(), command: { kind: 'osdDisplay', visible: false } })).status, 200)
+    assert.deepEqual(christie.received.slice(before), ['(ITP 5)', '(ITP 0)', '(OSD 0)'])
+    const bad = await post('/api/devices/command', { target: pj(), command: { kind: 'testPattern', enabled: true, pattern: 'focus' } })
+    assert.equal(bad.status, 501)
+    assert.match(bad.body.error.message, /no "focus" test pattern/)
+  })
+
+  test('user-declared templates still win over the built-in pattern', async () => {
+    const before = christie.received.length
+    await post('/api/devices/command', { target: pj({ testPatternOn: '(PWR?)', testPatternOff: '(SHU?)' }), command: { kind: 'testPattern', enabled: true, pattern: 'grid' } })
+    assert.deepEqual(christie.received.slice(before), ['(PWR?)'])
+  })
+
+  test('with both commands the configured text is sent through RAW', async () => {
+    const before = christie.received.length
+    const r = await post('/api/devices/command', { target: pj({ testPatternOn: '(PWR?)', testPatternOff: '(SHU?)' }), command: { kind: 'testPattern', enabled: true } })
+    assert.equal(r.status, 200)
+    assert.deepEqual(christie.received.slice(before), ['(PWR?)'])
+  })
+
+  test('test pattern templates do not unlock other commands', async () => {
+    const r = await post('/api/devices/command', { target: pj({ testPatternOn: 'a', testPatternOff: 'b' }), command: { kind: 'osd', key: 'menu' } })
+    assert.equal(r.status, 501)
+  })
+})
+
+describe('identify one IP', () => {
+  test('finds the Panasonic simulator on its port range? (uses default ports) → not found on loopback without sims', async () => {
+    const r = await post('/api/devices/identify', { ip: '127.0.0.99' })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.found, false)
+  })
+
+  test('refuses public IPs', async () => {
+    assert.equal((await post('/api/devices/identify', { ip: '8.8.8.8' })).status, 403)
+  })
+})
+
+describe('readings (temperature / lamp hours via user queries)', () => {
+  const sim = new PjlinkSimulator()
+  before(async () => { await sim.start() })
+  after(async () => { await sim.stop() })
+  const target = (commands?: object) => ({ ip: '127.0.0.1', protocol: { type: 'pjlink-class2', port: sim.port, ...(commands ? { commands } : {}) } })
+
+  test('extractNumber: capture group, last-number fallback, bad regex', () => {
+    assert.equal(extractNumber('%1LAMP=1200 1', 'LAMP=(\\d+)'), 1200)
+    assert.equal(extractNumber('(TMP! 001 "45")'), 45)
+    assert.equal(extractNumber('no digits'), undefined)
+    assert.equal(extractNumber('12', '(['), undefined)
+  })
+
+  test('status without queries has no temperature', async () => {
+    const r = await post('/api/devices/status', { target: target() })
+    assert.equal(r.body.temperatureC, undefined)
+  })
+
+  test('configured queries fill temperatureC and lampHours from the device reply', async () => {
+    const r = await post('/api/devices/status', { target: target({ temperatureQuery: '%1LAMP ?', temperatureRegex: 'LAMP=(\\d+)', lampHoursQuery: '%1LAMP ?', lampHoursRegex: 'LAMP=(\\d+) ' }) })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.lampHours, 1200)
+    // Máy giả lập đang standby → không hỏi nhiệt độ.
+    assert.equal(r.body.temperatureC, undefined)
+  })
+
+  test('a failing query does not break the status', async () => {
+    const r = await post('/api/devices/status', { target: target({ lampHoursQuery: '%1NOPE ?' }) })
+    assert.equal(r.status, 200)
+    assert.equal(r.body.power, 'standby')
+  })
+})
+
+describe('command overrides (Advanced page)', () => {
+  let s: http.Server, u: string, dir: string
+  const sim = new ChristieSimulator()
+  before(async () => {
+    dir = fs.mkdtempSync(path.join(os.tmpdir(), 'mikmaster-ovr-'))
+    s = createServer({ store: createProjectStore(dir) })
+    await new Promise<void>(r => s.listen(0, '127.0.0.1', r))
+    u = `http://127.0.0.1:${(s.address() as AddressInfo).port}`
+    await sim.start()
+  })
+  after(async () => { await sim.stop(); await new Promise(r => s.close(r)); fs.rmSync(dir, { recursive: true, force: true }) })
+  const put = (body: unknown) => fetch(`${u}/api/command-overrides`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const cmd = (commands: object | undefined, command: object) => fetch(`${u}/api/devices/command`, {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ target: { ip: '127.0.0.1', protocol: { type: 'christie-serial-ip', port: sim.port, ...(commands ? { commands } : {}) } }, command }),
+  })
+
+  test('saved sanitised: unknown brands / keys / empty values are dropped', async () => {
+    const r = await put({ christie: { powerOn: '(PWR?)', bogus: 'x', powerOff: '   ' }, hacker: { powerOn: 'y' } })
+    assert.deepEqual(await r.json(), { christie: { powerOn: '(PWR?)' } })
+    assert.deepEqual(await (await fetch(`${u}/api/command-overrides`)).json(), { christie: { powerOn: '(PWR?)' } })
+    assert.equal((await put([1, 2])).status, 400)
+  })
+
+  test('a brand-level command replaces the built-in one; a projector-level command wins over it', async () => {
+    await put({ christie: { powerOn: '(PWR?)', shutterClose: '(SHU?)' } })
+    let before = sim.received.length
+    assert.equal((await cmd(undefined, { kind: 'power', value: 'on' })).status, 200)
+    assert.deepEqual(sim.received.slice(before), ['(PWR?)']) // thay cho (PWR 1)
+    before = sim.received.length
+    assert.equal((await cmd({ powerOn: '(SHU?)' }, { kind: 'power', value: 'on' })).status, 200)
+    assert.deepEqual(sim.received.slice(before), ['(SHU?)'])
+    before = sim.received.length
+    await cmd(undefined, { kind: 'power', value: 'standby' }) // powerOff không sửa → lệnh có sẵn
+    assert.deepEqual(sim.received.slice(before), ['(PWR 0)'])
+  })
+
+  test('resetting (empty object) restores the built-in commands', async () => {
+    await put({})
+    const before = sim.received.length
+    await cmd(undefined, { kind: 'power', value: 'on' })
+    assert.deepEqual(sim.received.slice(before), ['(PWR 1)'])
   })
 })

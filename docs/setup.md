@@ -14,7 +14,7 @@ Tải ở mục **Releases** trên GitHub:
 | Máy | File |
 |---|---|
 | Windows | **MikMaster-Setup.exe** (bộ cài, nên dùng) — hoặc **MikMaster.exe** (chạy ngay, không cài) |
-| Mac (Apple Silicon) | **MikMaster.dmg** |
+| Mac (Apple Silicon) | **MikMaster-Setup.pkg** (bộ cài, nên dùng) — hoặc **MikMaster.dmg** (kéo thả) |
 
 Không máy nào cần cài Node hay tải thêm gì: app đã chứa sẵn mọi thứ, cài được khi không có mạng.
 
@@ -30,7 +30,8 @@ Không muốn cài: dùng **MikMaster.exe**, chép đi đâu cũng chạy đư�
 
 ### Mac
 
-1. Mở `MikMaster.dmg`, kéo **MikMaster** vào **Applications**.
+1. Bộ cài: bấm đúp **MikMaster-Setup.pkg** → *Continue* → *Install* (cần mật khẩu Mac). Bộ cài tự tắt MikMaster bản cũ đang chạy nền và cài vào **Applications**. Lần đầu macOS có thể chặn vì bộ cài chưa ký: chuột phải vào file → *Open* → *Open*, hoặc **System Settings → Privacy & Security → Open Anyway**.
+   Không muốn dùng bộ cài: mở `MikMaster.dmg`, kéo **MikMaster** vào **Applications** (nhớ tắt bản cũ trước: menu logo → Quit).
 2. Mở MikMaster từ Applications / Launchpad. App chạy nền (không có cửa sổ riêng) và tự mở trình duyệt.
 3. Lần đầu (app chưa được Apple công chứng): macOS báo không mở được → **System Settings → Privacy & Security** → *Open Anyway* (macOS 14 trở về trước: chuột phải vào app → *Open*).
    macOS hỏi quyền **Local Network** → **Allow**, nếu không MikMaster không thấy máy chiếu.
@@ -119,4 +120,4 @@ Chạy lệnh trong thư mục MikMaster, sau `pnpm build`. Gỡ: `launchctl unl
 
 ## Khi phát triển
 
-`pnpm dev` (giao diện, http://localhost:5173) + `pnpm server` (gateway) — hoặc F5 trong VS Code, cấu hình **Dev: Gateway + Web**.
+`pnpm dev` (giao diện, http://localhost:5173) + `pnpm run server` (gateway) — hoặc F5 trong VS Code, cấu hình **Dev: Gateway + Web**.

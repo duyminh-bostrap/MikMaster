@@ -3,7 +3,7 @@ import { intToIp } from '../../shared/ipRange.ts'
 import { DRIVERS } from './drivers/index.ts'
 
 /** PJLink Class 1 là tập con mà mọi thiết bị PJLink đều hiểu nên dùng làm nhãn khi quét. */
-export const SCAN_PROTOCOLS: readonly DriverProtocol[] = ['pjlink-class1', 'panasonic-nt-control', 'christie-serial-ip']
+export const SCAN_PROTOCOLS: readonly DriverProtocol[] = ['pjlink-class1', 'panasonic-nt-control', 'christie-serial-ip', 'barco-pulse']
 
 export interface ScanOptions {
   /** Địa chỉ đầu / cuối dạng số (xem shared/ipRange.ts), đã kiểm tra hợp lệ. */

@@ -1,7 +1,7 @@
 import crypto from 'node:crypto'
 import fs from 'node:fs'
 import path from 'node:path'
-import type { ProjectSnapshotDto, ProjectSummaryDto } from '../../shared/api.ts'
+import { COMMAND_BRANDS, TEMPLATE_KEYS, QUICK_LOGIN_BRANDS, type CommandOverridesDto, type CommandTemplates, type ProjectSnapshotDto, type ProjectSummaryDto, type QuickLoginsDto } from '../../shared/api.ts'
 import { DeviceError } from './net/tcp.ts'
 
 /*
@@ -71,6 +71,29 @@ export interface ProjectStore {
   load(id: string): ProjectSnapshotDto | null
   save(snapshot: ProjectSnapshotDto): ProjectSummaryDto
   remove(id: string): boolean
+  /** Tài khoản đăng nhập nhanh theo hãng; mật khẩu mã hoá trên đĩa như project. */
+  /** Lệnh sửa ở trang Nâng cao, theo hãng (không chứa bí mật nên lưu dạng thường). */
+  getCommandOverrides(): CommandOverridesDto
+  setCommandOverrides(o: CommandOverridesDto): void
+  getQuickLogins(): QuickLoginsDto
+  setQuickLogins(logins: QuickLoginsDto): void
+}
+
+/** Chỉ giữ hãng và khoá lệnh đã biết, giá trị chuỗi không rỗng ≤ 256 ký tự. */
+export function sanitizeOverrides(raw: unknown): CommandOverridesDto {
+  const out: CommandOverridesDto = {}
+  if (!isObject(raw)) return out
+  for (const brand of COMMAND_BRANDS) {
+    const e = raw[brand]
+    if (!isObject(e)) continue
+    const c: CommandTemplates = {}
+    for (const k of TEMPLATE_KEYS) {
+      const v = e[k]
+      if (typeof v === 'string' && v.trim() && v.length <= 256) c[k] = v
+    }
+    if (Object.keys(c).length > 0) out[brand] = c
+  }
+  return out
 }
 
 export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectStore {
@@ -93,6 +116,8 @@ export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectSt
   }
   const key = loadKey()
   const fileOf = (id: string) => path.join(projectsDir, `${id}.json`)
+  const quickFile = path.join(dir, 'quick-logins.json')
+  const overridesFile = path.join(dir, 'command-overrides.json')
 
   function read(id: string): { summary: ProjectSummaryDto; snapshot: ProjectSnapshotDto } | null {
     try { return JSON.parse(fs.readFileSync(fileOf(id), 'utf8')) } catch { return null }
@@ -121,6 +146,36 @@ export function createProjectStore(dir: string, keyOverride?: Buffer): ProjectSt
     },
     remove(id) {
       try { fs.unlinkSync(fileOf(id)); return true } catch { return false }
+    },
+    getCommandOverrides() {
+      try { return sanitizeOverrides(JSON.parse(fs.readFileSync(overridesFile, 'utf8'))) } catch { return {} }
+    },
+    setCommandOverrides(o) {
+      const tmp = `${overridesFile}.${process.pid}.tmp`
+      fs.writeFileSync(tmp, JSON.stringify(sanitizeOverrides(o)), { mode: 0o600 })
+      fs.renameSync(tmp, overridesFile)
+    },
+    getQuickLogins() {
+      let raw: unknown
+      try { raw = JSON.parse(fs.readFileSync(quickFile, 'utf8')) } catch { return {} }
+      const out: QuickLoginsDto = {}
+      for (const brand of QUICK_LOGIN_BRANDS) {
+        const e = isObject(raw) ? raw[brand] : undefined
+        if (!isObject(e) || typeof e.username !== 'string' || typeof e.password !== 'string') continue
+        const password = e.password === '' ? '' : decryptSecret(key, e.password)
+        if (password !== undefined) out[brand] = { username: e.username, password }
+      }
+      return out
+    },
+    setQuickLogins(logins) {
+      const body: Record<string, { username: string; password: string }> = {}
+      for (const brand of QUICK_LOGIN_BRANDS) {
+        const e = logins[brand]
+        if (e) body[brand] = { username: e.username, password: e.password === '' ? '' : encryptSecret(key, e.password) }
+      }
+      const tmp = `${quickFile}.${process.pid}.tmp`
+      fs.writeFileSync(tmp, JSON.stringify(body), { mode: 0o600 })
+      fs.renameSync(tmp, quickFile)
     },
   }
 }

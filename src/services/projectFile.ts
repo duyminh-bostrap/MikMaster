@@ -39,7 +39,7 @@ export function parseProjectFile(text: string): ProjectSnapshot {
 
   const boothList: Booth[] = booths.filter(isObject).filter(b => typeof b.id === 'string' && typeof b.name === 'string')
     .map(b => ({ id: b.id as string, name: b.name as string }))
-  if (boothList.length === 0) boothList.push({ id: 'booth-1', name: 'Booth 1' })
+  if (boothList.length === 0) boothList.push({ id: 'booth-1', name: 'Group 1' })
   const boothIds = new Set(boothList.map(b => b.id))
 
   const seen = new Set<string>()
@@ -52,7 +52,10 @@ export function parseProjectFile(text: string): ProjectSnapshot {
     while (seen.has(id)) id = `${id}-${i + 1}`
     seen.add(id)
     const base = createProjector({ id, boothId: boothList[0]!.id, name: `Projector ${ip}`, ip, protocol: typeof protocol.type === 'string' ? (protocol.type as never) : undefined })
-    const merged = { ...base, ...(p as Partial<Projector>), id } as Projector
+    // Bỏ các trường đã thôi dùng (location của máy — từ bản 0.4).
+    // (và `mapPos` — sơ đồ 2D đã bỏ ở 0.6.2: file lưu từ bản 0.6.1 có trường này.)
+    const { location: _dropped, mapPos: _map, ...rest } = p as Partial<Projector> & { location?: unknown; mapPos?: unknown }
+    const merged = { ...base, ...rest, id } as Projector
     return {
       ...merged,
       boothId: boothIds.has(merged.boothId) ? merged.boothId : boothList[0]!.id,

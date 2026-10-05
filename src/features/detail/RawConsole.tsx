@@ -1,13 +1,12 @@
-import { useState } from 'react'
-import { Button } from '@/components/ui/Button'
-import { TextInput } from '@/components/ui/Field'
-import { SectionHeader } from '@/components/ui/SectionHeader'
+import { useEffect, useRef, useState } from 'react'
 import { useGateway } from '@/store/useGateway'
 import type { Projector } from '@/types'
+import { t } from '@/i18n'
 
 const RAW_HINTS: Partial<Record<Projector['network']['protocol']['type'], string>> = {
   'panasonic-nt-control': 'e.g. QPW',
   'christie-serial-ip': 'e.g. (PWR?)',
+  'barco-pulse': 'e.g. property.get {"property":"system.state"}',
   'generic-tcp': 'e.g. PWR ON\\r\\n  (\\r \\n \\xHH)',
   'generic-udp': 'e.g. ping  (\\r \\n \\xHH)',
   'art-net': 'e.g. 0 1=255 5-8=128  (universe ch=value)',
@@ -39,20 +38,30 @@ export function RawConsole({ projector: p }: { projector: Projector }) {
     setText('')
   }
 
+  // Terminal: dòng mới ở cuối, tự cuộn xuống.
+  const endRef = useRef<HTMLDivElement>(null)
+  useEffect(() => { endRef.current?.scrollIntoView?.({ block: 'end' }) }, [lines])
+  const ordered = [...lines].reverse()
+
   return (
-    <>
-      <SectionHeader label="RAW COMMAND" />
-      <div className="flex gap-1.5">
-        <TextInput aria-label="Raw command" value={text} placeholder={hint} className="px-2 py-1.5 text-xs" onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && void send()} />
-        <Button variant="accent" disabled={busy || !text.trim()} onClick={() => void send()}>SEND</Button>
-      </div>
-      <ul className="mt-2 flex max-h-32 flex-col gap-1 overflow-y-auto font-mono text-[10px] leading-snug">
-        {lines.map(l => (
-          <li key={l.id} className={l.kind === 'err' ? 'text-danger' : l.kind === 'rx' ? 'text-ok' : 'text-muted-foreground'}>
+    <div className="flex h-full min-h-0 flex-col font-mono text-xs">
+      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2 leading-snug">
+        {ordered.length === 0 && <p className="text-muted-foreground">{t('Type a vendor command below and press Enter. Replies appear here.')}</p>}
+        {ordered.map(l => (
+          <div key={l.id} className={l.kind === 'err' ? 'text-danger' : l.kind === 'rx' ? 'text-ok' : 'text-muted-foreground'}>
             {l.kind === 'tx' ? '> ' : '< '}{l.text}
-          </li>
+          </div>
         ))}
-      </ul>
-    </>
+        <div ref={endRef} />
+      </div>
+      <div className="flex shrink-0 items-center gap-2 border-t border-border px-3 py-1.5">
+        <span className="text-accent" aria-hidden>&gt;</span>
+        <input aria-label={t('Raw command')} value={text} placeholder={hint} autoComplete="off" spellCheck={false}
+          onChange={e => setText(e.target.value)} onKeyDown={e => e.key === 'Enter' && void send()}
+          className="min-w-0 flex-1 bg-transparent text-foreground outline-none placeholder:text-muted-foreground/60" />
+        <button type="button" disabled={busy || !text.trim()} onClick={() => void send()}
+          className="rounded-sm border border-accent/40 px-2 py-0.5 text-[10px] tracking-[0.1em] text-accent transition-colors enabled:hover:bg-accent/10 disabled:opacity-40">{t('SEND')}</button>
+      </div>
+    </div>
   )
 }

@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, test } from 'vitest'
 import { getDeviceCredentials, getSharedCredentials, forgetDeviceCredentials, saveDeviceCredentials, saveSharedCredentials } from '@/services/credentialCache'
 import { initialProjectState, projectReducer } from '@/store/projectReducer'
-import { fillMissingCredentials, hasCredentials, needsAuth } from '@/utils/credentials'
+import { applyLogins, fillMissingCredentials, hasCredentials, loginGroups, needsAuth } from '@/utils/credentials'
 import { createProjector } from '@/utils/projector'
 import type { ProtocolType } from '@/types'
 
@@ -105,5 +105,30 @@ describe('loginRequired', () => {
     expect(loginRequired({ ...pana, connection: 'disconnected' }, true)).toBe(false) // mất mạng ≠ cần đăng nhập
     expect(loginRequired(proj('b', '10.0.0.2', 'panasonic-nt-control', { password: 'x' }), false)).toBe(false)
     expect(loginRequired(proj('c', '10.0.0.3', 'christie-serial-ip'), false)).toBe(false)
+  })
+})
+
+describe('login per projector type', () => {
+  const mixed = () => [
+    proj('a', '10.0.0.1', 'panasonic-nt-control'), proj('b', '10.0.0.2', 'panasonic-nt-control'),
+    proj('c', '10.0.0.3', 'christie-serial-ip'), proj('d', '10.0.0.4', 'generic-tcp'),
+  ]
+
+  test('loginGroups: một nhóm cho mỗi hãng có máy nhận được tài khoản; bắt buộc trước, tuỳ chọn (Christie) sau; máy không cần đăng nhập bị bỏ', () => {
+    expect(loginGroups([mixed()[2]!, ...mixed().slice(0, 2), mixed()[3]!])).toEqual([
+      { key: 'panasonic', label: 'Panasonic', count: 2, required: true },
+      { key: 'christie', label: 'Christie', count: 1, required: false },
+    ])
+  })
+
+  test('loginGroups: máy đã có mật khẩu không tính', () => {
+    expect(loginGroups([proj('a', '10.0.0.1', 'panasonic-nt-control', { password: 'x' })])).toEqual([])
+  })
+
+  test('applyLogins: mỗi hãng nhận tài khoản riêng; ô trống thì bỏ qua; không ghi đè mật khẩu đã có', () => {
+    const out = applyLogins([...mixed(), proj('e', '10.0.0.5', 'panasonic-nt-control', { password: 'keep' })], { panasonic: { username: 'admin', password: 'p1' }, christie: { username: 'user', password: 'p2' } })
+    expect(out.map(p => p.network.protocol.password)).toEqual(['p1', 'p1', 'p2', undefined, 'keep'])
+    const skip = applyLogins(mixed(), { panasonic: { username: 'admin', password: 'p1' }, christie: {} })
+    expect(skip[2]!.network.protocol.password).toBeUndefined()
   })
 })
