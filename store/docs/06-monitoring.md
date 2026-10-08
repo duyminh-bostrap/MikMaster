@@ -32,7 +32,8 @@ Trong tab **Tất cả máy chiếu**, nút **Bảng điều khiển** ở đầ
 - **Tình trạng chung**: số máy bật, tắt và cần chú ý, số máy đang khởi động hay làm nguội.
 - **Cảnh báo**: số cảnh báo đang có.
 - **Nhiệt độ TB** và máy nóng nhất.
-- **NHIỆT ĐỘ · BẬT / TẮT MÁY**: biểu đồ nhiệt độ của từng máy theo thời gian, cùng các biểu tượng bật, tắt và mất kết nối dưới trục thời gian. Chọn khoảng thời gian 5 phút, 15 phút hoặc 1 giờ. Mỗi máy có màu riêng, xem ở **MÀU CỦA TỪNG MÁY**.
+- **NHIỆT ĐỘ · BẬT / TẮT MÁY**: biểu đồ nhiệt độ của từng máy theo thời gian, cùng các biểu tượng bật, tắt và mất kết nối dưới trục thời gian. Chọn khoảng thời gian 5 phút, 15 phút, 1 giờ hoặc Tất cả. Mỗi máy có màu riêng, xem ở **MÀU CỦA TỪNG MÁY**.
+- **ĐỘ SÁNG**: độ sáng của từng máy báo về.
 - **THỜI GIAN TỪ LÚC BẬT MÁY**: mỗi máy đã bật bao lâu.
 - **NHẬT KÝ & LỖI** và **LỖI ĐANG CÓ**: sự kiện của mọi máy, lọc theo **Cảnh báo + lỗi**, **Lỗi** hoặc **Mọi sự kiện**. **LƯU LOG TỔNG** lưu nhật ký của mọi máy thành một tệp.
 

@@ -12,7 +12,7 @@ Tài liệu này dành cho chủ sản phẩm. Nó ghi chính xác app làm gì 
 | Hình trực tiếp, input, OSD, test pattern, độ sáng, lens, RAW COMMAND | Không | Có (lens hiện bị khoá ở chế độ máy thật cho mọi bản) |
 | Số máy chiếu | Không giới hạn trong API | Tối đa `max` của khoá (0 = không giới hạn) |
 
-Giá và tên gói: TODO(owner): tên gói, giá, thuê bao hay vĩnh viễn là gì? Không có trong kho mã. Website sở hữu bảng `license_plans`.
+TODO(owner): Tên gói, giá, thuê bao hay vĩnh viễn là gì? Không có trong kho mã. Website sở hữu bảng `license_plans`.
 
 TODO(owner): Free có giới hạn số máy chiếu hay không? `server/src/license.ts` có hằng `FREE_LIMIT = 3`, được báo trong API và dòng log khởi động ("limited to 3 projectors, no control"), nhưng hàm đếm giới hạn chỉ áp `max` của khoá hợp lệ, nên Free thực tế không giới hạn. Cần chốt một chính sách rồi sửa cho khớp.
 
