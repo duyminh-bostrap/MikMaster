@@ -58,6 +58,15 @@ jobs:
           # Đọc ở đây vì token của bước sau chỉ có quyền trên repo công khai.
           if [ "$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName)" = "$TAG" ]; then echo true > latest.txt; else echo false > latest.txt; fi
 
+      - name: Check the release notes (warnings only)
+        run: |
+          # Quy tắc ghi chú của trang Store (xem store/releases.md): đủ 3 mục, dưới 20.000 ký tự, không ảnh / HTML.
+          for h in "### What's new" "### Fixes" "### Known issues"; do
+            grep -qxF "$h" notes.md || echo "::warning::Release notes are missing the heading: $h"
+          done
+          [ "$(wc -m < notes.md)" -lt 20000 ] || echo "::warning::Release notes are 20,000 characters or longer"
+          grep -qE '!\[|<[a-zA-Z/]' notes.md && echo "::warning::Release notes contain an image or HTML" || true
+
       - name: Publish to the public repo
         env:
           GH_TOKEN: ${{ secrets.RELEASES_REPO_TOKEN }}
