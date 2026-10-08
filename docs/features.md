@@ -1,6 +1,6 @@
 # MikMaster — Danh sách tính năng
 
-Kiến trúc dữ liệu: **Project → Group → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32 / 4K50-RGB** (ngoài ra PJLink và các giao thức chung).
+Kiến trúc dữ liệu: **Project → Group → Projector**. Máy chiếu mục tiêu: **Panasonic PT-RQ35K** và **Christie Griffyn 4K32 / 4K50-RGB** (ngoài ra PJLink, Barco Pulse và các giao thức chung). Giao diện gọi nhóm máy là **Group**; trong dữ liệu, code và các mục cũ bên dưới vẫn là `booth`.
 
 ## Cách đọc trạng thái
 
@@ -52,34 +52,43 @@ Hai chế độ chạy, hiển thị ở chân trang:
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Sidebar theo Booth, grid toàn bộ / lọc theo Booth | ✅ | Booth đang lọc nằm trên URL |
+| Sidebar theo Group (thu gọn thành thanh rail hẹp), grid toàn bộ / lọc theo group | ✅ | Group đang lọc nằm trên URL |
 | **Độ sáng, test pattern, input (Panasonic RQ35K2)**: đặt và đọc lại — độ sáng = LIGHT OUTPUT (`VXX:LOPI2` / `QVX:LOPI2`), test pattern `OTS` / `QTS` (trắng, đen, crosshatch / grid, color bars, focus), input `IIS` / `QIN`; giao diện hiện giá trị máy báo, độ sáng chỉ gửi khi thả thanh trượt | ✅ (bằng máy giả lập) | Theo bảng lệnh RS-232C chính thức RQ35K2 (2025-08); **chưa kiểm trên máy thật** (NTCONTROL đòi đăng nhập). Quy đổi độ sáng % = giá trị / 10 chưa được xác nhận |
 | **Đổi input Christie** `(SIN idx)`, idx lấy từ danh sách input của máy (cần tài khoản web của máy) | ✅ (bằng máy giả lập) | Griffyn **không có** `(SIN+MAIN n)` (đã thử: Control Not Found); trang web của máy chọn input bằng `(SIN idx)`. Chưa thử đổi thật. Griffyn cũng không có lệnh độ sáng (`BRT`, `LPP`, `LOP`, `LPM`… đã thử) nên độ sáng Christie chưa làm |
 | **Chuyển máy sang group khác**: kéo thả hoặc chuột phải | ✅ | |
-| Tab **All** có hai cách xem (nút ở thanh lọc): **Groups** (thẻ gộp theo group, thu gọn / mở từng group) và **Dashboard** — các bảng theo dõi: nhiệt độ, độ sáng, thời gian từ lúc bật máy (tính từ lúc app thấy máy bật), trạng thái, nhật ký & lỗi; bấm hàng để mở máy | ✅ | Chịu bộ lọc / tìm kiếm của thanh lọc. Độ sáng hiện là giá trị trong app (chưa đọc từ máy) |
-| Điều khiển hàng loạt (tab Tất cả hoặc từng booth), nút icon: nguồn (bật lần lượt, mặc định cách 5 giây), shutter, OSD, test pattern; tắt máy / đóng shutter / hiện pattern hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
+| Tab **All** có hai cách xem (nút ở đầu thanh lọc): **Groups** (thẻ gộp theo group, thu gọn / mở từng group; group thu gọn chỉ hiện ảnh preview, rê chuột để xem thông tin) và **Dashboard** — theo dõi: **biểu đồ đường nhiệt độ theo thời gian kể từ lúc bật máy** (nhãn ở cuối đường, chú giải mọi máy kèm trạng thái kết nối và nhiệt độ, rê chuột vào đường để xem máy, đánh dấu bật / tắt, đường ngắt khi mất kết nối; khoảng 5 phút / 15 phút / 1 giờ / Tất cả), bảng độ sáng, thời gian từ lúc bật máy (tính từ lúc app thấy máy bật), trạng thái, nhật ký & lỗi; bấm hàng để mở máy | ✅ | Chịu bộ lọc / tìm kiếm. Lịch sử chỉ giữ trong bộ nhớ và chỉ ghi khi có gateway. Có nút **dữ liệu mẫu** để xem thử khi chưa có máy. Thang nhiệt độ 20–45 °C (cảnh báo > 33, nguy hiểm > 40). Độ sáng: Panasonic RQ35K2 đọc từ máy (chỉ kiểm bằng giả lập), máy khác là giá trị trong app |
+| Điều khiển hàng loạt (tab All hoặc từng group), nút icon: nguồn, shutter, OSD, test pattern; tắt máy / đóng shutter / hiện pattern hỏi xác nhận | 🧪 | Chưa thử trên máy thật |
+| **Bật lần lượt**: ALL ON bật từng máy cách nhau N giây (Cài đặt, 0–60 s, mặc định 5) để tránh sụt điện; thông báo tiến độ (máy thứ mấy, máy kế tiếp, đếm ngược) và nút **STOP**; tắt máy huỷ các máy đang chờ | ✅ | Có test (`powerSequence`) và e2e. Chạy trong trình duyệt: đóng tab giữa chừng thì các máy còn lại không được bật |
 | Tìm máy (tên, IP, model, booth; phím /) và lọc theo trạng thái | ✅ | |
 | Thêm / sửa / gỡ máy chiếu trên Dashboard (nút ở cuối sidebar, chuột phải vào thẻ) | ✅ | |
 | Nhập IP → tự nhận diện giao thức, cổng, model và đặt tên theo model | 🧪 | Cần gateway; model đọc qua PJLink (INF2) hoặc giao thức hãng |
 | Cổng điều khiển ẩn mặc định (dùng cổng chuẩn của giao thức), đổi được khi cần | ✅ | |
-| Chỉ số: Fleet Health, cảnh báo, nhiệt độ TB, giờ đèn | ✅ | |
+| Hàng đầu tab All: hai ô lớn **All on / All off** (cũng là nút bật / tắt tất cả; ghi số máy đang khởi động / làm nguội), cụm nút shutter / OSD / test pattern; số máy đang kết nối nằm ở thanh trên cạnh đồng hồ | ✅ | Thay cho vòng tròn Fleet Health và dòng ONLINE cũ |
+| Nút **REFRESH** ở thanh trên: đọc lại ngay mọi máy | ✅ | Máy bị từ chối đăng nhập không bị thử lại |
+| **Cảnh báo**: banner khi có lỗi hoặc nhiệt độ cao, huy hiệu nhiệt độ trên thẻ, cửa sổ nhắc một lần khi máy vượt 40 °C (đặt lại khi nguội) | ✅ | Chỉ tính máy đang kết nối |
+| **Trạng thái nguồn đi theo máy**: gửi lệnh thành công → WARMING UP rồi ON khi máy xác nhận; tắt → COOLING DOWN rồi OFF; màu và chữ theo từng trạng thái | 🧪 | Cần gateway; chế độ mô phỏng đổi thẳng sang trạng thái cuối |
+| Thẻ có **ảnh preview thật** (làm mới mỗi 3 giây) | 🧪 | Bản Pro; xem mục preview ở §7 |
+| **Lưu log** ra file: toàn bộ project hoặc từng máy (giữ 200 dòng mỗi máy) | ✅ | |
+| Ghi nhớ các lựa chọn giao diện giữa các lần mở | ✅ | |
 | Poll trạng thái thật 4 giây | 🧪 | Chỉ giao thức có driver |
 
 ## 4. Trang chi tiết
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Power ON / OFF, Shutter, Input | 🧪 | Christie chưa có Input |
-| OSD ON / OFF | 🎭 | Chưa có lệnh đã xác minh: chỉ đổi trạng thái trong app |
-| Test Pattern (từng máy và cả booth) | 🧪 | Mô phỏng: dùng ngay. Chạy thật: nhập lệnh bật / tắt test pattern (từ manual của máy) ở mục LỆNH — chưa có lệnh hãng đã xác minh |
-| Lens Shift / Zoom / Focus, Lens Preset | 🎭 | LIVE bị khoá: không gửi lệnh đoán vào động cơ ống kính |
-| Raw Command | 🧪 | Đối chiếu lệnh với máy thật |
+| Power ON / OFF, Shutter, Input | 🧪 | Input: PJLink, Panasonic `IIS`, Christie `(SIN idx)` (cần tài khoản web của máy); Barco chưa có Input |
+| OSD ON / OFF | 🧪 / 🎭 | Christie `(OSD 1)` / `(OSD 0)` gửi thật (phần đọc đã kiểm trên Griffyn). Máy khác: chưa có lệnh đã xác minh, chỉ đổi trạng thái trong app |
+| Test Pattern (từng máy và cả group) | 🧪 | **Panasonic RQ35K2** `OTS` / `QTS`: trắng, đen, crosshatch / grid, color bars, focus. **Christie** `(ITP n)`: lưới, trắng, đen, thanh màu. Mẫu máy không có (đỏ / xanh lá / xanh dương, gray ramp, crosshair…) bị làm mờ và không bao giờ gửi. Giao thức khác: nhập lệnh bật / tắt ở mục LỆNH. Số mẫu `ITP` chưa kiểm trên Griffyn |
+| Lens Shift / Zoom / Focus, Lens Preset | 🎭 | Christie: **đọc** vị trí lens từ máy ✅ (chỉ đọc). Di chuyển và preset: LIVE bị khoá, không gửi lệnh đoán vào động cơ ống kính; preset chỉ lưu vị trí trong app |
+| **Độ sáng** (dưới Lens Preset): đặt và đọc lại | 🧪 | Panasonic RQ35K2 (`VXX:LOPI2`); Griffyn không có lệnh độ sáng |
+| **Preview** ngay trên trang máy (bản Pro) | ✅ RQ35K (máy thật) · 🧪 Griffyn | Máy đang tắt vẫn xem được (đọc thụ động); nút **Pre-Show** (Panasonic) chỉ là phương án khi không có ảnh; báo "HDCP" / "BLANK" |
+| Nút **TERMINAL**: LOG và RAW COMMAND (đối chiếu lệnh với máy thật) gom một chỗ | 🧪 | |
 
 ## 5. Cài đặt, ngôn ngữ, trợ giúp
 
 | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|
-| Cài đặt: theme Tối / Sáng / Theo hệ thống, ngôn ngữ English / Tiếng Việt, khoảng cách bật máy | ✅ | Lưu trong trình duyệt |
+| Cài đặt: theme Tối / Sáng / Theo hệ thống, ngôn ngữ English / Tiếng Việt, khoảng cách bật máy (0–60 s) | ✅ | Lưu trong trình duyệt, không đi theo project. Ngôn ngữ mặc định theo trình duyệt (vi → Tiếng Việt) |
 | Hướng dẫn và Giới thiệu trong menu logo | ✅ | |
 | Đăng nhập máy ở góc trên bên phải trang máy chiếu | ✅ | Chỉ hiện khi máy cần đăng nhập |
 | **Đăng nhập nhanh theo hãng** (Panasonic / Christie / Barco): đăng nhập thành công một lần → lưu làm tài khoản của hãng → các máy cùng hãng chỉ bấm một nút | 🧪 | Tài khoản lưu mã hoá ở gateway (`quick-logins.json`, AES-256-GCM); **không ghi sẵn mật khẩu nào trong mã nguồn** |
@@ -90,7 +99,8 @@ Hai chế độ chạy, hiển thị ở chân trang:
 |---|---|---|
 | Cài như app từ Chrome / Edge (PWA) | ✅ | `pnpm start`, mở `http://127.0.0.1:8787` → Install. Chưa thử nút cài trên máy người dùng |
 | Chạy từ VS Code (F5) | ✅ | Dev: Gateway + Web, Build, Test |
-| Bộ cài `MikMaster-Setup.exe` (Windows, không cần admin) · `MikMaster.dmg` (Mac) · Quit từ menu logo | ✅ | Không cần cài Node; tự mở trình duyệt. Chưa ký số; .exe chưa thử trên Windows thật |
+| Bộ cài `MikMaster-Setup.exe` (Windows, không cần admin) · `MikMaster-Setup.pkg` và `MikMaster.dmg` (Mac) · Quit từ menu logo | ✅ | Không cần cài Node; tự mở trình duyệt. Chưa ký số; .exe chưa thử trên Windows thật |
+| Đồng bộ bản phát hành sang repo công khai (`sync-release.yml`) | 🧪 | Chỉ chạy khi đặt biến `RELEASES_REPO`; chỉ bản mới nhất được đánh dấu Latest |
 
 ## Trang Nâng cao (menu logo → Nâng cao…)
 
@@ -155,12 +165,12 @@ Hai máy thử: **Panasonic PT-RQ35K** `192.168.1.176` (firmware 1.21) và **Chr
 | Shutter (đọc) | ✅ `AVMT ?` | ✅ `(SHU?)` |
 | Input (đọc) | ✅ `INPT ?` (máy chỉ có HDMI 1 / 2 qua PJLink) | ✅ `(SIN?)` → "One-Port HDMI0" = HDMI 1 |
 | Giờ đèn / laser | ✅ `LAMP ?` | ✅ `(SST+LGHT?)` Laser On Hours; dự phòng `(SST+SYST?)` Projector Hours |
-| Nhiệt độ | ⬜ PJLink không có lệnh nhiệt độ; NTCONTROL cần đăng nhập — chưa thử | ✅ `(SST+TEMP?)`: nhiệt độ khí vào + 12 cảm biến (trang máy: "Tất cả cảm biến") |
+| Nhiệt độ | 🧪 PJLink không có lệnh nhiệt độ; app đọc từ trang trạng thái web của máy (`simple_status.cgi`, Digest) với `QTM` dự phòng, cả khi standby — cần đăng nhập, chưa kiểm trên máy thật | ✅ `(SST+TEMP?)`: nhiệt độ khí vào + 12 cảm biến (trang máy: "Tất cả cảm biến") |
 | Lỗi | ✅ `ERST ?` | ⬜ (có nhóm `SST+ALRM`, chưa đưa vào) |
 | Độ sáng | ⬜ PJLink không có lệnh | ⬜ Griffyn không có `LPP` / `LOP` / `BRT` (Control Not Found) |
-| Đổi input (ghi) | 🧪 PJLink `INPT 31/32` — chưa gửi thử | ⬜ Chưa có bảng số `SIN` của cấu hình cổng |
+| Đổi input (ghi) | 🧪 PJLink `INPT 31/32` — chưa gửi thử | 🧪 `(SIN idx)`, idx lấy từ danh sách input của máy (cần tài khoản web); chưa thử đổi thật. Không có `(SIN+MAIN n)` |
 | Vị trí lens (đọc) | ⬜ PJLink không có | ✅ `LHO?` `LVO?` `ZOM?` `FCS?` (đơn vị của máy) — ô "Vị trí lens (máy báo)" ở cột lens |
-| Test pattern | ⬜ PJLink không có | 🧪 `(ITP n)` theo tài liệu Christie 4K7-HS/4K10-HS: lưới, trắng, đen, thanh màu, đỏ, xanh lá, xanh dương (nút Test pattern gửi thẳng); các mẫu khác báo không hỗ trợ. **Chưa kiểm số mẫu trên Griffyn** |
+| Test pattern | ⬜ PJLink không có | 🧪 `(ITP n)` theo tài liệu Christie 4K7-HS/4K10-HS: lưới, trắng, đen, thanh màu (nút Test pattern gửi thẳng); đỏ / xanh lá / xanh dương phẳng báo không hỗ trợ vì Griffyn không có các mẫu đó. **Chưa kiểm số mẫu trên Griffyn** |
 | OSD hiện / ẩn | ⬜ | 🧪 `(OSD 1)` / `(OSD 0)`, trạng thái đọc từ `(OSD?)` (đã kiểm phần đọc trên Griffyn); nút OSD gửi thẳng |
 | Live preview | ✅ Panasonic RQ35K (đã kiểm trên máy thật): WebSocket `ws://<ip>:8080` (giao thức `pj-cast-protocol`, **không cần đăng nhập**), ảnh JPEG 480×304 ~5 khung/giây, một kết nối dùng chung cho mọi thẻ; báo "không có tín hiệu" (BLANK) / "HDCP". Xem khi máy đang bật (Pre-Show cho phép xem cả khi standby nhưng đó là cài đặt máy, app không tự bật) | 🧪 Ảnh tín hiệu vào qua web của máy (JSON-RPC `/cgi-bin/c4jweb`: `session:connect` → `video:getInputInfo` → `/cgi-bin/thumbnail`), làm mới mỗi giây ở trang máy, mỗi 3 giây ở thẻ Dashboard (thẻ có thumbnail thật). **Cần tài khoản web** (hoặc đăng nhập nhanh của hãng) — nhập ở góc trên bên phải trang máy ("Tài khoản web"). Đã kiểm với bộ giả lập; chưa kiểm với máy thật vì cần đăng nhập |
 
