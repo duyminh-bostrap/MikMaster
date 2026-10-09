@@ -369,6 +369,7 @@ export const VI: Record<string, string> = {
   'EMAIL': 'EMAIL',
   'Free for 30 days on this computer. Each account and each computer gets one free period. At least 6 characters.': 'Miễn phí 30 ngày trên máy này. Mỗi tài khoản và mỗi máy chỉ được một lần miễn phí. Mật khẩu ít nhất 6 ký tự.',
   'CREATE FREE ACCOUNT': 'TẠO TÀI KHOẢN MIỄN PHÍ',
+  'No account? Sign up on the website': 'Chưa có tài khoản? Đăng ký trên website',
   'Your password is sent only to the account server. MikMaster does not store it.': 'Mật khẩu chỉ được gửi tới máy chủ tài khoản. MikMaster không lưu mật khẩu.',
   'Copied': 'Đã chép',
   'Account': 'Tài khoản',

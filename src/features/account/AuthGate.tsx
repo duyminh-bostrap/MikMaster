@@ -10,6 +10,9 @@ import { cn } from '@/utils/cn'
 
 type Tab = 'signin' | 'signup' | 'key'
 
+// Cùng project Supabase với app: tài khoản tạo ở website đăng nhập được ngay trong app.
+const PORTFOLIO_SIGNUP_URL = 'https://mike-portfolio-ten.vercel.app/signup'
+
 /**
  * Trang license: nhập khoá (hoặc, nếu đã cấu hình hệ thống tài khoản, đăng nhập / tạo tài khoản Free 30 ngày) để mở khoá bản Pro.
  * Hiện khi mở app ở bản Free và bỏ qua được ("tiếp tục với bản Free": chỉ bật / tắt máy và shutter); mở lại từ nút UNLOCK PRO / huy hiệu.
@@ -148,6 +151,11 @@ export function AuthGate() {
           <Button variant="primary" size="md" disabled={!canSubmit} onClick={() => void submit()}>
             {busy ? t('CHECKING…') : current === 'signin' ? t('SIGN IN') : current === 'signup' ? t('CREATE FREE ACCOUNT') : t('ACTIVATE')}
           </Button>
+          {current !== 'key' && (
+            <a href={PORTFOLIO_SIGNUP_URL} target="_blank" rel="noreferrer" className="text-center font-mono text-[11px] text-muted-foreground underline underline-offset-2 hover:text-foreground">
+              {t('No account? Sign up on the website')}
+            </a>
+          )}
         </div>
       </div>
       <div className="w-full max-w-md rounded-sm border border-border bg-card p-4 font-mono text-[11px] leading-relaxed">
