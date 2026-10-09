@@ -16,5 +16,5 @@ export const DEFAULT_LICENSE_CHECK_URL = ''
  * Điền ở đây hoặc đặt biến môi trường MIKMASTER_SUPABASE_URL / MIKMASTER_SUPABASE_ANON_KEY. Để trống = tắt hệ thống tài khoản
  * (không có dùng thử cục bộ: app chạy bản Free cho tới khi nhập khoá license). Xem docs/accounts.md.
  */
-export const SUPABASE_URL = ''
-export const SUPABASE_ANON_KEY = ''
+export const SUPABASE_URL = 'https://zqxzrmisfudbythajykr.supabase.co'
+export const SUPABASE_ANON_KEY = 'sb_publishable_XA7RDHK6zkv4edGEh5Fyaw_gR1r6jOx'
